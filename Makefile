@@ -41,6 +41,9 @@ MAGMA_DIR ?= ../magma
 # If CUDA_DIR is not set, check for nvcc, or resort to /usr/local/cuda
 CUDA_DIR  ?= $(or $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir \
                $(shell which nvcc 2> /dev/null))))),/usr/local/cuda)
+# If OPENCL_DIR is not set
+OPENCL_DIR ?= /usr/lib/x86_64-linux-gnu/
+OPENCL_INCDIR ?= usr/include
 
 # Warning: SANTIZ options still don't run with /gpu/occa
 # export LSAN_OPTIONS=suppressions=.asanignore
@@ -90,6 +93,14 @@ NPROCS := $(shell getconf _NPROCESSORS_ONLN)
 MFLAGS := -j $(NPROCS) --warn-undefined-variables \
                        --no-print-directory --no-keep-going
 
+# Code generation using loopy
+#   Get python version information
+PYTHON_VERSION_MAJOR := $(shell python -c "import sys; print(sys.version_info[0])")
+PYTHON_VERSION_MINOR := $(shell python -c "import sys; print(sys.version_info[1])")
+PYTHON_VERSION = $(PYTHON_VERSION_MAJOR).$(PYTHON_VERSION_MINOR)
+PYTHON_CFLAGS := $(shell python$(PYTHON_VERSION)-config --cflags)
+CFLAGS += $(PYTHON_CFLAGS)
+
 PROVE ?= prove
 PROVE_OPTS ?= -j $(NPROCS)
 DARWIN := $(filter Darwin,$(shell uname -s))
@@ -130,6 +141,7 @@ magma_tmp.c    := $(magma_pre_src:%.c=%_tmp.c)
 magma_tmp.cu   := $(magma_pre_src:%.c=%_cuda.cu)
 magma_allsrc.c := $(magma_dsrc) $(magma_tmp.c)
 magma_allsrc.cu:= $(magma_tmp.cu)
+opencl.c       := $(sort $(wildcard backends/opencl/*.c))
 
 # Output using the 216-color rules mode
 rule_file = $(notdir $(1))
@@ -204,6 +216,10 @@ libceed.c += $(ref.c)
 libceed.c += $(template.c)
 libceed.c += $(blocked.c)
 
+# Code generation from loopy
+loopy.c     := $(sort $(wildcard code-gen/loopy/*.c))
+libceed.c += $(loopy.c)
+
 ifneq ($(wildcard $(OCCA_DIR)/lib/libocca.*),)
   $(libceed) : LDFLAGS += -L$(OCCA_DIR)/lib -Wl,-rpath,$(abspath $(OCCA_DIR)/lib)
   $(libceed) : LDLIBS += -locca
@@ -229,6 +245,14 @@ ifneq ($(wildcard $(MAGMA_DIR)/lib/libmagma.*),)
   $(magma_allsrc.cu:%.cu=$(OBJDIR)/%.o) : NVCCFLAGS += --compiler-options=-fPIC -DADD_ -I$(MAGMA_DIR)/include -I$(MAGMA_DIR)/magmablas -I$(MAGMA_DIR)/control -I$(CUDA_DIR)/include
   BACKENDS += /gpu/magma
   endif
+endif
+
+ifneq ($(wildcard $(OPENCL_DIR)/libOpenCL.*),)
+  $(libceed) : LDFLAGS += -L$(OPENCL_DIR) -Wl,-rpath,$(abspath $(OPENCL_DIR))
+  $(libceed) : LDLIBS += -lOpenCL
+  libceed.c += $(opencl.c)
+  $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I/$(OPENCL_INCDIR)
+  BACKENDS += /cpu/opencl /gpu/opencl /omp/opencl
 endif
 
 export BACKENDS
