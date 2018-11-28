@@ -34,7 +34,7 @@ ifneq ($(wildcard ../mfem/libmfem.*),)
 endif
 
 # OCCA_DIR env variable should point to OCCA master (github.com/libocca/occa)
-OCCA_DIR ?= ../occa
+#OCCA_DIR ?= ../occa
 
 # env variable MAGMA_DIR can be used too
 MAGMA_DIR ?= ../magma
