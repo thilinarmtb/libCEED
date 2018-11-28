@@ -1,5 +1,5 @@
 // *****************************************************************************
-#include <ceed.h>
+#include <ceed-impl.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -89,4 +89,4 @@ typedef struct {
 } Ceed_OpenCL;
 
 // *****************************************************************************
-int OpenCL_test_00(void);
+CEED_INTERN int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);
