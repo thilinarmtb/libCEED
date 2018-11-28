@@ -12,6 +12,7 @@
 // *****************************************************************************
 typedef struct {
   CeedScalar *h_array;
+  CeedScalar *h_array_allocated;
   cl_mem d_array;
 } CeedVector_OpenCL;
 
