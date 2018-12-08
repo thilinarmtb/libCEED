@@ -43,7 +43,7 @@ CUDA_DIR  ?= $(or $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir \
                $(shell which nvcc 2> /dev/null))))),/usr/local/cuda)
 # If OPENCL_DIR is not set
 OPENCL_DIR ?= /usr/lib/x86_64-linux-gnu/
-OPENCL_INCDIR ?= usr/include
+OPENCL_INCDIR ?= /usr/include
 
 # Warning: SANTIZ options still don't run with /gpu/occa
 # export LSAN_OPTIONS=suppressions=.asanignore

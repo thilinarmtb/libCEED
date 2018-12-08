@@ -155,7 +155,7 @@ static int CeedVectorDestroy_OpenCL(const CeedVector vec) {
 // *****************************************************************************
 // * Create a vector of the specified length (does not allocate memory)
 // *****************************************************************************
-int CeedVectorCreate_Occa(const CeedInt n, CeedVector vec) {
+int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
   int ierr;
   Ceed ceed = vec->ceed;
   const Ceed_OpenCL *ceed_data = ceed->data;
