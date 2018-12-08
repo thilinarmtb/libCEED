@@ -89,9 +89,9 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   const int nrc = 9; // number of characters in resource
   const bool cpu = !strncmp(resource,"/cpu/opencl",nrc);
   const bool gpu = !strncmp(resource,"/gpu/opencl",nrc);
-  const int rlen = strlen(resource);
-  const bool slash = (rlen>nrc)?resource[nrc]=='/'?true:false:false;
-  const int deviceID = slash?(rlen>nrc+1)?atoi(&resource[nrc+1]):0:0;
+  //const int rlen = strlen(resource);
+  //const bool slash = (rlen>nrc)?resource[nrc]=='/'?true:false:false;
+  //const int deviceID = slash?(rlen>nrc+1)?atoi(&resource[nrc+1]):0:0;
   // Warning: "backend cannot use resource" is used to grep in test/tap.sh
   if (!cpu && !gpu)
     return CeedError(ceed, 1, "OCCA backend cannot use resource: %s", resource);

@@ -130,7 +130,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   // ***************************************************************************
   //if (cbytes>0) occaCopyPtrToMem(d_ctx,qf->ctx,cbytes,0,NO_PROPS);
   if (cbytes>0) clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-		  cbytes,qf->ctx,0,NULL,NULL);
+		  cbytes, qf->ctx, 0, NULL, NULL);
 
   // ***************************************************************************
   dbg("[CeedQFunction][Apply] occaKernelRun");
@@ -152,40 +152,48 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL, &globalSize,
 		  &localSize, 0, NULL, NULL);
 
-//// ***************************************************************************
+  // ***************************************************************************
 //if (cbytes>0) occaCopyMemToPtr(qf->ctx,d_ctx,cbytes,0,NO_PROPS);
+  if (cbytes>0) clEnqueueReadBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
+		  cbytes, qf->ctx, 0, NULL, NULL);
 
-//// ***************************************************************************
-//const int nOut = qf->numoutputfields;
-//for (CeedInt i=0; i<nOut; i++) {
-//  const CeedEvalMode emode = qf->outputfields[i].emode;
-//  const char *name = qf->outputfields[i].fieldname;
-//  const CeedInt ncomp = qf->outputfields[i].ncomp;
-//  const CeedInt dim = data->dim;
-//  switch (emode) {
-//  case CEED_EVAL_NONE:
-//    dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
-//    occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
-//                     NO_PROPS);
-//    break;
-//  case CEED_EVAL_INTERP:
-//    dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
-//    occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
-//                     NO_PROPS);
-//    break;
-//  case CEED_EVAL_GRAD:
-//    dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
-//    occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*dim*nelem*bytes,data->oOf7[i]*bytes,
-//                     NO_PROPS);
-//    break;
-//  case CEED_EVAL_WEIGHT:
-//    break; // no action
-//  case CEED_EVAL_CURL:
-//    break; // Not implimented
-//  case CEED_EVAL_DIV:
-//    break; // Not implimented
-//  }
-//}
+  // ***************************************************************************
+  const int nOut = qf->numoutputfields;
+  for (CeedInt i=0; i<nOut; i++) {
+    const CeedEvalMode emode = qf->outputfields[i].emode;
+    const char *name = qf->outputfields[i].fieldname;
+    const CeedInt ncomp = qf->outputfields[i].ncomp;
+    const CeedInt dim = data->dim;
+    switch (emode) {
+    case CEED_EVAL_NONE:
+      dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
+      //occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
+      //                 NO_PROPS);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0, Q*ncomp*nelem*bytes,
+		      out[i], 0, NULL, NULL);
+      break;
+    case CEED_EVAL_INTERP:
+      dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
+      //occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
+      //                 NO_PROPS);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0, Q*ncomp*nelem*bytes,
+		      out[i], 0, NULL, NULL);
+      break;
+    case CEED_EVAL_GRAD:
+      dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
+      //occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*dim*nelem*bytes,data->oOf7[i]*bytes,
+      //                 NO_PROPS);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0, Q*ncomp*dim*nelem*bytes,
+		      out[i], 0, NULL, NULL);
+      break;
+    case CEED_EVAL_WEIGHT:
+      break; // no action
+    case CEED_EVAL_CURL:
+      break; // Not implimented
+    case CEED_EVAL_DIV:
+      break; // Not implimented
+    }
+  }
   return 0;
 }
 
@@ -220,7 +228,7 @@ int CeedQFunctionCreate_OpenCL(CeedQFunction qf) {
   CeedQFunction_OpenCL *data;
   int ierr = CeedCalloc(1,&data); CeedChk(ierr);
   // Populate the CeedQFunction structure **************************************
-  //qf->Apply = CeedQFunctionApply_OpenCL;
+  qf->Apply = CeedQFunctionApply_OpenCL;
   qf->Destroy = CeedQFunctionDestroy_OpenCL;
   qf->data = data;
   // Fill CeedQFunction_OpenCL struct ********************************************
@@ -246,18 +254,18 @@ int CeedQFunctionCreate_OpenCL(CeedQFunction qf) {
   const char *last_slash = last_slash_pos?last_slash_pos+1:qf->focca;
   dbg("[CeedQFunction][Create] last_slash: %s",last_slash);
   // extract c_src_file & okl_base_name
-  char *c_src_file, *okl_base_name;
+  //char *c_src_file, *okl_base_name;
   //ierr = CeedCalloc(OCCA_PATH_MAX,&okl_base_name); CeedChk(ierr);
   //ierr = CeedCalloc(OCCA_PATH_MAX,&c_src_file); CeedChk(ierr);
-  memcpy(okl_base_name,last_slash,last_dot-last_slash);
-  memcpy(c_src_file,qf->focca,last_colon-qf->focca);
-  dbg("[CeedQFunction][Create] c_src_file: %s",c_src_file);
-  dbg("[CeedQFunction][Create] okl_base_name: %s",okl_base_name);
+  //memcpy(okl_base_name,last_slash,last_dot-last_slash);
+  //memcpy(c_src_file,qf->focca,last_colon-qf->focca);
+  //dbg("[CeedQFunction][Create] c_src_file: %s",c_src_file);
+  //dbg("[CeedQFunction][Create] okl_base_name: %s",okl_base_name);
   // Now fetch OKL filename ****************************************************
   //ierr = CeedOklPath_OpenCL(ceed,c_src_file, okl_base_name, &data->oklPath);
-  CeedChk(ierr);
+  //CeedChk(ierr);
   // free **********************************************************************
-  ierr = CeedFree(&okl_base_name); CeedChk(ierr);
-  ierr = CeedFree(&c_src_file); CeedChk(ierr);
+  //ierr = CeedFree(&okl_base_name); CeedChk(ierr);
+  //ierr = CeedFree(&c_src_file); CeedChk(ierr);
   return 0;
 }

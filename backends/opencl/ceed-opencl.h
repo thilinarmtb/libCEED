@@ -30,7 +30,7 @@ typedef struct {
 #define CEED_OPENCL_NUM_RESTRICTION_KERNEL 9
 typedef struct {
   cl_mem d_indices;
-  cl_mem d_toffests;
+  cl_mem d_toffsets;
   cl_mem d_tindices;
   cl_program program;
   cl_kernel kRestrict[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
