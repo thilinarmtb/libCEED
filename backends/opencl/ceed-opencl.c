@@ -41,7 +41,6 @@ static int CeedDestroy_OpenCL(Ceed ceed) {
 
   clReleaseContext(data->context);
   clReleaseCommandQueue(data->queue);
-  clReleaseProgram(data->program);
 
   ierr = CeedFree(&data->libceed_dir);
   ierr = CeedFree(&data); CeedChk(ierr);
@@ -127,7 +126,10 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id, NULL);
   }
 
-  dbg("[CeedInit] deviceID: %d", data->device_id);
+  data->context = clCreateContext(0, 1, &data->device_id, NULL, NULL, &err);
+  data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id, 0, &err);
+
+//dbg("[CeedInit] deviceID: %d", data->device_id);
 
 //char mode[CEED_MAX_RESOURCE_LEN] = {0};
 //// Push deviceID for CUDA and OpenCL mode
@@ -172,6 +174,4 @@ __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/opencl", CeedInit_OpenCL, 20);
   CeedRegister("/gpu/opencl", CeedInit_OpenCL, 20);
-  CeedRegister("/omp/opencl", CeedInit_OpenCL, 20);
-  CeedRegister("/ocl/opencl", CeedInit_OpenCL, 20);
 }

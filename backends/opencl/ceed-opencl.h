@@ -32,6 +32,7 @@ typedef struct {
   cl_mem d_indices;
   cl_mem d_toffests;
   cl_mem d_tindices;
+  cl_program program;
   cl_kernel kRestrict[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
   char *compleOptions;
 } CeedElemRestriction_OpenCL;
@@ -47,6 +48,7 @@ typedef struct {
   cl_mem interp1d;
   cl_mem grad1d;
   cl_mem tmp0,tmp1;
+  cl_program program;
   cl_kernel kZero,kInterp,kGrad,kWeight;
   char *compleOptions;
 } CeedBasis_OpenCL;
@@ -80,8 +82,8 @@ typedef struct {
   double epsilon;
   cl_mem o_indata, o_outdata;
   cl_mem d_ctx, d_idx, d_odx;
-  char *clPath;
   const char *qFunctionName;
+  cl_program program;
   cl_kernel kQFunctionApply;
   char *compleOptions;
   CeedOperator op;
@@ -98,7 +100,6 @@ typedef struct {
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue
-  cl_program program;               // program
 } Ceed_OpenCL;
 
 // *****************************************************************************

@@ -3,6 +3,6 @@
 
 #include <stddef.h>
 
-const char *OpenCLQFunctionApply = NULL;
+static const char *OpenCLKernels = NULL;
 
 #endif
