@@ -38,7 +38,7 @@ y_vec_host = np.random.randn(n).astype(np.float32)
 # ------
 
 kZero = lp.make_kernel(
-    "{ [e,i]: 0<=e<nelem and 0<=i<=vsize}",
+    "{ [e,i]: 0<=e<nelem and 0<=i<vsize }",
     """
     v[e*nc*elemsize + i] = 0
     """,
@@ -47,11 +47,11 @@ kZero = lp.make_kernel(
 print(kZero)
 
 kCeedTensorContract = lp.make_kernel(
-    "{[a,j,b,c]: 0<=a<A and 0<=j<J and 0<=b<B and 0<=c<C",
+    "{ [a,j,b,c]: 0<=a<A and 0<=j<J and 0<=b<B and 0<=c<C }",
     """
-    v[a,j,c] = Overwrite*v[a,j,c] + t[j*stride0 + b*stride1] * u[a,b,c] {dep=zero}
+    v[a,j,c] = Zero*v[a,j,c] + t[j*stride0 + b*stride1] * u[a,b,c]
     """,
-    assumptions="a,j,b,c > 0")
+    assumptions="A>0 and B>0 and C>0 and J>0")
 print(kCeedTensorContract)
 
 #This is wrong, d_v part needs to be inside all loops
