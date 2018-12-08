@@ -17,6 +17,7 @@
 #define CEED_DEBUG_COLOR 177
 #include "ceed-opencl.h"
 
+#include <math.h>
 // *****************************************************************************
 // * functions for the 'no-operator' case
 // *****************************************************************************
@@ -78,100 +79,115 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   return 0;
 }
 
-//// *****************************************************************************
-//// * Q-functions: Apply, Destroy & Create
-//// *****************************************************************************
-//// * CEED_EVAL_NONE, no action
-//// * CEED_EVAL_INTERP: Q*ncomp*nelem
-//// * CEED_EVAL_GRAD: Q*ncomp*dim*nelem
-//// * CEED_EVAL_WEIGHT: Q
-//// *****************************************************************************
-//static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
-//                                   const CeedScalar *const *in,
-//                                   CeedScalar *const *out) {
-//  const Ceed ceed = qf->ceed;
-//  dbg("[CeedQFunction][Apply]");
-//  CeedQFunction_OpenCL *data = qf->data;
-//  const bool from_operator_apply = data->op;
-//  //Ceed_OpenCL *ceed_data = qf->ceed->data;
-//  //const occaDevice device = ceed_data->device;
-//  const CeedInt bytes = sizeof(CeedScalar);
-//  const CeedInt ready =  data->ready;
-//  const CeedInt cbytes = qf->ctxsize;
-//  assert((Q%qf->vlength)==0); // Q must be a multiple of vlength
-//  const CeedInt nelem = 1; // !?
-//  // ***************************************************************************
-//  if (!ready) { // If the kernel has not been built, do it now
-//    data->ready=true;
-//    CeedQFunctionBuildKernel(qf,Q);
-//    if (!from_operator_apply) { // like coming directly from t20-qfunction
-//      dbg("[CeedQFunction][Apply] NO operator_setup");
-//      CeedQFunctionAllocNoOpIn_OpenCL(qf,Q,&data->idx,data->iOf7);
-//      CeedQFunctionAllocNoOpOut_OpenCL(qf,Q,&data->odx,data->oOf7);
-//    } else { // coming from operator_apply
-//      CeedQFunctionAllocOpIn_OpenCL(qf,Q,&data->idx,data->iOf7);
-//      CeedQFunctionAllocOpOut_OpenCL(qf,Q,&data->odx,data->oOf7);
-//    }
+// *****************************************************************************
+// * Q-functions: Apply, Destroy & Create
+// *****************************************************************************
+// * CEED_EVAL_NONE, no action
+// * CEED_EVAL_INTERP: Q*ncomp*nelem
+// * CEED_EVAL_GRAD: Q*ncomp*dim*nelem
+// * CEED_EVAL_WEIGHT: Q
+// *****************************************************************************
+static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
+                                   const CeedScalar *const *in,
+                                   CeedScalar *const *out) {
+  const Ceed ceed = qf->ceed;
+  dbg("[CeedQFunction][Apply]");
+  CeedQFunction_OpenCL *data = qf->data;
+  const bool from_operator_apply = data->op;
+  Ceed_OpenCL *ceed_data = qf->ceed->data;
+
+  const CeedInt bytes = sizeof(CeedScalar);
+  const CeedInt ready =  data->ready;
+  const CeedInt cbytes = qf->ctxsize;
+  assert((Q%qf->vlength)==0); // Q must be a multiple of vlength
+  const CeedInt nelem = 1; // !?
+  // ***************************************************************************
+  if (!ready) { // If the kernel has not been built, do it now
+    data->ready=true;
+    CeedQFunctionBuildKernel(qf,Q);
+    if (!from_operator_apply) { // like coming directly from t20-qfunction
+      dbg("[CeedQFunction][Apply] NO operator_setup");
+      CeedQFunctionAllocNoOpIn_OpenCL(qf,Q,&data->idx,data->iOf7);
+      CeedQFunctionAllocNoOpOut_OpenCL(qf,Q,&data->odx,data->oOf7);
+    } else { // coming from operator_apply
+      CeedQFunctionAllocOpIn_OpenCL(qf,Q,&data->idx,data->iOf7);
+      CeedQFunctionAllocOpOut_OpenCL(qf,Q,&data->odx,data->oOf7);
+    }
+  }
+  const cl_mem d_indata = data->o_indata;
+  const cl_mem d_outdata = data->o_outdata;
+  const cl_mem d_ctx = data->d_ctx;
+  const cl_mem d_idx = data->d_idx;
+  const cl_mem d_odx = data->d_odx;
+  // ***************************************************************************
+  if (!from_operator_apply) {
+    CeedQFunctionFillNoOp_OpenCL(qf,Q,d_indata,data->iOf7,data->oOf7,in);
+  } else {
+    dbg("[CeedQFunction][Apply] Operator setup, filling");
+    CeedQFunctionFillOp_OpenCL(qf,Q,d_indata,data->iOf7,data->oOf7,in);
+  }
+
+  // ***************************************************************************
+  //if (cbytes>0) occaCopyPtrToMem(d_ctx,qf->ctx,cbytes,0,NO_PROPS);
+  if (cbytes>0) clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
+		  cbytes,qf->ctx,0,NULL,NULL);
+
+  // ***************************************************************************
+  dbg("[CeedQFunction][Apply] occaKernelRun");
+
+  cl_int err;
+  size_t globalSize, localSize;
+  // Number of work items in each local work group
+  localSize = 64;
+  // Number of total work items - localSize must be devisor
+  globalSize = ceil(Q/(float)localSize)*localSize;
+
+  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), &d_ctx);
+  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), &Q);
+  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), &d_idx);
+  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), &d_odx);
+  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_indata);
+  err |= clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), &d_outdata);
+
+  clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL, &globalSize,
+		  &localSize, 0, NULL, NULL);
+
+//// ***************************************************************************
+//if (cbytes>0) occaCopyMemToPtr(qf->ctx,d_ctx,cbytes,0,NO_PROPS);
+
+//// ***************************************************************************
+//const int nOut = qf->numoutputfields;
+//for (CeedInt i=0; i<nOut; i++) {
+//  const CeedEvalMode emode = qf->outputfields[i].emode;
+//  const char *name = qf->outputfields[i].fieldname;
+//  const CeedInt ncomp = qf->outputfields[i].ncomp;
+//  const CeedInt dim = data->dim;
+//  switch (emode) {
+//  case CEED_EVAL_NONE:
+//    dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
+//    occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
+//                     NO_PROPS);
+//    break;
+//  case CEED_EVAL_INTERP:
+//    dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
+//    occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
+//                     NO_PROPS);
+//    break;
+//  case CEED_EVAL_GRAD:
+//    dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
+//    occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*dim*nelem*bytes,data->oOf7[i]*bytes,
+//                     NO_PROPS);
+//    break;
+//  case CEED_EVAL_WEIGHT:
+//    break; // no action
+//  case CEED_EVAL_CURL:
+//    break; // Not implimented
+//  case CEED_EVAL_DIV:
+//    break; // Not implimented
 //  }
-//  const occaMemory d_indata = data->o_indata;
-//  const occaMemory d_outdata = data->o_outdata;
-//  const occaMemory d_ctx = data->d_ctx;
-//  const occaMemory d_idx = data->d_idx;
-//  const occaMemory d_odx = data->d_odx;
-//  // ***************************************************************************
-//  if (!from_operator_apply) {
-//    CeedQFunctionFillNoOp_OpenCL(qf,Q,d_indata,data->iOf7,data->oOf7,in);
-//  } else {
-//    dbg("[CeedQFunction][Apply] Operator setup, filling");
-//    CeedQFunctionFillOp_OpenCL(qf,Q,d_indata,data->iOf7,data->oOf7,in);
-//  }
-//
-//  // ***************************************************************************
-//  if (cbytes>0) occaCopyPtrToMem(d_ctx,qf->ctx,cbytes,0,NO_PROPS);
-//
-//  // ***************************************************************************
-//  dbg("[CeedQFunction][Apply] occaKernelRun");
-//  occaKernelRun(data->kQFunctionApply,
-//                d_ctx, occaInt(Q),
-//                d_idx, d_odx,
-//                d_indata, d_outdata);
-//
-//  // ***************************************************************************
-//  if (cbytes>0) occaCopyMemToPtr(qf->ctx,d_ctx,cbytes,0,NO_PROPS);
-//
-//  // ***************************************************************************
-//  const int nOut = qf->numoutputfields;
-//  for (CeedInt i=0; i<nOut; i++) {
-//    const CeedEvalMode emode = qf->outputfields[i].emode;
-//    const char *name = qf->outputfields[i].fieldname;
-//    const CeedInt ncomp = qf->outputfields[i].ncomp;
-//    const CeedInt dim = data->dim;
-//    switch (emode) {
-//    case CEED_EVAL_NONE:
-//      dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
-//      occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
-//                       NO_PROPS);
-//      break;
-//    case CEED_EVAL_INTERP:
-//      dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
-//      occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
-//                       NO_PROPS);
-//      break;
-//    case CEED_EVAL_GRAD:
-//      dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
-//      occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*dim*nelem*bytes,data->oOf7[i]*bytes,
-//                       NO_PROPS);
-//      break;
-//    case CEED_EVAL_WEIGHT:
-//      break; // no action
-//    case CEED_EVAL_CURL:
-//      break; // Not implimented
-//    case CEED_EVAL_DIV:
-//      break; // Not implimented
-//    }
-//  }
-//  return 0;
 //}
+  return 0;
+}
 
 // *****************************************************************************
 // * CeedQFunctionDestroy_OpenCL
