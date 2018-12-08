@@ -27,7 +27,7 @@ static inline size_t bytes(const CeedElemRestriction res) {
 // * Restrict an L-vector to an E-vector or apply transpose
 // *****************************************************************************
 static
-int CeedElemRestrictionApply__OpenCL(CeedElemRestriction r,
+int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
                                   CeedTransposeMode tmode,
                                   CeedTransposeMode lmode,
                                   CeedVector u, CeedVector v,
@@ -132,7 +132,7 @@ int CeedElemRestrictionApply__OpenCL(CeedElemRestriction r,
 }
 
 // *****************************************************************************
-static int CeedElemRestrictionDestroy__OpenCL(CeedElemRestriction r) {
+static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
   int ierr;
   const Ceed ceed = r->ceed;
   CeedElemRestriction_OpenCL *data = r->data;
@@ -149,7 +149,7 @@ static int CeedElemRestrictionDestroy__OpenCL(CeedElemRestriction r) {
 // * Compute the transposed Tindices and Toffsets from indices
 // *****************************************************************************
 static
-int CeedElemRestrictionOffset__OpenCL(const CeedElemRestriction r,
+int CeedElemRestrictionOffset_OpenCL(const CeedElemRestriction r,
                                    const CeedInt *indices,
                                    CeedInt *toffsets,
                                    CeedInt *tindices) {
@@ -175,106 +175,115 @@ int CeedElemRestrictionOffset__OpenCL(const CeedElemRestriction r,
   return 0;
 }
 
-//// *****************************************************************************
-//int CeedElemRestrictionCreate__OpenCL(const CeedMemType mtype,
-//                                   const CeedCopyMode cmode,
-//                                   const CeedInt *indices,
-//                                   const CeedElemRestriction r) {
-//  const Ceed ceed = r->ceed;
-//  dbg("[CeedElemRestriction][Create]");
-//  int ierr;
-//  CeedElemRestriction__OpenCL *data;
-//  Ceed__OpenCL *ceed_data = ceed->data;
-//  const bool ocl = ceed_data->ocl;
-//  const occaDevice dev = ceed_data->device;
-//  CeedInt *used_indices;
-//  // ***************************************************************************
-//  if (mtype != CEED_MEM_HOST)
-//    return CeedError(ceed, 1, "Only MemType = HOST supported");
-//  r->Apply = CeedElemRestrictionApply__OpenCL;
-//  r->Destroy = CeedElemRestrictionDestroy__OpenCL;
-//  // Allocating occa & device **************************************************
-//  dbg("[CeedElemRestriction][Create] Allocating");
-//  ierr = CeedCalloc(1,&data); CeedChk(ierr);
-//  r->data = data;
-//  // ***************************************************************************
-//  // This is a temporary handling of null indices for identity restrictions
-//  if (indices == NULL) {
-//    dbg("[CeedElemRestriction][Create] Identity Restriction");
-//    ierr = CeedMalloc(r->ndof, &used_indices); CeedChk(ierr);
-//    for (CeedInt i=0; i<r->ndof; i++) used_indices[i] = i;
-//  } else {
-//    used_indices = (CeedInt *) indices;
-//  }
-//  // ***************************************************************************
-//  data->d_indices = occaDeviceMalloc(dev, bytes(r), NULL, NO_PROPS);
-//  data->d_toffsets = occaDeviceMalloc(dev,(1+r->ndof)*sizeof(CeedInt),
-//                                      NULL, NO_PROPS);
-//  data->d_tindices = occaDeviceMalloc(dev, bytes(r), NULL, NO_PROPS);
-//  // ***************************************************************************
-//  CeedInt *toffsets;
-//  ierr = CeedMalloc(r->ndof+1, &toffsets); CeedChk(ierr);
-//  CeedInt *tindices;
-//  ierr = CeedMalloc(r->elemsize*r->nelem, &tindices); CeedChk(ierr);
-//  CeedElemRestrictionOffset__OpenCL(r,used_indices,toffsets,tindices);
-//  occaCopyPtrToMem(data->d_toffsets,toffsets,
-//                   (1+r->ndof)*sizeof(CeedInt),NO_OFFSET,NO_PROPS);
-//  occaCopyPtrToMem(data->d_tindices,tindices,bytes(r),NO_OFFSET,NO_PROPS);
-//  // ***************************************************************************
-//  occaCopyPtrToMem(data->d_indices,used_indices,bytes(r),NO_OFFSET,NO_PROPS);
-//  // ***************************************************************************
-//  dbg("[CeedElemRestriction][Create] Building kRestrict");
-//
-//  dbg("[CeedElemRestriction][Create] Initialize kRestrict");
-//  for (int i = 0; i < CEED_OCCA_NUM_RESTRICTION_KERNELS; ++i) {
-//    data->kRestrict[i] = occaUndefined;
-//  }
-//
-//
-//  dbg("[CeedElemRestriction][Create] nelem=%d",r->nelem);
-//  occaProperties pKR = occaCreateProperties();
-//  occaPropertiesSet(pKR, "defines/ndof", occaInt(r->ndof));
-//  occaPropertiesSet(pKR, "defines/nelem", occaInt(r->nelem));
-//  occaPropertiesSet(pKR, "defines/elemsize", occaInt(r->elemsize));
-//  occaPropertiesSet(pKR, "defines/nelem_x_elemsize",
-//                    occaInt(r->nelem*r->elemsize));
-//  // OpenCL check for this requirement
-//  const CeedInt nelem_tile_size = (r->nelem>TILE_SIZE)?TILE_SIZE:r->nelem;
-//  // OCCA+MacOS implementation need that for now (if DeviceID targets a CPU)
-//  const CeedInt tile_size = ocl?1:nelem_tile_size;
-//  occaPropertiesSet(pKR, "defines/TILE_SIZE", occaInt(tile_size));
-//  // ***************************************************************************
-//  char *oklPath;
-//  ierr = CeedOklPath__OpenCL(ceed,__FILE__, "ceed-occa-restrict",&oklPath);
-//  CeedChk(ierr);
-//  // ***************************************************************************
-//  data->kRestrict[0] = occaDeviceBuildKernel(dev, oklPath, "kRestrict0", pKR);
-//  data->kRestrict[1] = occaDeviceBuildKernel(dev, oklPath, "kRestrict1", pKR);
-//  data->kRestrict[2] = occaDeviceBuildKernel(dev, oklPath, "kRestrict2", pKR);
-//  // data->kRestrict[3] = occaDeviceBuildKernel(dev, oklPath, "kRestrict3", pKR);
-//  // data->kRestrict[4] = occaDeviceBuildKernel(dev, oklPath, "kRestrict4", pKR);
-//  // data->kRestrict[5] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5", pKR);
-//  data->kRestrict[6] = occaDeviceBuildKernel(dev, oklPath, "kRestrict3b", pKR);
-//  data->kRestrict[7] = occaDeviceBuildKernel(dev, oklPath, "kRestrict4b", pKR);
-//  // data->kRestrict[8] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5b", pKR);
-//  // free local usage **********************************************************
-//  occaFree(pKR);
-//  ierr = CeedFree(&oklPath); CeedChk(ierr);
-//  dbg("[CeedElemRestriction][Create] done");
-//  // free indices as needed ****************************************************
-//  if (indices == NULL) {
-//    ierr = CeedFree(&used_indices); CeedChk(ierr);
-//  } else if (cmode == CEED_OWN_POINTER) {
-//    ierr = CeedFree(&indices); CeedChk(ierr);
-//  }
-//  ierr = CeedFree(&toffsets); CeedChk(ierr);
-//  ierr = CeedFree(&tindices); CeedChk(ierr);
-//  return 0;
-//}
-//// *****************************************************************************
-//int CeedElemRestrictionCreateBlocked__OpenCL(const CeedMemType mtype,
-//                                   const CeedCopyMode cmode,
-//                                   const CeedInt *indices,
-//                                   const CeedElemRestriction r) {
-//  return CeedError(r->ceed, 1, "Backend does not implement blocked restrictions");
-//}
+// *****************************************************************************
+int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
+                                   const CeedCopyMode cmode,
+                                   const CeedInt *indices,
+                                   const CeedElemRestriction r) {
+  const Ceed ceed = r->ceed;
+  dbg("[CeedElemRestriction][Create]");
+  int ierr;
+  CeedElemRestriction_OpenCL *data;
+  Ceed_OpenCL *ceed_data = ceed->data;
+  const bool ocl = ceed_data->ocl;
+  CeedInt *used_indices;
+  // ***************************************************************************
+  if (mtype != CEED_MEM_HOST)
+    return CeedError(ceed, 1, "Only MemType = HOST supported");
+  r->Apply = CeedElemRestrictionApply_OpenCL;
+  r->Destroy = CeedElemRestrictionDestroy_OpenCL;
+  // Allocating occa & device **************************************************
+  dbg("[CeedElemRestriction][Create] Allocating");
+  ierr = CeedCalloc(1,&data); CeedChk(ierr);
+  r->data = data;
+  // ***************************************************************************
+  // This is a temporary handling of null indices for identity restrictions
+  if (indices == NULL) {
+    dbg("[CeedElemRestriction][Create] Identity Restriction");
+    ierr = CeedMalloc(r->ndof, &used_indices); CeedChk(ierr);
+    for (CeedInt i=0; i<r->ndof; i++) used_indices[i] = i;
+  } else {
+    used_indices = (CeedInt *) indices;
+  }
+  // ***************************************************************************
+  data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  bytes(r), NULL, NULL);
+  data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  (1+r->ndof)*sizeof(CeedInt), NULL, NULL);
+  data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  bytes(r), NULL, NULL);
+  // ***************************************************************************
+  CeedInt *toffsets;
+  ierr = CeedMalloc(r->ndof+1, &toffsets); CeedChk(ierr);
+  CeedInt *tindices;
+  ierr = CeedMalloc(r->elemsize*r->nelem, &tindices); CeedChk(ierr);
+  CeedElemRestrictionOffset_OpenCL(r,used_indices,toffsets,tindices);
+  //occaCopyPtrToMem(data->d_toffsets,toffsets,
+  //                 (1+r->ndof)*sizeof(CeedInt),NO_OFFSET,NO_PROPS);
+  clEnqueueWriteBuffer(ceed_data->queue, data->d_toffsets, CL_TRUE, 0,
+		  (1+r->ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
+  //occaCopyPtrToMem(data->d_tindices,tindices,bytes(r),NO_OFFSET,NO_PROPS);
+  clEnqueueWriteBuffer(ceed_data->queue, data->d_tindices, CL_TRUE, 0,
+		  bytes(r), tindices, 0, NULL, NULL);
+  // ***************************************************************************
+  //occaCopyPtrToMem(data->d_indices,used_indices,bytes(r),NO_OFFSET,NO_PROPS);
+  clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
+		  bytes(r), used_indices, 0, NULL, NULL);
+  // ***************************************************************************
+  dbg("[CeedElemRestriction][Create] Building kRestrict");
+
+  dbg("[CeedElemRestriction][Create] Initialize kRestrict");
+  //for (int i = 0; i < CEED_OPENCL_NUM_RESTRICTION_KERNELS; ++i) {
+  //  data->kRestrict[i] = occaUndefined;
+  //}
+
+  dbg("[CeedElemRestriction][Create] nelem=%d",r->nelem);
+  char compileOptions[BUFSIZ], tmp[BUFSIZ];
+  sprintf(tmp,"-Dndof=%d", r->ndof);
+  strcpy(compileOptions, tmp);
+  sprintf(tmp,",-Dnelem=%d", r->nelem);
+  strcpy(compileOptions, tmp);
+  sprintf(tmp,",-Delemsize=%d", r->elemsize);
+  strcpy(compileOptions, tmp);
+  sprintf(tmp,",-Dnelem_x_elemsize=%d", r->nelem*r->elemsize);
+  strcpy(compileOptions, tmp);
+
+  // OpenCL check for this requirement
+  const CeedInt nelem_tile_size = (r->nelem>OPENCL_TILE_SIZE)?OPENCL_TILE_SIZE:r->nelem;
+  // OCCA+MacOS implementation need that for now (if DeviceID targets a CPU)
+  const CeedInt tile_size = ocl?1:nelem_tile_size;
+  sprintf(tmp, "-DTILE_SIZE=%d", tile_size);
+  strcpy(compileOptions, tmp);
+
+  // ***************************************************************************
+  cl_int err;
+  data->program = clCreateProgramWithSource(ceed_data->context, 1, OpenCLKernels, NULL, &err);
+  clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
+  data->kRestrict[0] = clCreateKernel(data->program, "kRestrict0", &err);
+  data->kRestrict[1] = clCreateKernel(data->program, "kRestrict1", &err);
+  data->kRestrict[2] = clCreateKernel(data->program, "kRestrict2", &err);
+  // data->kRestrict[3] = occaDeviceBuildKernel(dev, oklPath, "kRestrict3", pKR);
+  // data->kRestrict[4] = occaDeviceBuildKernel(dev, oklPath, "kRestrict4", pKR);
+  // data->kRestrict[5] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5", pKR);
+  data->kRestrict[6] = clCreateKernel(data->program, "kRestrict3b", &err);
+  data->kRestrict[7] = clCreateKernel(data->program, "kRestrict4b", &err);
+  // data->kRestrict[8] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5b", pKR);
+  // free local usage **********************************************************
+  dbg("[CeedElemRestriction][Create] done");
+  // free indices as needed ****************************************************
+  if (indices == NULL) {
+    ierr = CeedFree(&used_indices); CeedChk(ierr);
+  } else if (cmode == CEED_OWN_POINTER) {
+    ierr = CeedFree(&indices); CeedChk(ierr);
+  }
+  ierr = CeedFree(&toffsets); CeedChk(ierr);
+  ierr = CeedFree(&tindices); CeedChk(ierr);
+  return 0;
+}
+// *****************************************************************************
+int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
+                                   const CeedCopyMode cmode,
+                                   const CeedInt *indices,
+                                   const CeedElemRestriction r) {
+  return CeedError(r->ceed, 1, "Backend does not implement blocked restrictions");
+}

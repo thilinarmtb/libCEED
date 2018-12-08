@@ -49,8 +49,7 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   dbg("[CeedQFunction][BuildKernel] nelem=%d",data->nelem);
   dbg("[CeedQFunction][BuildKernel] elemsize=%d",data->elemsize);
 
-  char compileOptions[BUFSIZ];
-  char tmp[BUFSIZ];
+  char compileOptions[BUFSIZ], tmp[BUFSIZ];
 
   sprintf(tmp,"-DNC=%d", data->nc);
   strcpy(compileOptions, tmp);
