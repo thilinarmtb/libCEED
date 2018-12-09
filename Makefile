@@ -252,7 +252,7 @@ ifneq ($(wildcard $(OPENCL_DIR)/libOpenCL.*),)
   $(libceed) : LDLIBS += -lOpenCL
   libceed.c += $(opencl.c)
   $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I/$(OPENCL_INCDIR)
-  BACKENDS += /cpu/opencl /gpu/opencl /omp/opencl
+  BACKENDS += /cpu/opencl /gpu/opencl
 endif
 
 export BACKENDS
