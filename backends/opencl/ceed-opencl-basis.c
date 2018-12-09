@@ -252,96 +252,96 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
   return 0;
 }
 
-//// *****************************************************************************
-//// * CeedBasisApply_OpenCL
-//// *****************************************************************************
-//static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
-//                               CeedTransposeMode tmode, CeedEvalMode emode,
-//                               const CeedScalar *u, CeedScalar *v) {
-//  int ierr;
-//  const CeedInt dim = basis->dim;
-//  const CeedInt ncomp = basis->ncomp;
-//  const CeedInt nqpt = ncomp*CeedIntPow(basis->Q1d, dim);
-//  const CeedInt transpose = (tmode == CEED_TRANSPOSE);
-//
-//  if (nelem != 1)
-//    return CeedError(basis->ceed, 1,
-//                     "This backend does not support BasisApply for multiple elements");
-//  // ***************************************************************************
-//  if (transpose) {
-//    const CeedInt vsize = ncomp*CeedIntPow(basis->P1d, dim);
-//    //dbg("[CeedBasis][Apply] transpose");
-//    for (CeedInt i = 0; i < vsize; i++)
-//      v[i] = 0.0;
-//  }
-//  // ***************************************************************************
-//  if (emode == CEED_EVAL_NONE) {
-//    //dbg("[CeedBasis][Apply] CEED_EVAL_NONE");
-//  }
-//  // ***************************************************************************
-//  if (emode & CEED_EVAL_INTERP) {
-//    const CeedInt P = transpose?basis->Q1d:basis->P1d;
-//    const CeedInt Q = transpose?basis->P1d:basis->Q1d;
-//    CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
-//    //dbg("[CeedBasis][Apply] CEED_EVAL_INTERP");
-//    CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
-//    for (CeedInt d=0; d<dim; d++) {
-//      ierr = CeedTensorContract_OpenCL(pre, P, post, Q,
-//                                     basis->interp1d,
-//                                     tmode, transpose&&(d==dim-1),
-//                                     d==0?u:tmp[d%2],
-//                                     d==dim-1?v:tmp[(d+1)%2]);
-//      CeedChk(ierr);
-//      pre /= P;
-//      post *= Q;
-//    }
-//    if (!transpose) v += nqpt;
-//    else u += nqpt;
-//  }
-//  // ***************************************************************************
-//  if (emode & CEED_EVAL_GRAD) {
-//    const CeedInt P = transpose?basis->Q1d:basis->P1d;
-//    const CeedInt Q = transpose?basis->P1d:basis->Q1d;
-//    //dbg("[CeedBasis][Apply] CEED_EVAL_GRAD, P=%d, Q=%d",P,Q);
-//    CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
-//    for (CeedInt p=0; p<dim; p++) {
-//      CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
-//      for (CeedInt d=0; d<dim; d++) {
-//        ierr = CeedTensorContract_OpenCL(pre, P, post, Q,
-//                                       (p==d)?basis->grad1d:basis->interp1d,
-//                                       tmode, transpose&&(d==dim-1),
-//                                       d==0?u:tmp[d%2], d==dim-1?v:tmp[(d+1)%2]);
-//        CeedChk(ierr);
-//        pre /= P;
-//        post *= Q;
-//      }
-//      if (!transpose) v += nqpt;
-//      else u += nqpt;
-//    }
-//  }
-//  // ***************************************************************************
-//  if (emode & CEED_EVAL_WEIGHT) {
-//    //dbg("[CeedBasis][Apply] CEED_EVAL_WEIGHT");
-//    if (transpose)
-//      return CeedError(basis->ceed, 1,
-//                       "CEED_EVAL_WEIGHT incompatible with CEED_TRANSPOSE");
-//    // *************************************************************************
-//    CeedInt Q = basis->Q1d;
-//    for (CeedInt d=0; d<dim; d++) {
-//      const CeedInt pre = CeedIntPow(Q, dim-d-1), post = CeedIntPow(Q, d);
-//      for (CeedInt i=0; i<pre; i++) {
-//        for (CeedInt j=0; j<Q; j++) {
-//          for (CeedInt k=0; k<post; k++) {
-//            v[(i*Q + j)*post + k] =
-//              basis->qweight1d[j] * (d == 0 ? 1 : v[(i*Q + j)*post + k]);
-//          }
-//        }
-//      }
-//    }
-//  }
-//  return 0;
-//}
-//
+// *****************************************************************************
+// * CeedBasisApply_OpenCL
+// *****************************************************************************
+static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
+                               CeedTransposeMode tmode, CeedEvalMode emode,
+                               const CeedScalar *u, CeedScalar *v) {
+  int ierr;
+  const CeedInt dim = basis->dim;
+  const CeedInt ncomp = basis->ncomp;
+  const CeedInt nqpt = ncomp*CeedIntPow(basis->Q1d, dim);
+  const CeedInt transpose = (tmode == CEED_TRANSPOSE);
+
+  if (nelem != 1)
+    return CeedError(basis->ceed, 1,
+                     "This backend does not support BasisApply for multiple elements");
+  // ***************************************************************************
+  if (transpose) {
+    const CeedInt vsize = ncomp*CeedIntPow(basis->P1d, dim);
+    //dbg("[CeedBasis][Apply] transpose");
+    for (CeedInt i = 0; i < vsize; i++)
+      v[i] = 0.0;
+  }
+  // ***************************************************************************
+  if (emode == CEED_EVAL_NONE) {
+    //dbg("[CeedBasis][Apply] CEED_EVAL_NONE");
+  }
+  // ***************************************************************************
+  if (emode & CEED_EVAL_INTERP) {
+    const CeedInt P = transpose?basis->Q1d:basis->P1d;
+    const CeedInt Q = transpose?basis->P1d:basis->Q1d;
+    CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
+    //dbg("[CeedBasis][Apply] CEED_EVAL_INTERP");
+    CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
+    for (CeedInt d=0; d<dim; d++) {
+      ierr = CeedTensorContract_OpenCL(pre, P, post, Q,
+                                     basis->interp1d,
+                                     tmode, transpose&&(d==dim-1),
+                                     d==0?u:tmp[d%2],
+                                     d==dim-1?v:tmp[(d+1)%2]);
+      CeedChk(ierr);
+      pre /= P;
+      post *= Q;
+    }
+    if (!transpose) v += nqpt;
+    else u += nqpt;
+  }
+  // ***************************************************************************
+  if (emode & CEED_EVAL_GRAD) {
+    const CeedInt P = transpose?basis->Q1d:basis->P1d;
+    const CeedInt Q = transpose?basis->P1d:basis->Q1d;
+    //dbg("[CeedBasis][Apply] CEED_EVAL_GRAD, P=%d, Q=%d",P,Q);
+    CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
+    for (CeedInt p=0; p<dim; p++) {
+      CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
+      for (CeedInt d=0; d<dim; d++) {
+        ierr = CeedTensorContract_OpenCL(pre, P, post, Q,
+                                       (p==d)?basis->grad1d:basis->interp1d,
+                                       tmode, transpose&&(d==dim-1),
+                                       d==0?u:tmp[d%2], d==dim-1?v:tmp[(d+1)%2]);
+        CeedChk(ierr);
+        pre /= P;
+        post *= Q;
+      }
+      if (!transpose) v += nqpt;
+      else u += nqpt;
+    }
+  }
+  // ***************************************************************************
+  if (emode & CEED_EVAL_WEIGHT) {
+    //dbg("[CeedBasis][Apply] CEED_EVAL_WEIGHT");
+    if (transpose)
+      return CeedError(basis->ceed, 1,
+                       "CEED_EVAL_WEIGHT incompatible with CEED_TRANSPOSE");
+    // *************************************************************************
+    CeedInt Q = basis->Q1d;
+    for (CeedInt d=0; d<dim; d++) {
+      const CeedInt pre = CeedIntPow(Q, dim-d-1), post = CeedIntPow(Q, d);
+      for (CeedInt i=0; i<pre; i++) {
+        for (CeedInt j=0; j<Q; j++) {
+          for (CeedInt k=0; k<post; k++) {
+            v[(i*Q + j)*post + k] =
+              basis->qweight1d[j] * (d == 0 ? 1 : v[(i*Q + j)*post + k]);
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 //// *****************************************************************************
 //// * CeedBasisDestroy_OpenCL
 //// *****************************************************************************
