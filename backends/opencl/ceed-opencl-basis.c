@@ -20,7 +20,6 @@
 // * buildKernel
 // *****************************************************************************
 static int CeedBasisBuildKernel(CeedBasis basis) {
-  int ierr;
   const Ceed ceed = basis->ceed;
   const Ceed_OpenCL *ceed_data = ceed->data;
   CeedBasis_OpenCL *data = basis->data;
@@ -342,78 +341,93 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
   return 0;
 }
 
-//// *****************************************************************************
-//// * CeedBasisDestroy_OpenCL
-//// *****************************************************************************
-//static int CeedBasisDestroy_OpenCL(CeedBasis basis) {
-//  int ierr;
-//  const Ceed ceed = basis->ceed;
-//  CeedBasis_OpenCL *data = basis->data;
-//  dbg("[CeedBasis][Destroy]");
-//  occaFree(data->kZero);
-//  occaFree(data->kInterp);
-//  occaFree(data->kGrad);
-//  occaFree(data->kWeight);
-//  occaFree(data->qref1d);
-//  occaFree(data->qweight1d);
-//  occaFree(data->interp1d);
-//  occaFree(data->grad1d);
-//  ierr = CeedFree(&data); CeedChk(ierr);
-//  return 0;
-//}
-//
-//// *****************************************************************************
-//// * CeedBasisCreateTensorH1_OpenCL
-//// *****************************************************************************
-//int CeedBasisCreateTensorH1_OpenCL(CeedInt dim, CeedInt P1d, CeedInt Q1d,
-//                                 const CeedScalar *interp1d,
-//                                 const CeedScalar *grad1d,
-//                                 const CeedScalar *qref1d,
-//                                 const CeedScalar *qweight1d,
-//                                 CeedBasis basis) {
-//  int ierr;
-//  CeedBasis_OpenCL *data;
-//  Ceed ceed = basis->ceed;
-//  const Ceed_OpenCL *ceed_data = ceed->data;
-//  const occaDevice dev = ceed_data->device;
-//  dbg("[CeedBasis][CreateTensorH1]");
-//  // ***************************************************************************
-//  ierr = CeedCalloc(1,&data); CeedChk(ierr);
-//  basis->data = data;
-//  // ***************************************************************************
-//  assert(qref1d);
-//  data->qref1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-//  occaCopyPtrToMem(data->qref1d,qref1d,Q1d*sizeof(CeedScalar),NO_OFFSET,NO_PROPS);
-//  // ***************************************************************************
-//  assert(qweight1d);
-//  data->qweight1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-//  occaCopyPtrToMem(data->qweight1d,qweight1d,Q1d*sizeof(CeedScalar),NO_OFFSET,
-//                   NO_PROPS);
-//  // ***************************************************************************
-//  assert(interp1d);
-//  data->interp1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-//  occaCopyPtrToMem(data->interp1d,interp1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
-//                   NO_PROPS);
-//  // ***************************************************************************
-//  assert(grad1d);
-//  data->grad1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-//  occaCopyPtrToMem(data->grad1d,grad1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
-//                   NO_PROPS);
-//  // ***************************************************************************
-//  basis->Apply = CeedBasisApply_OpenCL;
-//  basis->Destroy = CeedBasisDestroy_OpenCL;
-//  return 0;
-//}
-//
-//// *****************************************************************************
-//// * CeedBasisCreateH1_OpenCL
-//// *****************************************************************************
-//int CeedBasisCreateH1_OpenCL(CeedElemTopology topo, CeedInt dim,
-//                          CeedInt ndof, CeedInt nqpts,
-//                          const CeedScalar *interp,
-//                          const CeedScalar *grad,
-//                          const CeedScalar *qref,
-//                          const CeedScalar *qweight,
-//                          CeedBasis basis) {
-//  return CeedError(basis->ceed, 1, "Backend does not implement non-tensor bases");
-//}
+// *****************************************************************************
+// * CeedBasisDestroy_OpenCL
+// *****************************************************************************
+static int CeedBasisDestroy_OpenCL(CeedBasis basis) {
+  int ierr;
+  const Ceed ceed = basis->ceed;
+  CeedBasis_OpenCL *data = basis->data;
+  dbg("[CeedBasis][Destroy]");
+  clReleaseKernel(data->kZero);
+  clReleaseKernel(data->kInterp);
+  clReleaseKernel(data->kGrad);
+  clReleaseKernel(data->kWeight);
+  clReleaseMemObject(data->qref1d);
+  clReleaseMemObject(data->qweight1d);
+  clReleaseMemObject(data->interp1d);
+  clReleaseMemObject(data->grad1d);
+  ierr = CeedFree(&data); CeedChk(ierr);
+  return 0;
+}
+
+// *****************************************************************************
+// * CeedBasisCreateTensorH1_OpenCL
+// *****************************************************************************
+int CeedBasisCreateTensorH1_OpenCL(CeedInt dim, CeedInt P1d, CeedInt Q1d,
+                                 const CeedScalar *interp1d,
+                                 const CeedScalar *grad1d,
+                                 const CeedScalar *qref1d,
+                                 const CeedScalar *qweight1d,
+                                 CeedBasis basis) {
+  int ierr;
+  CeedBasis_OpenCL *data;
+  Ceed ceed = basis->ceed;
+  const Ceed_OpenCL *ceed_data = ceed->data;
+  dbg("[CeedBasis][CreateTensorH1]");
+  // ***************************************************************************
+  ierr = CeedCalloc(1,&data); CeedChk(ierr);
+  basis->data = data;
+  // ***************************************************************************
+  assert(qref1d);
+  //data->qref1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
+  //occaCopyPtrToMem(data->qref1d,qref1d,Q1d*sizeof(CeedScalar),NO_OFFSET,NO_PROPS);
+  data->qref1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  Q1d*sizeof(CeedScalar), NULL, NULL);
+  clEnqueueWriteBuffer(ceed_data->queue, data->qref1d, CL_TRUE, 0,
+		  Q1d*sizeof(CeedScalar), qref1d, 0, NULL, NULL);
+  // ***************************************************************************
+  assert(qweight1d);
+  //data->qweight1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
+  //occaCopyPtrToMem(data->qweight1d,qweight1d,Q1d*sizeof(CeedScalar),NO_OFFSET,
+  //                 NO_PROPS);
+  data->qweight1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  Q1d*sizeof(CeedScalar), NULL, NULL);
+  clEnqueueWriteBuffer(ceed_data->queue, data->qweight1d, CL_TRUE, 0,
+		  Q1d*sizeof(CeedScalar), qweight1d, 0, NULL, NULL);
+  // ***************************************************************************
+  assert(interp1d);
+  //data->interp1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
+  //occaCopyPtrToMem(data->interp1d,interp1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
+  //                 NO_PROPS);
+  data->interp1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
+  clEnqueueWriteBuffer(ceed_data->queue, data->interp1d, CL_TRUE, 0,
+		  P1d*Q1d*sizeof(CeedScalar), interp1d, 0, NULL, NULL);
+  // ***************************************************************************
+  assert(grad1d);
+  //data->grad1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
+  //occaCopyPtrToMem(data->grad1d,grad1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
+  //                 NO_PROPS);
+  data->grad1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+		  P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
+  clEnqueueWriteBuffer(ceed_data->queue, data->grad1d, CL_TRUE, 0,
+		  P1d*Q1d*sizeof(CeedScalar), grad1d, 0, NULL, NULL);
+  // ***************************************************************************
+  basis->Apply = CeedBasisApply_OpenCL;
+  basis->Destroy = CeedBasisDestroy_OpenCL;
+  return 0;
+}
+
+// *****************************************************************************
+// * CeedBasisCreateH1_OpenCL
+// *****************************************************************************
+int CeedBasisCreateH1_OpenCL(CeedElemTopology topo, CeedInt dim,
+                          CeedInt ndof, CeedInt nqpts,
+                          const CeedScalar *interp,
+                          const CeedScalar *grad,
+                          const CeedScalar *qref,
+                          const CeedScalar *qweight,
+                          CeedBasis basis) {
+  return CeedError(basis->ceed, 1, "Backend does not implement non-tensor bases");
+}
