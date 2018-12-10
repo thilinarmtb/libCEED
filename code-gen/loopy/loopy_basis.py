@@ -47,22 +47,50 @@ kZero = lp.make_kernel(
 print(kZero)
 
 kCeedTensorContract = lp.make_kernel(
-    "{ [a,j,b,c]: 0<=a<A and 0<=j<J and 0<=b<B and 0<=c<C }",
+    ["{ [a,j,b]: 0<=a<A and 0<=j<J and 0<=b<B }",
+     "{ [c]: 0<=c<C}",
+     "{ [c_wxs]: wxs_os<=c_wxs<C+wxs_os}",
+     "{ [c_rxs]: rxs_os<=c_rxs<C+rxs_os}"
+    ],
     """
     <> tstride0 = if(transpose, 1, B)
     <> tstride1 = if(transpose, J, 1)
-    for a,j,b,c
-        <> wxs = ((a*J+j)*C+c) + wxs_os
-        <> rxs = ((a*B+b)*C+c) + rxs_os
-        v[wxs] = Add*v[wxs] + t[j*stride0 + b*stride1] * u[rxs]
-        #Using offsets instead of pointer stuff like OCCA
-        #Originally v on rhs, changed to f for testing
-        #v[a,j,c+wxs_os] = Add*v[a,j,c+wxs_os] + t[j*stride0 + b*stride1] * u[a,b,c+rxs_os]
+    #wxs = ((a*J+j)*C+c) + wxs_os
+    #rxs = ((a*B+b)*C+c) + rxs_os
+    #v[wxs] = Add*v[wxs] + t[j*stride0 + b*stride1] * u[rxs]
+    #v[a,j,c_wxs] = Add*v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    
+    # Alternative above, would be best if loopy could generate with loop inside
+    if Add 
+        v[a,j,c_wxs] = v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    else
+        v[a,j,c_wxs] = t[j*stride0 + b*stride1] * u[a,b,c_rxs]
     end
     """,
     assumptions="A>0 and B>0 and C>0 and J>0")
+kCeedTensorContract = lp.set_instruction_priority(kCeedTensorContract, "id:conditional", 10)
 print(kCeedTensorContract)
 
+kInterp = lp.make_kernel(
+    ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
+    "{ [a,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q }"],
+    """
+    <> P = if(transpose, Q1d, P1d)
+    <> Q = if(transpose, P1d, Q1d)
+ 
+    if(transpose)
+        <>P=Q1d
+                 
+    else
+    
+    end
+
+    
+
+    """,
+    assumptions="nelem>0 and dim>0")
+
+'''
 kInterp = lp.make_kernel(
     ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
      "{ [a,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q }"],
@@ -99,7 +127,7 @@ kInterp = lp.make_kernel(
     """,
     assumptions="nelem>0 and dim>0")
 print(kInterp)
-
+'''
 #data_flow = [ (v,0,1), (f,1,0), (u,0,1)
 #    (a,0,1),
 #    (j,0,1),
@@ -129,7 +157,7 @@ kWeight = lp.make_kernel(
 #   <> xs =((i*Q + j)*Q + k) + v_offset
 
     for k
-    #Scalars only right now
+    #Scalars only right now, need to incorpate nc otherwise
     #<> jVal = qweight1d[j]
     if d == 0
         d_v[e,dInd,i,j,kInd] = qweight1d[j]
