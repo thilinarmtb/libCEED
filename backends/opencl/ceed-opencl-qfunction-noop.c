@@ -150,48 +150,55 @@ int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
   return 0;
 }
 
-//// *****************************************************************************
-//// * Fill function for no-operator case
-//// *****************************************************************************
-//int CeedQFunctionFillNoOp_OpenCL(CeedQFunction qf, CeedInt Q,
-//                               occaMemory d_indata,
-//                               CeedInt *iOf7,
-//                               CeedInt *oOf7,
-//                               const CeedScalar *const *in) {
-//  const Ceed ceed = qf->ceed;
-//  const int nIn = qf->numinputfields;
-//  const CeedInt ilen = iOf7[nIn];
-//  const CeedInt bytes = sizeof(CeedScalar);
-//  for (CeedInt i=0; i<nIn; i++) {
-//    const CeedEvalMode emode = qf->inputfields[i].emode;
-//    const CeedInt ncomp = qf->inputfields[i].ncomp;
-//    const CeedInt length = iOf7[i+1]-iOf7[i];
-//    switch (emode) {
-//    case CEED_EVAL_INTERP:
-//      dbg("[CeedQFunction][FillNoOp] INTERP ilen=%d:%d", ilen, Q*ncomp);
-//      dbg("[CeedQFunction][FillNoOp] INTERP iOf7[%d]=%d", i,iOf7[i]);
-//      assert(length==Q*ncomp);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;
-//    case CEED_EVAL_GRAD:
-//      dbg("[CeedQFunction][FillNoOp] GRAD ilen=%d:%d", ilen, Q*ncomp);
-//      dbg("[CeedQFunction][FillNoOp] GRAD iOf7[%d]=%d", i,iOf7[i]);
-//      assert(length==Q*ncomp);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;
-//    case CEED_EVAL_WEIGHT:
-//      dbg("[CeedQFunction][FillNoOp] WEIGHT ilen=%d:%d", ilen, Q);
-//      dbg("[CeedQFunction][FillNoOp] WEIGHT iOf7[%d]=%d", i,iOf7[i]);
-//      assert(length==Q);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;
-//    case CEED_EVAL_NONE:
-//      break; // No action
-//    case CEED_EVAL_CURL:
-//      break; // Not implimented
-//    case CEED_EVAL_DIV:
-//      break; // Not implimented
-//    }
-//  }
-//  return 0;
-//}
+// *****************************************************************************
+// * Fill function for no-operator case
+// *****************************************************************************
+int CeedQFunctionFillNoOp_OpenCL(CeedQFunction qf, CeedInt Q,
+                               cl_mem d_indata,
+                               CeedInt *iOf7,
+                               CeedInt *oOf7,
+                               const CeedScalar *const *in) {
+  const Ceed ceed = qf->ceed;
+  const Ceed_OpenCL *ceed_data = qf->ceed->data;
+  const int nIn = qf->numinputfields;
+  const CeedInt ilen = iOf7[nIn];
+  const CeedInt bytes = sizeof(CeedScalar);
+  for (CeedInt i=0; i<nIn; i++) {
+    const CeedEvalMode emode = qf->inputfields[i].emode;
+    const CeedInt ncomp = qf->inputfields[i].ncomp;
+    const CeedInt length = iOf7[i+1]-iOf7[i];
+    switch (emode) {
+    case CEED_EVAL_INTERP:
+      dbg("[CeedQFunction][FillNoOp] INTERP ilen=%d:%d", ilen, Q*ncomp);
+      dbg("[CeedQFunction][FillNoOp] INTERP iOf7[%d]=%d", i,iOf7[i]);
+      assert(length==Q*ncomp);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;
+    case CEED_EVAL_GRAD:
+      dbg("[CeedQFunction][FillNoOp] GRAD ilen=%d:%d", ilen, Q*ncomp);
+      dbg("[CeedQFunction][FillNoOp] GRAD iOf7[%d]=%d", i,iOf7[i]);
+      assert(length==Q*ncomp);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;
+    case CEED_EVAL_WEIGHT:
+      dbg("[CeedQFunction][FillNoOp] WEIGHT ilen=%d:%d", ilen, Q);
+      dbg("[CeedQFunction][FillNoOp] WEIGHT iOf7[%d]=%d", i,iOf7[i]);
+      assert(length==Q);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;
+    case CEED_EVAL_NONE:
+      break; // No action
+    case CEED_EVAL_CURL:
+      break; // Not implimented
+    case CEED_EVAL_DIV:
+      break; // Not implimented
+    }
+  }
+  return 0;
+}

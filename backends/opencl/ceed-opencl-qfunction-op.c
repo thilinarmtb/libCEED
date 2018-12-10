@@ -153,64 +153,73 @@ int CeedQFunctionAllocOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
   return 0;
 }
 
-//// *****************************************************************************
-//// * Fill function for with operator case
-//// *****************************************************************************
-//int CeedQFunctionFillOp_OpenCL(CeedQFunction qf, CeedInt Q,
-//                             occaMemory d_indata,
-//                             CeedInt *iOf7,
-//                             CeedInt *oOf7,
-//                             const CeedScalar *const *in) {
-//  const Ceed ceed = qf->ceed;
-//  const int nIn = qf->numinputfields;
-//  const CeedInt bytes = sizeof(CeedScalar);
-//  dbg("\n[CeedQFunction][FillOp]");
-//  for (CeedInt i=0; i<nIn; i++) {
-//    const CeedInt ncomp = qf->inputfields[i].ncomp;
-//    const char *name = qf->inputfields[i].fieldname;
-//    const CeedEvalMode emode = qf->inputfields[i].emode;
-//    switch(emode) {
-//    case CEED_EVAL_NONE: {
-//      dbg("[CeedQFunction][FillOp] \"%s\" > NONE",name);
-//      const CeedInt length = Q*ncomp;
-//      dbg("[CeedQFunction][FillOp] NONE length=%d", length);
-//      dbg("[CeedQFunction][FillOp] NONE offset=%d", iOf7[i]);
-//      assert(length>0);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;
-//    }
-//    case CEED_EVAL_INTERP: {
-//      dbg("[CeedQFunction][FillOp] \"%s\" INTERP", name);
-//      dbg("[CeedQFunction][FillOp] INTERP iOf7[%d]=%d", i,iOf7[i]);
-//      const CeedInt length = iOf7[i+1]-iOf7[i];
-//      dbg("[CeedQFunction][FillOp] INTERP length=%d", length);
-//      dbg("[CeedQFunction][FillOp] INTERP offset=%d", iOf7[i]);
-//      assert(length>0);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;
-//    }
-//    case CEED_EVAL_GRAD: {
-//      dbg("[CeedQFunction][FillOp] \"%s\" GRAD", name);
-//      dbg("[CeedQFunction][FillOp] GRAD iOf7[%d]=%d", i,iOf7[i]);
-//      const CeedInt length = iOf7[i+1]-iOf7[i];
-//      dbg("[CeedQFunction][FillOp] GRAD length=%d", length);
-//      dbg("[CeedQFunction][FillOp] GRAD offset=%d", iOf7[i]);
-//      assert(length>0);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;
-//    }
-//    case CEED_EVAL_WEIGHT:
-//      dbg("[CeedQFunction][FillOp] \"%s\" WEIGHT", name);
-//      dbg("[CeedQFunction][FillOp] WEIGHT iOf7[%d]=%d", i,iOf7[i]);
-//      const CeedInt length = iOf7[i+1]-iOf7[i];
-//      dbg("[CeedQFunction][FillOp] WEIGHT length=%d", length);
-//      dbg("[CeedQFunction][FillOp] WEIGHT offset=%d", iOf7[i]);
-//      assert(length>0);
-//      occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-//      break;  // No action
-//    case CEED_EVAL_DIV: break; // Not implemented
-//    case CEED_EVAL_CURL: break; // Not implemented
-//    }
-//  }
-//  return 0;
-//}
+// *****************************************************************************
+// * Fill function for with operator case
+// *****************************************************************************
+int CeedQFunctionFillOp_OpenCL(CeedQFunction qf, CeedInt Q,
+                             cl_mem d_indata,
+                             CeedInt *iOf7,
+                             CeedInt *oOf7,
+                             const CeedScalar *const *in) {
+  const Ceed ceed = qf->ceed;
+  const Ceed_OpenCL *ceed_data = qf->ceed->data;
+  const int nIn = qf->numinputfields;
+  const CeedInt bytes = sizeof(CeedScalar);
+  dbg("\n[CeedQFunction][FillOp]");
+  for (CeedInt i=0; i<nIn; i++) {
+    const CeedInt ncomp = qf->inputfields[i].ncomp;
+    const char *name = qf->inputfields[i].fieldname;
+    const CeedEvalMode emode = qf->inputfields[i].emode;
+    switch(emode) {
+    case CEED_EVAL_NONE: {
+      dbg("[CeedQFunction][FillOp] \"%s\" > NONE",name);
+      const CeedInt length = Q*ncomp;
+      dbg("[CeedQFunction][FillOp] NONE length=%d", length);
+      dbg("[CeedQFunction][FillOp] NONE offset=%d", iOf7[i]);
+      assert(length>0);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;
+    }
+    case CEED_EVAL_INTERP: {
+      dbg("[CeedQFunction][FillOp] \"%s\" INTERP", name);
+      dbg("[CeedQFunction][FillOp] INTERP iOf7[%d]=%d", i,iOf7[i]);
+      const CeedInt length = iOf7[i+1]-iOf7[i];
+      dbg("[CeedQFunction][FillOp] INTERP length=%d", length);
+      dbg("[CeedQFunction][FillOp] INTERP offset=%d", iOf7[i]);
+      assert(length>0);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;
+    }
+    case CEED_EVAL_GRAD: {
+      dbg("[CeedQFunction][FillOp] \"%s\" GRAD", name);
+      dbg("[CeedQFunction][FillOp] GRAD iOf7[%d]=%d", i,iOf7[i]);
+      const CeedInt length = iOf7[i+1]-iOf7[i];
+      dbg("[CeedQFunction][FillOp] GRAD length=%d", length);
+      dbg("[CeedQFunction][FillOp] GRAD offset=%d", iOf7[i]);
+      assert(length>0);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;
+    }
+    case CEED_EVAL_WEIGHT:
+      dbg("[CeedQFunction][FillOp] \"%s\" WEIGHT", name);
+      dbg("[CeedQFunction][FillOp] WEIGHT iOf7[%d]=%d", i,iOf7[i]);
+      const CeedInt length = iOf7[i+1]-iOf7[i];
+      dbg("[CeedQFunction][FillOp] WEIGHT length=%d", length);
+      dbg("[CeedQFunction][FillOp] WEIGHT offset=%d", iOf7[i]);
+      assert(length>0);
+      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+		      length*bytes, in[i], 0, NULL, NULL);
+      break;  // No action
+    case CEED_EVAL_DIV: break; // Not implemented
+    case CEED_EVAL_CURL: break; // Not implemented
+    }
+  }
+  return 0;
+}
