@@ -93,14 +93,6 @@ NPROCS := $(shell getconf _NPROCESSORS_ONLN)
 MFLAGS := -j $(NPROCS) --warn-undefined-variables \
                        --no-print-directory --no-keep-going
 
-# Code generation using loopy
-#   Get python version information
-PYTHON_VERSION_MAJOR := $(shell python -c "import sys; print(sys.version_info[0])")
-PYTHON_VERSION_MINOR := $(shell python -c "import sys; print(sys.version_info[1])")
-PYTHON_VERSION = $(PYTHON_VERSION_MAJOR).$(PYTHON_VERSION_MINOR)
-PYTHON_CFLAGS := $(shell python$(PYTHON_VERSION)-config --cflags)
-CFLAGS += $(PYTHON_CFLAGS)
-
 PROVE ?= prove
 PROVE_OPTS ?= -j $(NPROCS)
 DARWIN := $(filter Darwin,$(shell uname -s))
@@ -142,6 +134,8 @@ magma_tmp.cu   := $(magma_pre_src:%.c=%_cuda.cu)
 magma_allsrc.c := $(magma_dsrc) $(magma_tmp.c)
 magma_allsrc.cu:= $(magma_tmp.cu)
 opencl.c       := $(sort $(wildcard backends/opencl/*.c))
+# Code generation from loopy
+loopy.c     := $(sort $(wildcard code-gen/loopy/*.c))
 
 # Output using the 216-color rules mode
 rule_file = $(notdir $(1))
@@ -216,10 +210,6 @@ libceed.c += $(ref.c)
 libceed.c += $(template.c)
 libceed.c += $(blocked.c)
 
-# Code generation from loopy
-loopy.c     := $(sort $(wildcard code-gen/loopy/*.c))
-libceed.c += $(loopy.c)
-
 ifneq ($(wildcard $(OCCA_DIR)/lib/libocca.*),)
   $(libceed) : LDFLAGS += -L$(OCCA_DIR)/lib -Wl,-rpath,$(abspath $(OCCA_DIR)/lib)
   $(libceed) : LDLIBS += -locca
@@ -248,11 +238,21 @@ ifneq ($(wildcard $(MAGMA_DIR)/lib/libmagma.*),)
 endif
 
 ifneq ($(wildcard $(OPENCL_DIR)/libOpenCL.*),)
+  libceed.c += $(opencl.c)
+  libceed.c += $(loopy.c)
+  BACKENDS += /cpu/opencl /gpu/opencl
+  #Code generation using loopy
+  #Get python version information
+  PYTHON_VERSION_MAJOR := $(shell python -c "import sys; print(sys.version_info[0])")
+  PYTHON_VERSION_MINOR := $(shell python -c "import sys; print(sys.version_info[1])")
+  PYTHON_VERSION = $(PYTHON_VERSION_MAJOR).$(PYTHON_VERSION_MINOR)
+  PYTHON_CFLAGS := $(shell python$(PYTHON_VERSION)-config --cflags)
+  PYTHON_LDFLAGS := $(shell python$(PYTHON_VERSION)-config --ldflags)
+  $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I/$(OPENCL_INCDIR)
+  $(loopy.c:%.c=$(OBJDIR)/%.o) : CFLAGS += $(PYTHON_CFLAGS)
   $(libceed) : LDFLAGS += -L$(OPENCL_DIR) -Wl,-rpath,$(abspath $(OPENCL_DIR))
   $(libceed) : LDLIBS += -lOpenCL
-  libceed.c += $(opencl.c)
-  $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I/$(OPENCL_INCDIR)
-  BACKENDS += /cpu/opencl /gpu/opencl
+  $(libceed) : LDLIBS += $(PYTHON_LDFLAGS)
 endif
 
 export BACKENDS
