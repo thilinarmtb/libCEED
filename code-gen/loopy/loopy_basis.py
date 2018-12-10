@@ -47,29 +47,127 @@ kZero = lp.make_kernel(
 print(kZero)
 
 kCeedTensorContract = lp.make_kernel(
-    "{ [a,j,b,c]: 0<=a<A and 0<=j<J and 0<=b<B and 0<=c<C }",
+    ["{ [a,j,b]: 0<=a<A and 0<=j<J and 0<=b<B }",
+     "{ [c]: 0<=c<C}",
+     "{ [c_wxs]: wxs_os<=c_wxs<C+wxs_os}",
+     "{ [c_rxs]: rxs_os<=c_rxs<C+rxs_os}"
+    ],
     """
-    v[a,j,c] = Zero*v[a,j,c] + t[j*stride0 + b*stride1] * u[a,b,c]
+    <> tstride0 = if(transpose, 1, B)
+    <> tstride1 = if(transpose, J, 1)
+    #wxs = ((a*J+j)*C+c) + wxs_os
+    #rxs = ((a*B+b)*C+c) + rxs_os
+    #v[wxs] = Add*v[wxs] + t[j*stride0 + b*stride1] * u[rxs]
+    #v[a,j,c_wxs] = Add*v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    
+    # Alternative above, would be best if loopy could generate with loop inside
+    if Add 
+        v[a,j,c_wxs] = v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    else
+        v[a,j,c_wxs] = t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    end
     """,
     assumptions="A>0 and B>0 and C>0 and J>0")
+kCeedTensorContract = lp.set_instruction_priority(kCeedTensorContract, "id:conditional", 10)
 print(kCeedTensorContract)
+
+kInterp = lp.make_kernel(
+    ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
+    "{ [a,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q }"],
+    """
+    <> P = if(transpose, Q1d, P1d)
+    <> Q = if(transpose, P1d, Q1d)
+ 
+    if(transpose)
+        <>P=Q1d
+                 
+    else
+    
+    end
+
+    
+
+    """,
+    assumptions="nelem>0 and dim>0")
+
+'''
+kInterp = lp.make_kernel(
+    ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
+     "{ [a,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q }"],
+    """
+    <> P = if(transpose, Q1d, P1d)
+    <> Q = if(transpose, P1d, Q1d)
+    for e
+        # Calculate offsets to data and temporary arrays
+        <> t_offset = e*tmpSz
+        <> u_offset = e*nc*elemsize
+        <> v_offset = e*QnD*nc*(dim+2)
+        <> d_u_offset = if(transpose, v_offset, u_offset)
+        <> d_v_offset = if(transpose, u_offset, v_offset)
+        <> wxs_os = if(d==0,     d_u_offset, t_offset)
+        <> rxs_os = if(d==dim-1, d_v_offset, t_offset) 
+
+        for d
+            <> Add = (transpose & (d == dim - 1))
+            <> pre = ndof*pow(P, dim-1-d)
+            <> post = pow(Q, d) 
+
+            #This is problematic              
+            <> u = if(d==0,     d_u[n], tmp0[n])
+            <> v = if(d==dim-1, d_v, tmp1)
+
+            d_v[(a*Q + j)*post + c + wxs_os] = f[(a*Q + j)*post + c + wxs_os]
+            #d_v[(a*J + j)*C + c + wxs_os] = f[(a*J + j)*C + c + wxs_os]
+            #d_v[a,j,c+wxs_os] = f[a,j,c+wxs_os]   
+        end
+
+        d_v_offset = d_v_offset + if(not transpose, nqpt, 0)
+        d_u_offset = d_u_offset + if( transpose, nqpt, 0)
+    end
+    """,
+    assumptions="nelem>0 and dim>0")
+print(kInterp)
+'''
+#data_flow = [ (v,0,1), (f,1,0), (u,0,1)
+#    (a,0,1),
+#    (j,0,1),
+#    (c,0,1),
+#    (wxs_os,0,1),
+#    (rxs_os,0,1),
+#    (v,0,1),
+#    (u,0,1)
+#]
+#kIntern_fused = lp.fuse_kernels((kInterp, kCeedTensorContract), data_flow=data_flow)
+#print(kInterk_fused)
 
 #This is wrong, d_v part needs to be inside all loops
 kWeight = lp.make_kernel(
-    ["{ [e,d,j]: 0<=e<nelem and 0<=d<dim and 0<=j<Q }",
-    "{ [i]: 0<=i<pre }",
-    "{ [k]: 0<=k<post }"],
+    ["{ [e,d]: 0<=e<nelem and 0<=d<dim}",
+#    "{ [i]: 0<=i<pre }",
+#    "{ [k]: 0<=k<post }"],
+    "{ [dInd]: dInd=d+2}",
+    "{ [kInd]: kInd=k+v_shift}",
+    "{ [i,j,k]: 0<=i,j,k<Q }"],
     """
-    for d, e
-        <> v_offset = e*QnD*nc*(dim + 2) + (QnD*nc + QnD*nc*dim)
-        <> pre = pow(Q, dim-d-1)
-        <> post = pow(Q, d)
-        <> xs =((i*Q + j)*post + k) + v_offset {id=calc} 
-        d_v[xs] = qweight1d[j]*if(d==0, 1, d_v[xs]) 
+    <> v_shift = (QnD*nc + QnD*nc*dim)
+#   <> v_offset = e*QnD*nc*(dim + 2) + v_shift
+#   <> post = pow(Q, d)
+#   <> pre = pow(Q, dim-d-1) 
+#   <> xs =((i*Q + j)*post + k) + v_offset
+#   <> xs =((i*Q + j)*Q + k) + v_offset
+
+    for k
+    #Scalars only right now, need to incorpate nc otherwise
+    #<> jVal = qweight1d[j]
+    if d == 0
+        d_v[e,dInd,i,j,kInd] = qweight1d[j]
+    else
+        d_v[e,dInd,i,j,kInd] = qweight1d[j]*d_v[e,dInd,i,j,kInd]
+    end
     end
     """, 
     assumptions="nelem>0 and dim>0 and Q>0")
-#kWeight = lp.prioritize_loops(kWeight, "i,k,j")
+kWeight = lp.prioritize_loops(kWeight,"e,d,i,j,k")
 print(kWeight)
 
 mxm = lp.make_kernel(
@@ -77,50 +175,8 @@ mxm = lp.make_kernel(
       """
       B[i, j] = sum(k, A[i, k]*X[k, j])
       """,assumptions="n mod 16 = 0 and m mod 16 = 0 and o mod 16 = 0 and n,m,o >= 16")
-#c[i, j] = sum(k, a[i, k]*b[k, j])
-#mxm = lp.prioritize_loops(mxm, "k,kk,i,ii,j") #Based on whether or not ii and kk is used
-#mxm = lp.prioritize_loops(mxm, "k,kk,j,i,ii")
-#mxm = lp.prioritize_loops(mxm, "i, ii, k, kk, j");
-mxm = lp.set_options(mxm, "write_cl")
-
-#Github optimizations
-'''
-mxm = lp.split_iname(mxm, "i", LM, outer_tag="g.0", inner_tag="l.1")
-mxm = lp.split_iname(mxm, "j", LN, outer_tag="g.1", inner_tag="l.0")
-mxm = lp.split_iname(mxm, "k", LO, inner_tag="unr")
-mxm = lp.add_prefetch(mxm, "A", ["k_inner", "i_inner"], default_tag="l.auto")
-mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
-'''
-
+#mxm = lp.set_options(mxm, "write_cl")
 print(mxm)
-
-#Split into cache-line sized chunks
-#mxm = lp.split_iname(mxm, "i", 8)
-#mxm = lp.split_iname(mxm, "k", 8)
-#mxm = lp.split_iname(mxm, "j", 8)
-
-#mxm = lp.add_prefetch("mxm", "B", ["i_inner", "k_inner"])
-
-#mxm = lp.split_iname(mxm, "i_inner", 2)
-#mxm = lp.split_iname(mxm, "k_inner", 2)
-#mxm = lp.split_iname(mxm, "j_inner", 2)
-
-#mxm = lp.tag_inames(mxm, dict(i_outer="g.0", i_inner="l.0"))
-
-#mxm = lp.split_iname(mxm, "j", 8, inner_tag="unr")
-#mxm = lp.split_iname(mxm, "ii", 8)
-#mxm = lp.split_iname(mxm, "kk", 8)
-#mxm = lp.tag_inames(mxm, dict(j_inner="unr"))
-
-#From Fortran mxm example
-#mxm = lp.split_iname(mxm, "i", 8, outer_tag="g.0", inner_tag="l.1")
-#mxm = lp.split_iname(mxm, "j", 8, outer_tag="g.1", inner_tag="l.0")
-#mxm = lp.split_iname(mxm, "k", 8)
-#mxm = lp.extract_subst(mxm, "a_acc", "a[i1,i2]", parameters="i1, i2")
-#mxm = lp.extract_subst(mxm, "b_acc", "b[i1,i2]", parameters="i1, i2")
-#mxm = lp.precompute(mxm, "a_acc", "k_inner,i_inner", default_tag="l.auto")
-#mxm = lp.precompute(mxm, "b_acc", "j_inner,k_inner", default_tag="l.auto")
-#print(mxm)
 
 
 
