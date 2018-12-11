@@ -47,8 +47,8 @@ kZero = lp.make_kernel(
 print(kZero)
 
 kCeedTensorContract = lp.make_kernel(
-    ["{ [a,j,b]: 0<=a<A and 0<=j<J and 0<=b<B }",
-     "{ [c]: 0<=c<C}",
+    ["{ [a,j,b]: 0<=a<A and 0<=b<B and 0<=j<J }",
+#     "{ [c]: 0<=c<C}",
      "{ [c_wxs]: wxs_os<=c_wxs<C+wxs_os}",
      "{ [c_rxs]: rxs_os<=c_rxs<C+rxs_os}"
     ],
@@ -60,25 +60,31 @@ kCeedTensorContract = lp.make_kernel(
     #v[wxs] = Add*v[wxs] + t[j*stride0 + b*stride1] * u[rxs]
     #v[a,j,c_wxs] = Add*v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
     
-    # Alternative above, would be best if loopy could generate with loop inside
     if Add 
         v[a,j,c_wxs] = v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
     else
         v[a,j,c_wxs] = t[j*stride0 + b*stride1] * u[a,b,c_rxs]
     end
-    """,
+        """,
     assumptions="A>0 and B>0 and C>0 and J>0")
 kCeedTensorContract = lp.set_instruction_priority(kCeedTensorContract, "id:conditional", 10)
 print(kCeedTensorContract)
-
+'''
 kInterp = lp.make_kernel(
     ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
-    "{ [a,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q }"],
+    "{ [a,b,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q and 0<=b<post }"],
     """
     <> P = if(transpose, Q1d, P1d)
     <> Q = if(transpose, P1d, Q1d)
- 
-    if(transpose)
+
+    
+    for e
+        for d
+            
+        end
+    end 
+
+    if transpose
         <>P=Q1d
                  
     else
@@ -89,11 +95,11 @@ kInterp = lp.make_kernel(
 
     """,
     assumptions="nelem>0 and dim>0")
-
 '''
+
 kInterp = lp.make_kernel(
     ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
-     "{ [a,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q }"],
+     "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
     """
     <> P = if(transpose, Q1d, P1d)
     <> Q = if(transpose, P1d, Q1d)
@@ -108,17 +114,30 @@ kInterp = lp.make_kernel(
         <> rxs_os = if(d==dim-1, d_v_offset, t_offset) 
 
         for d
-            <> Add = (transpose & (d == dim - 1))
+            #<> Add = (transpose & (d == dim - 1))
             <> pre = ndof*pow(P, dim-1-d)
             <> post = pow(Q, d) 
 
             #This is problematic              
-            <> u = if(d==0,     d_u[n], tmp0[n])
-            <> v = if(d==dim-1, d_v, tmp1)
+            #<> u = if(d==0,     d_u, tmp0)
+            #<> v = if(d==dim-1, d_v, tmp1)
 
-            d_v[(a*Q + j)*post + c + wxs_os] = f[(a*Q + j)*post + c + wxs_os]
-            #d_v[(a*J + j)*C + c + wxs_os] = f[(a*J + j)*C + c + wxs_os]
-            #d_v[a,j,c+wxs_os] = f[a,j,c+wxs_os]   
+            # Code (mostly) copied from Tensor contraction
+            <> tstride0 = if(transpose, 1, P)
+            <> tstride1 = if(transpose, Q, 1)
+            for a,b,c,j
+                wxs = ((a*Q+j)*post+c) + wxs_os
+                rxs = ((a*P+b)*post+c) + rxs_os
+                
+                #Can avoid d loop
+                if d == 0
+                    tmp0[wxs] = interp1d[j*stride0 + b*stride1] * d_u[rxs]
+                elif d == 1
+                    tmp1[wxs] = interp1d[j*stride0 + b*stride1] * tmp0[rxs]
+                elif d == 2
+                    d_v[wxs] = d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[rxs] 
+                end
+            end
         end
 
         d_v_offset = d_v_offset + if(not transpose, nqpt, 0)
@@ -127,7 +146,66 @@ kInterp = lp.make_kernel(
     """,
     assumptions="nelem>0 and dim>0")
 print(kInterp)
-'''
+
+kGrad = lp.make_kernel(
+    ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<dim }",
+     "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
+    """
+    <> P = if(transpose, Q1d, P1d)
+    <> Q = if(transpose, P1d, Q1d)
+    for e
+        # Calculate offsets to data and temporary arrays
+        <> t_offset = e*tmpSz
+        <> u_offset = e*nc*elemsize
+        <> v_shift = QnD*nc
+        <> v_offset = e*QnD*nc*(dim+2) + v_shift
+        <> d_u_offset = if(transpose, v_offset, u_offset)
+        <> d_v_offset = if(transpose, u_offset, v_offset)
+        <> wxs_os = if(d==0,     d_u_offset, t_offset)
+        <> rxs_os = if(d==dim-1, d_v_offset, t_offset) 
+
+        for d,p
+            #<> Add = (transpose & (d == dim - 1))
+            <> pre = ndof*pow(P, dim-1)
+            <> post = pow(Q, d) 
+
+            # Code (mostly) copied from Tensor contraction
+            <> tstride0 = if(transpose, 1, P)
+            <> tstride1 = if(transpose, Q, 1)
+            for a,b,c,j
+                wxs = ((a*Q+j)*post+c) + wxs_os
+                rxs = ((a*P+b)*post+c) + rxs_os
+                
+                if p == d
+                #Can avoid d loop
+                    if d == 0
+                        tmp0[wxs] = grad1d[j*stride0 + b*stride1] * d_u[rxs]
+                    elif d == 1
+                        tmp1[wxs] = grad1d[j*stride0 + b*stride1] * tmp0[rxs]
+                    elif d == 2
+                        d_v[wxs] = d_v[wxs] + grad1d[j*stride0 + b*stride1] * tmp1[rxs] 
+                    end
+                else
+                    if d == 0
+                        tmp0[wxs] = interp1d[j*stride0 + b*stride1] * d_u[rxs]
+                    elif d == 1
+                        tmp1[wxs] = interp1d[j*stride0 + b*stride1] * tmp0[rxs]
+                    elif d == 2
+                        d_v[wxs] = d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[rxs] 
+                    end 
+                end
+            end
+        end
+
+        d_v_offset = d_v_offset + if(not transpose, nqpt, 0)
+        d_u_offset = d_u_offset + if( transpose, nqpt, 0)
+    end
+    """,
+    assumptions="nelem>0 and dim>0")
+print(kGrad)
+
+
+
 #data_flow = [ (v,0,1), (f,1,0), (u,0,1)
 #    (a,0,1),
 #    (j,0,1),
@@ -140,7 +218,6 @@ print(kInterp)
 #kIntern_fused = lp.fuse_kernels((kInterp, kCeedTensorContract), data_flow=data_flow)
 #print(kInterk_fused)
 
-#This is wrong, d_v part needs to be inside all loops
 kWeight = lp.make_kernel(
     ["{ [e,d]: 0<=e<nelem and 0<=d<dim}",
 #    "{ [i]: 0<=i<pre }",
