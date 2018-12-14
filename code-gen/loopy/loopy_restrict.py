@@ -34,26 +34,29 @@ kRestrict0 = lp.make_kernel(
     """
     vv[i] = uu[indices[i]]
     """,
-    assumptions="nelem_x_elemsize > 0"
+    assumptions="nelem_x_elemsize > 0",
+    target=lp.OpenCLTarget() #Don't want to hardcode this, but will do for now 
     )
 
 kRestrict1 = lp.make_kernel(
     "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
     """
-    vv[i + elemsize*(d + ncomp*e)] = uu[indices[i + elemsize*e] + ndof*d]
+    vv[e,d,i] = uu[indices[e,i] + ndof*d]
 
 #    Use more readable indexing in the future
 #    vv[i+elemsize*(d+ncomp*e)] = uu[indices[e][i]+ndof*d]
 #    vv[][][i]
     """,
+    target=lp.OpenCLTarget(),
     assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
     )
 
 kRestrict2 = lp.make_kernel(
     "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
     """
-    vv[i+elemsize*(d+ncomp*e)] = uu[ncomp*indices[i+elemsize*e] + d]
+    vv[e,d,i] = uu[ncomp*indices[e,i] + d]
     """,
+    target=lp.OpenCLTarget(),
     assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
     )
 
@@ -62,30 +65,47 @@ kRestrict3b = lp.make_kernel(
     """
     vv[i] = sum(j, uu[indices[j]])
     """,
+    target=lp.OpenCLTarget(),
     assumptions="ndof>0 and rng1>0 and rngN > rng1")
 
 kRestrict4b = lp.make_kernel(
     "{ [i,d,j]: 0<=i<ndof and 0<=d<ncomp and rng1<=j<rngN }",
     """
-    vv[d, i] = sum(j, uu[((indices[j]/elemsize)*ncomp + d)*elemsize + (indices[j]%elemsize)])
+    vv[d, i] = sum(j, uu[indices[j]*ncomp + d*elemsize + indices[j]%elemsize])
     """,
+    target=lp.OpenCLTarget(),
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0")
 
 kRestrict5b = lp.make_kernel(
     "{ [i,d,j]: 0<=i<ndof and 0<=d<ncomp and rng1<=j<rngN }",
     """
-    vv[i, d] = sum(j, uu[((indices[j]/elemsize)*ncomp + d)*elemsize + (indices[j]%elemsize)])
+    vv[i, d] = sum(j, uu[indices[j]*ncomp + d*elemsize + indices[j]%elemsize])
+    #vv[i,d] = sum(j, uu[indices[j]*ncomp, d*elemsize, indices[j]%elemsize])
     """,
+    target=lp.OpenCLTarget(),
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0"
     )
 
-kernelList = [kRestrict0]#, kRestrict1, kRestrict2, kRestrict3b, kRestrict4b, kRestrict5b]
+kernelList1 = [kRestrict0, kRestrict2]
+kernelList2 = [kRestrict1, kRestrict3b]
+kernelList3 = [kRestrict4b, kRestrict5b]
 
-for k in kernelList:
+
+for k in kernelList1:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64})
     code = lp.generate_code_v2(k).device_code()
     print(code)
     #print(k)
 
+for k in kernelList2:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64, "ndof": np.int32})
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
 
+for k in kernelList3:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64, "elemsize": np.int32})
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
