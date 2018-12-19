@@ -42,10 +42,6 @@ kRestrict1 = lp.make_kernel(
     "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
     """
     vv[e,d,i] = uu[indices[e,i] + ndof*d]
-
-#    Use more readable indexing in the future
-#    vv[i+elemsize*(d+ncomp*e)] = uu[indices[e][i]+ndof*d]
-#    vv[][][i]
     """,
     target=lp.OpenCLTarget(),
     assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"

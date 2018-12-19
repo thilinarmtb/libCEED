@@ -5,10 +5,6 @@ import pyopencl.array
 import pyopencl.clrandom
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
-LN = 8
-LM = 8
-LO = 8
-
 # setup
 # -----
 lp.set_caching_enabled(False)
@@ -20,10 +16,7 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 ctx = cl.create_some_context(interactive=False)
 queue = cl.CommandQueue(ctx)
 
-#n = 15 * 10**6
-#a = cl.array.arange(queue, n, dtype=np.float32)
-n = 16*16
-
+'''
 x_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
 y_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
 z_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
@@ -34,68 +27,57 @@ x_mat_host = np.float32(np.random.rand(n,n))
 a_mat_host = np.float32(np.random.rand(n,n))
 x_vec_host = np.random.randn(n).astype(np.float32)
 y_vec_host = np.random.randn(n).astype(np.float32)
-# create
+'''
+
 # ------
 
 kZero = lp.make_kernel(
     "{ [e,i]: 0<=e<nelem and 0<=i<vsize }",
     """
-    v[e*nc*elemsize + i] = 0
+    v[e*(nc*elemsize) + i] = 0
     """,
-    assumptions="nelem > 0 and vsize > 0"
-    )
-print(kZero)
+    assumptions="nelem > 0 and vsize > 0",
+    target=lp.OpenCLTarget()
+)
+#z_tst_dat = np.float32(np.random.rand(2,64))
+#kZero = lp.set_options(kZero, "write_cl")
+#evt, (out,) = kZero(queue, v=z_tst_dat,nc=1,nelem=6,vsize=64, elemsize=64)
 
 kCeedTensorContract = lp.make_kernel(
     ["{ [a,j,b]: 0<=a<A and 0<=b<B and 0<=j<J }",
-#     "{ [c]: 0<=c<C}",
+     "{ [c]: 0<=c<C}",
      "{ [c_wxs]: wxs_os<=c_wxs<C+wxs_os}",
      "{ [c_rxs]: rxs_os<=c_rxs<C+rxs_os}"
     ],
     """
     <> tstride0 = if(transpose, 1, B)
     <> tstride1 = if(transpose, J, 1)
-    #wxs = ((a*J+j)*C+c) + wxs_os
-    #rxs = ((a*B+b)*C+c) + rxs_os
-    #v[wxs] = Add*v[wxs] + t[j*stride0 + b*stride1] * u[rxs]
-    #v[a,j,c_wxs] = Add*v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
-    
-    if Add 
-        v[a,j,c_wxs] = v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
-    else
-        v[a,j,c_wxs] = t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    for a,j,c
+        <> wxs = ((a*J+j)*C+c) + wxs_os
+        <> rxs = ((a*B+b)*C+c) + rxs_os
+        #v[wxs] = if(Add, v[wxs], 0) + t[j*stride0 + b*stride1] * u[rxs]
+        #All choose the same so this flow control should be fine
+        if Add 
+            v[wxs] = v[wxs] + t[j*stride0 + b*stride1] * u[rxs]
+        else
+            v[wxs] = t[j*stride0 + b*stride1] * u[rxs]
+        end 
     end
-        """,
-    assumptions="A>0 and B>0 and C>0 and J>0")
-kCeedTensorContract = lp.set_instruction_priority(kCeedTensorContract, "id:conditional", 10)
-print(kCeedTensorContract)
-'''
-kInterp = lp.make_kernel(
-    ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
-    "{ [a,b,j,c]: 0<=a<pre and 0<=j<P and 0<=c<Q and 0<=b<post }"],
-    """
-    <> P = if(transpose, Q1d, P1d)
-    <> Q = if(transpose, P1d, Q1d)
-
-    
-    for e
-        for d
-            
-        end
-    end 
-
-    if transpose
-        <>P=Q1d
-                 
-    else
-    
-    end
-
-    
+    #Better for GPU?
+    #v[a,j,c_wxs] = if(Add,v[a,j,c_wxs],0) + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+  
+    #Better for CPU?
+    #if Add 
+    #    v[a,j,c_wxs] = v[a,j,c_wxs] + t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    #else
+    #    v[a,j,c_wxs] = t[j*stride0 + b*stride1] * u[a,b,c_rxs]
+    #end
 
     """,
-    assumptions="nelem>0 and dim>0")
-'''
+    target=lp.OpenCLTarget(),
+    assumptions="A>0 and B>0 and C>0 and J>0"
+    )
+print(kCeedTensorContract)
 
 kInterp = lp.make_kernel(
     ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
@@ -113,10 +95,16 @@ kInterp = lp.make_kernel(
         <> wxs_os = if(d==0,     d_u_offset, t_offset)
         <> rxs_os = if(d==dim-1, d_v_offset, t_offset) 
 
+        #<> pre = ndof
+        #<> post = 1 
+        #for d
+        #    pre = pre*P   
+        #end
+
         for d
             #<> Add = (transpose & (d == dim - 1))
-            <> pre = ndof*pow(P, dim-1-d)
-            <> post = pow(Q, d) 
+            #<> pre = ndof*pow(P, dim-1-d)
+            #<> post = pow(Q, d) 
 
             #This is problematic              
             #<> u = if(d==0,     d_u, tmp0)
@@ -126,8 +114,8 @@ kInterp = lp.make_kernel(
             <> tstride0 = if(transpose, 1, P)
             <> tstride1 = if(transpose, Q, 1)
             for a,b,c,j
-                wxs = ((a*Q+j)*post+c) + wxs_os
-                rxs = ((a*P+b)*post+c) + rxs_os
+                <> wxs = ((a*Q+j)*post + c) + wxs_os
+                <> rxs = ((a*P+b)*post + c) + rxs_os
                 
                 #Can avoid d loop
                 if d == 0
@@ -138,12 +126,15 @@ kInterp = lp.make_kernel(
                     d_v[wxs] = d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[rxs] 
                 end
             end
+            #pre = pre / P
+            #post = post * Q
         end
 
         d_v_offset = d_v_offset + if(not transpose, nqpt, 0)
         d_u_offset = d_u_offset + if( transpose, nqpt, 0)
     end
     """,
+    target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0")
 print(kInterp)
 
@@ -219,56 +210,110 @@ print(kGrad)
 #print(kInterk_fused)
 
 kWeight = lp.make_kernel(
-    ["{ [e,d]: 0<=e<nelem and 0<=d<dim}",
-#    "{ [i]: 0<=i<pre }",
-#    "{ [k]: 0<=k<post }"],
-    "{ [dInd]: dInd=d+2}",
-    "{ [kInd]: kInd=k+v_shift}",
-    "{ [i,j,k]: 0<=i,j,k<Q }"],
+    ["{ [e]: 0<=e<nelem}",
+#     "{ [i]: 0<=i<pre }",
+#     "{ [k]: 0<=k<post }"
+     "{ [d]: 0<=d<dim }",
+#    "{ [dInd]: 2<=dInd<dim+2}",
+#    "{ [kInd]: kInd=k+v_shift}",
+     "{ [i,j,k]: 0<=i,j,k<Q }" ],
     """
     <> v_shift = (QnD*nc + QnD*nc*dim)
-#   <> v_offset = e*QnD*nc*(dim + 2) + v_shift
-#   <> post = pow(Q, d)
-#   <> pre = pow(Q, dim-d-1) 
-#   <> xs =((i*Q + j)*post + k) + v_offset
-#   <> xs =((i*Q + j)*Q + k) + v_offset
+    for e,i,j,k
+        <> v_offset = e*QnD*nc*(dim + 2) + v_shift
+        <> xs =((i*Q + j)*Q + k) + v_offset
+        
+        #Above is equivalent to below?
+        #<> post = pow(Q, d)
+        #<> pre = pow(Q, dim-d-1) 
+        #<> xs =((i*Q + j)*post + k) + v_offset
+        if d == 0
+            d_v[xs] = qweight1d[j]
+        else
+            d_v[xs] = qweight1d[j]*d_v[xs]
+        end
+    end
 
-    for k
+    #for kInd
+       
+    #d_v[e,dInd,i,j,kInd] = if(dInd==2, qweight1d[j], qweight1d[j]*d_v[e,dInd,i,j,kInd])
     #Scalars only right now, need to incorpate nc otherwise
     #<> jVal = qweight1d[j]
-    if d == 0
-        d_v[e,dInd,i,j,kInd] = qweight1d[j]
-    else
-        d_v[e,dInd,i,j,kInd] = qweight1d[j]*d_v[e,dInd,i,j,kInd]
-    end
-    end
+    #if d == 0
+    #    d_v[e,dInd,i,j,kInd] = qweight1d[j] {id=deq0}
+    #else
+    #    d_v[e,dInd,i,j,kInd] = qweight1d[j]*d_v[e,dInd,i,j,kInd] {id=dneq0}
+    #end
+    #end
     """, 
-    assumptions="nelem>0 and dim>0 and Q>0")
-kWeight = lp.prioritize_loops(kWeight,"e,d,i,j,k")
+    target=lp.OpenCLTarget(),
+    assumptions="nelem>0 and dim>0 and Q>0"
+    )
+#kWeight = lp.prioritize_loops(kWeight,"e,d,i,j,k")
 print(kWeight)
 
-mxm = lp.make_kernel(
-      "{ [i,j,k,ii,kk]: 0<=i<m and 0<=j<n and 0<=k<o}",
-      """
-      B[i, j] = sum(k, A[i, k]*X[k, j])
-      """,assumptions="n mod 16 = 0 and m mod 16 = 0 and o mod 16 = 0 and n,m,o >= 16")
-#mxm = lp.set_options(mxm, "write_cl")
-print(mxm)
+kernelList1 = [kZero]
+kernelList2 = [kCeedTensorContract]
+kernelList3 = []#[kInterp]
+kernelList4 = [kWeight]
 
+for k in kernelList1:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {"v": np.float64, "elemsize": np.int32, "nc": np.int32})
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
 
+for k in kernelList2:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {
+        "v": np.float64, 
+        "u": np.float64, 
+        "t": np.float64, 
+        "transpose": np.byte, 
+        "Add": np.byte,
+        "stride0": np.int32,
+        "stride1": np.int32,
+        "wxs_os": np.int32,
+        "rxs_os": np.int32
+        }
+    )
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
 
-#code, _ = lp.generate_code(mxm)
-#print(code)
+for k in kernelList3:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {
+        "d_v": np.float64, 
+        "d_u": np.float64, 
+        "tmp0": np.float64, 
+        "tmp1": np.float64,
+        "elemsize": np.int32,
+        #"ndof": np.int32,
+        "QnD": np.int32,
+        "Q1d": np.int32,
+        "nc": np.int32,
+        "tmpSz": np.int32,
+        "P1d": np.int32,
+        "nqpt": np.int32,
+        "interp1d": np.float64,
+        "transpose": np.byte,
+        #"Add": np.byte,
+        "stride0": np.int32,
+        "stride1": np.int32,
+        "wxs_os": np.int32,
+        "rxs_os": np.int32
+        })
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
 
-# transform
-# ---------
-#knl = lp.split_iname(knl, "i", 128, outer_tag="g.0", inner_tag="l.0")
+for k in kernelList4:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {
+        "d_v": np.float64,
+        "qweight1d": np.float64,
+        "nc": np.int32,
+        "QnD": np.int32
+    })
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
 
-# execute
-# -------
-#evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
-#evt, (out,) = knl(queue, a=a)
-
-#print(B)
-#print(a_mat_host @ x_mat_host)
-#print((B - a_mat_host @ x_mat_host).max())
