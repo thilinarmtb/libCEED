@@ -155,7 +155,6 @@ kInterp = lp.make_kernel(
     assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
 print(kInterp)
 
-
 kGrad = lp.make_kernel(
     ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<dim }",
      "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
@@ -164,53 +163,92 @@ kGrad = lp.make_kernel(
     <> Q = if(transpose, P1d, Q1d)
     for e
         # Calculate offsets to data and temporary arrays
-        <> t_offset = e*tmpSz
+        #<> t_offset = e*tmpSz
         <> u_offset = e*nc*elemsize
-        <> v_shift = QnD*nc
-        <> v_offset = e*QnD*nc*(dim+2) + v_shift
+        <> v_offset = e*QnD*nc*(dim+2)
         <> d_u_offset = if(transpose, v_offset, u_offset)
         <> d_v_offset = if(transpose, u_offset, v_offset)
-        <> wxs_os = if(d==0,     d_u_offset, t_offset)
-        <> rxs_os = if(d==dim-1, d_v_offset, t_offset) 
+        #<> wxs_os = if(d==0,     d_u_offset, t_offset)
+        #<> rxs_os = if(d==dim-1, d_v_offset, t_offset) 
+ 
+        #<> pre = ndof
+        #<> post = 1 
+        #for d
+        #    pre = pre*P   
+        #end
 
-        for d,p
+        with {id_prefix=d_loop}
+        for p,d
             #<> Add = (transpose & (d == dim - 1))
-            <> pre = ndof*pow(P, dim-1)
-            <> post = pow(Q, d) 
+            #Could also use prefilled array, may be more efficient
+            <> pre = ndof*(P**(dim-1-d))
+            <> post = Q**d 
 
-            # Code (mostly) copied from Tensor contraction
-            <> tstride0 = if(transpose, 1, P)
-            <> tstride1 = if(transpose, Q, 1)
             for a,b,c,j
-                wxs = ((a*Q+j)*post+c) + wxs_os
-                rxs = ((a*P+b)*post+c) + rxs_os
-                
+                <> indw = ((a*Q+j)*post + c) 
+                <> indr = ((a*P+b)*post + c) 
+                <> rxs = indr + d_v_offset
+                <> wxs = indw + d_u_offset
+
+                <> tstride0 = if(transpose, 1, P)
+                <> tstride1 = if(transpose, Q, 1)
+
                 if p == d
-                #Can avoid d loop
                     if d == 0
-                        tmp0[wxs] = grad1d[j*stride0 + b*stride1] * d_u[rxs]
-                    elif d == 1
-                        tmp1[wxs] = grad1d[j*stride0 + b*stride1] * tmp0[rxs]
-                    elif d == 2
-                        d_v[wxs] = d_v[wxs] + grad1d[j*stride0 + b*stride1] * tmp1[rxs] 
-                    end
+                        if d == dim - 1
+                            d_v[wxs] = transpose*d_v[wxs] + grad1d[j*stride0 + b*stride1] * d_u[rxs] 
+                        else
+                            tmp1[indw] = grad1d[j*stride0 + b*stride1] * d_u[rxs]                 
+                        end
+                    elif d == dim - 1
+                        if d%2 == 0
+                            d_v[wxs] = transpose*d_v[wxs] + grad1d[j*stride0 + b*stride1] * tmp1[indr]
+                        else    
+                            d_v[wxs] = transpose*d_v[wxs] + grad1d[j*stride0 + b*stride1] * tmp0[indr]
+                        end
+                    elif d%2 == 0
+                        tmp0[indw] = grad1d[j*stride0 + b*stride1] * tmp1[indr]
+                    else
+                        tmp1[indw] = grad1d[j*stride0 + b*stride1] * tmp0[indr]
+                    end                         
                 else
                     if d == 0
-                        tmp0[wxs] = interp1d[j*stride0 + b*stride1] * d_u[rxs]
-                    elif d == 1
-                        tmp1[wxs] = interp1d[j*stride0 + b*stride1] * tmp0[rxs]
-                    elif d == 2
-                        d_v[wxs] = d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[rxs] 
-                    end 
+                        if d == dim - 1
+                            d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * d_u[rxs] 
+                        else
+                            tmp1[indw] = interp1d[j*stride0 + b*stride1] * d_u[rxs]                 
+                        end
+                    elif d == dim - 1
+                        if d%2 == 0
+                            d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[indr]
+                        else    
+                            d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp0[indr]
+                        end
+                    elif d%2 == 0
+                        tmp0[indw] = interp1d[j*stride0 + b*stride1] * tmp1[indr]
+                    else
+                        tmp1[indw] = interp1d[j*stride0 + b*stride1] * tmp0[indr]
+                    end
                 end
             end
+
+         #   pre = pre / P
+         #   post = post * Q
+
+        end
         end
 
-        d_v_offset = d_v_offset + if(not transpose, nqpt, 0)
-        d_u_offset = d_u_offset + if( transpose, nqpt, 0)
+        with {dep=d_loop*}
+        if transpose
+            d_u_offset = d_u_offset + nqpt
+        else
+            d_v_offset = d_v_offset + nqpt
+        end
+        end
     end
     """,
-    assumptions="nelem>0 and dim>0")
+    target=lp.OpenCLTarget(),
+    assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
 print(kGrad)
 
 
@@ -273,7 +311,8 @@ print(kWeight)
 kernelList1 = [kZero]
 kernelList2 = [kCeedTensorContract]
 kernelList3 = [kInterp]
-kernelList4 = [kWeight]
+kernelList4 = [kGrad]
+kernelList5 = [kWeight]
 
 for k in kernelList1:
     k = lp.set_options(k, "write_cl")
@@ -325,6 +364,29 @@ for k in kernelList3:
     print(code)
 
 for k in kernelList4:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {
+        "d_v": np.float64, 
+        "d_u": np.float64, 
+        "tmp0": np.float64, 
+        "tmp1": np.float64,
+        "elemsize": np.int32,
+        "ndof": np.int32,
+        "QnD": np.int32,
+        "Q1d": np.int32,
+        "nc": np.int32,
+        "P1d": np.int32,
+        "nqpt": np.int32,
+        "interp1d": np.float64,
+        "grad1d": np.float64,
+        "transpose": np.byte,
+        "stride0": np.int32,
+        "stride1": np.int32,
+        })
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
+
+for k in kernelList5:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {
         "d_v": np.float64,
