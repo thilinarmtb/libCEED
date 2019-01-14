@@ -155,6 +155,7 @@ kInterp = lp.make_kernel(
     assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
 print(kInterp)
 
+#Surely there is a way to combine kGrad and kInterp. They are mostly identical codewise
 kGrad = lp.make_kernel(
     ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<dim }",
      "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],

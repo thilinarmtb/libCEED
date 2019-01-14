@@ -1,0 +1,328 @@
+---------------------------------------------------------------------------
+KERNEL: loopy_kernel
+---------------------------------------------------------------------------
+ARGUMENTS:
+A: ValueArg, type: <auto/runtime>
+Add: ValueArg, type: <auto/runtime>
+B: ValueArg, type: <auto/runtime>
+C: ValueArg, type: <auto/runtime>
+J: ValueArg, type: <auto/runtime>
+rxs_os: ValueArg, type: <auto/runtime>
+stride0: ValueArg, type: <auto/runtime>
+stride1: ValueArg, type: <auto/runtime>
+t: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+transpose: ValueArg, type: <auto/runtime>
+u: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+v: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+wxs_os: ValueArg, type: <auto/runtime>
+---------------------------------------------------------------------------
+DOMAINS:
+[A, B, C, J] -> { [a, b, c, j] : 0 <= a < A and 0 <= b < B and 0 <= c < C and 0 <= j < J }
+---------------------------------------------------------------------------
+INAME IMPLEMENTATION TAGS:
+a: None
+b: None
+c: None
+j: None
+---------------------------------------------------------------------------
+TEMPORARIES:
+rxs: type: <auto/runtime>, shape: () scope:auto
+tstride0: type: <auto/runtime>, shape: () scope:auto
+tstride1: type: <auto/runtime>, shape: () scope:auto
+wxs: type: <auto/runtime>, shape: () scope:auto
+---------------------------------------------------------------------------
+INSTRUCTIONS:
+   tstride0 = If(transpose, 1, B)  {id=insn}
+   tstride1 = If(transpose, J, 1)  {id=insn_0}
+   for a, c, j
+↱        wxs = (a*J + j)*C + c + wxs_os  {id=insn_1}
+│        for b
+│↱         rxs = (a*B + b)*C + c + rxs_os  {id=insn_2}
+││         if Add
+├├           v[wxs] = v[wxs] + t[j*stride0 + b*stride1]*u[rxs]  {id=insn_3}
+││         end
+││         if not Add
+└└           v[wxs] = t[j*stride0 + b*stride1]*u[rxs]  {id=insn_4}
+           end
+   end a, c, j, b
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+KERNEL: loopy_kernel
+---------------------------------------------------------------------------
+ARGUMENTS:
+P1d: ValueArg, type: <auto/runtime>
+Q1d: ValueArg, type: <auto/runtime>
+QnD: ValueArg, type: <auto/runtime>
+dim: ValueArg, type: <auto/runtime>
+elemsize: ValueArg, type: <auto/runtime>
+nc: ValueArg, type: <auto/runtime>
+ndof: ValueArg, type: <auto/runtime>
+nelem: ValueArg, type: <auto/runtime>
+nqpt: ValueArg, type: <auto/runtime>
+tmpSz: ValueArg, type: <auto/runtime>
+tranpose: ValueArg, type: <auto/runtime>
+transpose: ValueArg, type: <auto/runtime>
+---------------------------------------------------------------------------
+DOMAINS:
+[dim, nelem] -> { [e, d] : 0 <= e < nelem and 0 <= d < dim }
+  [P, Q, post, pre] -> { [a, j, c, b] : 0 <= a < pre and 0 <= j < Q and 0 <= c < post and 0 <= b < P }
+---------------------------------------------------------------------------
+INAME IMPLEMENTATION TAGS:
+a: None
+b: None
+c: None
+d: None
+e: None
+j: None
+---------------------------------------------------------------------------
+TEMPORARIES:
+Add: type: <auto/runtime>, shape: () scope:auto
+P: type: <auto/runtime>, shape: () scope:auto
+Q: type: <auto/runtime>, shape: () scope:auto
+d_u_offset: type: <auto/runtime>, shape: () scope:auto
+d_v_offset: type: <auto/runtime>, shape: () scope:auto
+post: type: <auto/runtime>, shape: () scope:auto
+pre: type: <auto/runtime>, shape: () scope:auto
+t_offset: type: <auto/runtime>, shape: () scope:auto
+tstride0: type: <auto/runtime>, shape: () scope:auto
+tstride1: type: <auto/runtime>, shape: () scope:auto
+u_offset: type: <auto/runtime>, shape: () scope:auto
+v_offset: type: <auto/runtime>, shape: () scope:auto
+---------------------------------------------------------------------------
+INSTRUCTIONS:
+↱    P = If(transpose, Q1d, P1d)  {id=insn}
+│↱   Q = If(transpose, P1d, Q1d)  {id=insn_0}
+││   for e
+││     t_offset = e*tmpSz  {id=insn_1}
+││↱    u_offset = e*nc*elemsize  {id=insn_2}
+│││↱   v_offset = e*QnD*nc*(dim + 2)  {id=insn_3}
+││├├   d_u_offset = If(transpose, v_offset, u_offset)  {id=insn_4}
+││└└   d_v_offset = If(transpose, u_offset, v_offset)  {id=insn_5}
+││     for d
+││       Add = transpose & (d == dim + -1)  {id=insn_6}
+├│       pre = ndof*P**(dim + -1 + (-1)*d)  {id=insn_7}
+│├       post = Q**d  {id=insn_8}
+└│       tstride0 = If(transpose, 1, P)  {id=insn_9}
+ └       tstride1 = If(transpose, Q, 1)  {id=insn_10}
+       end d
+       if tranpose
+         d_u_offset = d_u_offset + nqpt  {id=insn_11}
+       end
+       if not tranpose
+         d_v_offset = d_v_offset + nqpt  {id=insn_12}
+       end
+     end e
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+KERNEL: loopy_kernel
+---------------------------------------------------------------------------
+ARGUMENTS:
+P1d: ValueArg, type: <auto/runtime>
+Q1d: ValueArg, type: <auto/runtime>
+QnD: ValueArg, type: <auto/runtime>
+d_u: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+d_v: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+dim: ValueArg, type: <auto/runtime>
+elemsize: ValueArg, type: <auto/runtime>
+grad1d: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+interp1d: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+nc: ValueArg, type: <auto/runtime>
+ndof: ValueArg, type: <auto/runtime>
+nelem: ValueArg, type: <auto/runtime>
+nqpt: ValueArg, type: <auto/runtime>
+rxs: type: <auto/runtime>, shape: () aspace: global
+stride0: ValueArg, type: <auto/runtime>
+stride1: ValueArg, type: <auto/runtime>
+tmp0: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+tmp1: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+tmpSz: ValueArg, type: <auto/runtime>
+transpose: ValueArg, type: <auto/runtime>
+wxs: type: <auto/runtime>, shape: () aspace: global
+---------------------------------------------------------------------------
+DOMAINS:
+[dim, nelem] -> { [e, d, p] : 0 <= e < nelem and 0 <= d < dim and 0 <= p < dim }
+  [P, Q, post, pre] -> { [a, j, c, b] : 0 <= a < pre and 0 <= j < Q and 0 <= c < post and 0 <= b < P }
+---------------------------------------------------------------------------
+INAME IMPLEMENTATION TAGS:
+a: None
+b: None
+c: None
+d: None
+e: None
+j: None
+p: None
+---------------------------------------------------------------------------
+TEMPORARIES:
+P: type: <auto/runtime>, shape: () scope:auto
+Q: type: <auto/runtime>, shape: () scope:auto
+d_u_offset: type: <auto/runtime>, shape: () scope:auto
+d_v_offset: type: <auto/runtime>, shape: () scope:auto
+post: type: <auto/runtime>, shape: () scope:auto
+pre: type: <auto/runtime>, shape: () scope:auto
+rxs_os: type: <auto/runtime>, shape: () scope:auto
+t_offset: type: <auto/runtime>, shape: () scope:auto
+tstride0: type: <auto/runtime>, shape: () scope:auto
+tstride1: type: <auto/runtime>, shape: () scope:auto
+u_offset: type: <auto/runtime>, shape: () scope:auto
+v_offset: type: <auto/runtime>, shape: () scope:auto
+v_shift: type: <auto/runtime>, shape: () scope:auto
+wxs_os: type: <auto/runtime>, shape: () scope:auto
+---------------------------------------------------------------------------
+INSTRUCTIONS:
+↱      P = If(transpose, Q1d, P1d)  {id=insn}
+│↱     Q = If(transpose, P1d, Q1d)  {id=insn_0}
+││     for e
+││↱      t_offset = e*tmpSz  {id=insn_1}
+│││↱     u_offset = e*nc*elemsize  {id=insn_2}
+││││↱    v_shift = QnD*nc  {id=insn_3}
+││││└↱   v_offset = e*QnD*nc*(dim + 2) + v_shift  {id=insn_4}
+│││├ ├   d_u_offset = If(transpose, v_offset, u_offset)  {id=insn_5}
+│││└ └   d_v_offset = If(transpose, u_offset, v_offset)  {id=insn_6}
+│││      for d
+││├↱       wxs_os = If(d == 0, d_u_offset, t_offset)  {id=insn_7}
+││└│↱      rxs_os = If(d == dim + -1, d_v_offset, t_offset)  {id=insn_8}
+││ ││      for p
+├│ ││        pre = ndof*pow(P, dim + -1)  {id=insn_9}
+│├↱││        post = pow(Q, d)  {id=insn_10}
+├││││        tstride0 = If(transpose, 1, P)  {id=insn_11}
+│├│││        tstride1 = If(transpose, Q, 1)  {id=insn_12}
+│││││        for a, c, b, j
+│└├└│↱               wxs = (a*Q + j)*post + c + wxs_os  {id=insn_13}
+└↱└ └│               rxs = (a*P + b)*post + c + rxs_os  {id=insn_14}
+ │   │               if p == d and d == 0
+ ├   ├                 tmp0[wxs] = grad1d[j*stride0 + b*stride1]*d_u[rxs]  {id=insn_15}
+ │   │               end
+ │   │               if not (d == 0) and p == d and d == 1
+ ├   ├                 tmp1[wxs] = grad1d[j*stride0 + b*stride1]*tmp0[rxs]  {id=insn_16}
+ │   │               end
+ │   │               if not (d == 0) and p == d and not (d == 1) and d == 2
+ ├   ├                 d_v[wxs] = d_v[wxs] + grad1d[j*stride0 + b*stride1]*tmp1[rxs]  {id=insn_17}
+ │   │               end
+ │   │               if not (p == d) and d == 0
+ ├   ├                 tmp0[wxs] = interp1d[j*stride0 + b*stride1]*d_u[rxs]  {id=insn_18}
+ │   │               end
+ │   │               if d == 1 and not (d == 0) and not (p == d)
+ ├   ├                 tmp1[wxs] = interp1d[j*stride0 + b*stride1]*tmp0[rxs]  {id=insn_19}
+ │   │               end
+ │   │               if not (d == 0) and not (d == 1) and not (p == d) and d == 2
+ └   └                 d_v[wxs] = d_v[wxs] + interp1d[j*stride0 + b*stride1]*tmp1[rxs]  {id=insn_20}
+                     end
+         end d, p, a, c, b, j
+         d_v_offset = d_v_offset + If(not transpose, nqpt, 0)  {id=insn_21}
+         d_u_offset = d_u_offset + If(transpose, nqpt, 0)  {id=insn_22}
+       end e
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+KERNEL: loopy_kernel
+---------------------------------------------------------------------------
+ARGUMENTS:
+Q: ValueArg, type: <auto/runtime>
+QnD: ValueArg, type: <auto/runtime>
+d_v: ArrayArg, type: <auto/runtime>, shape: unknown aspace: global
+dim: ValueArg, type: <auto/runtime>
+nc: ValueArg, type: <auto/runtime>
+nelem: ValueArg, type: <auto/runtime>
+qweight1d: type: <auto/runtime>, shape: (Q), dim_tags: (N0:stride:1) aspace: global
+---------------------------------------------------------------------------
+DOMAINS:
+[nelem] -> { [e] : 0 <= e < nelem }
+[dim] -> { [d] : 0 <= d < dim }
+[Q] -> { [i, j, k] : 0 <= i < Q and 0 <= j < Q and 0 <= k < Q }
+---------------------------------------------------------------------------
+INAME IMPLEMENTATION TAGS:
+d: None
+e: None
+i: None
+j: None
+k: None
+---------------------------------------------------------------------------
+TEMPORARIES:
+v_offset: type: <auto/runtime>, shape: () scope:auto
+v_shift: type: <auto/runtime>, shape: () scope:auto
+xs: type: <auto/runtime>, shape: () scope:auto
+---------------------------------------------------------------------------
+INSTRUCTIONS:
+↱  v_shift = QnD*nc + QnD*nc*dim  {id=insn}
+│  for e, i, k, j
+└↱         v_offset = e*QnD*nc*(dim + 2) + v_shift  {id=insn_0}
+↱└         xs = (i*Q + j)*Q + k + v_offset  {id=insn_1}
+│          for d
+│            if d == 0
+├              d_v[xs] = qweight1d[j]  {id=insn_2}
+│            end
+│            if not (d == 0)
+└              d_v[xs] = qweight1d[j]*d_v[xs]  {id=insn_3}
+             end
+   end e, i, k, j, d
+---------------------------------------------------------------------------
+#define lid(N) ((int) get_local_id(N))
+#define gid(N) ((int) get_group_id(N))
+#if __OPENCL_C_VERSION__ < 120
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+#endif
+
+__kernel void __attribute__ ((reqd_work_group_size(1, 1, 1))) loopy_kernel(int const elemsize, int const nc, int const nelem, __global double *__restrict__ v, int const vsize)
+{
+  for (int i = 0; i <= -1 + vsize; ++i)
+    for (int e = 0; e <= -1 + nelem; ++e)
+      v[e * nc * elemsize + i] = 0.0;
+}
+#define lid(N) ((int) get_local_id(N))
+#define gid(N) ((int) get_group_id(N))
+#if __OPENCL_C_VERSION__ < 120
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+#endif
+
+__kernel void __attribute__ ((reqd_work_group_size(1, 1, 1))) loopy_kernel(int const A, char const Add, int const B, int const C, int const J, int const rxs_os, int const stride0, int const stride1, __global double const *__restrict__ t, char const transpose, __global double const *__restrict__ u, __global double *__restrict__ v, int const wxs_os)
+{
+  int rxs;
+  int tstride0;
+  int tstride1;
+  int wxs;
+
+  tstride1 = (transpose ? J : 1);
+  tstride0 = (transpose ? 1 : B);
+  for (int j = 0; j <= -1 + J; ++j)
+    for (int c = 0; c <= -1 + C; ++c)
+      for (int a = 0; a <= -1 + A; ++a)
+      {
+        wxs = (a * J + j) * C + c + wxs_os;
+        for (int b = 0; b <= -1 + B; ++b)
+        {
+          rxs = (a * B + b) * C + c + rxs_os;
+          if (!Add)
+            v[wxs] = t[j * stride0 + b * stride1] * u[rxs];
+          if (Add)
+            v[wxs] = v[wxs] + t[j * stride0 + b * stride1] * u[rxs];
+        }
+      }
+}
+#define lid(N) ((int) get_local_id(N))
+#define gid(N) ((int) get_group_id(N))
+#if __OPENCL_C_VERSION__ < 120
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+#endif
+
+__kernel void __attribute__ ((reqd_work_group_size(1, 1, 1))) loopy_kernel(int const Q, int const QnD, __global double *__restrict__ d_v, int const dim, int const nc, int const nelem, __global double const *__restrict__ qweight1d)
+{
+  int v_offset;
+  int v_shift;
+  int xs;
+
+  v_shift = QnD * nc + QnD * nc * dim;
+  for (int k = 0; k <= -1 + Q; ++k)
+    for (int j = 0; j <= -1 + Q; ++j)
+      for (int i = 0; i <= -1 + Q; ++i)
+        for (int e = 0; e <= -1 + nelem; ++e)
+        {
+          v_offset = e * QnD * nc * (dim + 2) + v_shift;
+          xs = (i * Q + j) * Q + k + v_offset;
+          for (int d = 0; d <= -1 + dim; ++d)
+          {
+            if (!(d == 0))
+              d_v[xs] = qweight1d[j] * d_v[xs];
+            if (d == 0)
+              d_v[xs] = qweight1d[j];
+          }
+        }
+}
