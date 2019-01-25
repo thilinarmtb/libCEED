@@ -242,18 +242,18 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   sprintf(tmp,"-Dndof=%d", r->ndof);
   strcpy(compileOptions, tmp);
   sprintf(tmp,",-Dnelem=%d", r->nelem);
-  strcpy(compileOptions, tmp);
+  strcat(compileOptions, tmp);
   sprintf(tmp,",-Delemsize=%d", r->elemsize);
-  strcpy(compileOptions, tmp);
+  strcat(compileOptions, tmp);
   sprintf(tmp,",-Dnelem_x_elemsize=%d", r->nelem*r->elemsize);
-  strcpy(compileOptions, tmp);
+  strcat(compileOptions, tmp);
 
   // OpenCL check for this requirement
   const CeedInt nelem_tile_size = (r->nelem>OPENCL_TILE_SIZE)?OPENCL_TILE_SIZE:r->nelem;
   // OCCA+MacOS implementation need that for now (if DeviceID targets a CPU)
   const CeedInt tile_size = ocl?1:nelem_tile_size;
   sprintf(tmp, "-DTILE_SIZE=%d", tile_size);
-  strcpy(compileOptions, tmp);
+  strcat(compileOptions, tmp);
 
   // ***************************************************************************
   cl_int err;
