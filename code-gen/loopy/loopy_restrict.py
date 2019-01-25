@@ -34,6 +34,7 @@ kRestrict0 = lp.make_kernel(
     """
     vv[i] = uu[indices[i]]
     """,
+    name="kRestrict0",
     assumptions="nelem_x_elemsize > 0",
     target=lp.OpenCLTarget() #Don't want to hardcode this, but will do for now 
     )
@@ -43,6 +44,7 @@ kRestrict1 = lp.make_kernel(
     """
     vv[e,d,i] = uu[indices[e,i] + ndof*d]
     """,
+    name="kRestrict1",
     target=lp.OpenCLTarget(),
     assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
     )
@@ -52,6 +54,7 @@ kRestrict2 = lp.make_kernel(
     """
     vv[e,d,i] = uu[ncomp*indices[e,i] + d]
     """,
+    name="kRestrict2",
     target=lp.OpenCLTarget(),
     assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
     )
@@ -61,6 +64,7 @@ kRestrict3b = lp.make_kernel(
     """
     vv[i] = sum(j, uu[indices[j]])
     """,
+    name="kRestrict3b",
     target=lp.OpenCLTarget(),
     assumptions="ndof>0 and rng1>0 and rngN > rng1")
 
@@ -69,6 +73,7 @@ kRestrict4b = lp.make_kernel(
     """
     vv[d, i] = sum(j, uu[indices[j]*ncomp + d*elemsize + indices[j]%elemsize])
     """,
+    name="kRestrict4b",
     target=lp.OpenCLTarget(),
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0")
 
@@ -78,6 +83,7 @@ kRestrict5b = lp.make_kernel(
     vv[i, d] = sum(j, uu[indices[j]*ncomp + d*elemsize + indices[j]%elemsize])
     #vv[i,d] = sum(j, uu[indices[j]*ncomp, d*elemsize, indices[j]%elemsize])
     """,
+    name="kRestrict5b",
     target=lp.OpenCLTarget(),
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0"
     )
