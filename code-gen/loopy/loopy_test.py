@@ -144,9 +144,11 @@ mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
 
 # execute
 # -------
-evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
+#evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
+mxm = lp.add_and_infer_dtypes(mxm, {"A":np.float64, "X": np.float64})
+print(lp.generate_code_v2(mxm).device_code())
 #evt, (out,) = knl(queue, a=a)
 
 #print(B)
 #print(a_mat_host @ x_mat_host)
-print((B - a_mat_host @ x_mat_host).max())
+#print((B - a_mat_host @ x_mat_host).max())
