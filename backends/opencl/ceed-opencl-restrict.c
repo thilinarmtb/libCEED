@@ -257,7 +257,7 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
 
   // ***************************************************************************
   cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1, OpenCLKernels, NULL, &err);
+  data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
   clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
   data->kRestrict[0] = clCreateKernel(data->program, "kRestrict0", &err);
   data->kRestrict[1] = clCreateKernel(data->program, "kRestrict1", &err);

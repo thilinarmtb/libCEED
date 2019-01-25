@@ -71,7 +71,7 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   dbg("[CeedQFunction][BuildKernel] name=%s",data->qFunctionName);
 
   cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1, OpenCLKernels, NULL, &err);
+  data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
   clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
   data->kQFunctionApply = clCreateKernel(data->program, "QFunctionApply", &err);
 
