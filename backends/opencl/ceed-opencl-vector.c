@@ -170,7 +170,7 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
   vec->data = data;
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,bytes(vec),
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec),
 		  NULL, NULL);
   return 0;
 }

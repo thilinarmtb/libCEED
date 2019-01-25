@@ -94,16 +94,16 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   //const int deviceID = slash?(rlen>nrc+1)?atoi(&resource[nrc+1]):0:0;
   // Warning: "backend cannot use resource" is used to grep in test/tap.sh
   if (!cpu && !gpu)
-    return CeedError(ceed, 1, "OCCA backend cannot use resource: %s", resource);
+    return CeedError(ceed, 1, "OpenCL backend cannot use resource: %s", resource);
   ceed->Error = CeedError_OpenCL;
   ceed->Destroy = CeedDestroy_OpenCL;
   ceed->VecCreate = CeedVectorCreate_OpenCL;
-//ceed->ElemRestrictionCreate = CeedElemRestrictionCreate_OpenCL;
-//ceed->ElemRestrictionCreateBlocked = CeedElemRestrictionCreateBlocked_OpenCL;
-//ceed->BasisCreateTensorH1 = CeedBasisCreateTensorH1_OpenCL;
-//ceed->BasisCreateH1 = CeedBasisCreateH1_OpenCL;
-//ceed->QFunctionCreate = CeedQFunctionCreate_OpenCL;
-//ceed->OperatorCreate = CeedOperatorCreate_OpenCL;
+  ceed->ElemRestrictionCreate = CeedElemRestrictionCreate_OpenCL;
+  ceed->ElemRestrictionCreateBlocked = CeedElemRestrictionCreateBlocked_OpenCL;
+  ceed->BasisCreateTensorH1 = CeedBasisCreateTensorH1_OpenCL;
+  ceed->BasisCreateH1 = CeedBasisCreateH1_OpenCL;
+  ceed->QFunctionCreate = CeedQFunctionCreate_OpenCL;
+  ceed->OperatorCreate = CeedOperatorCreate_OpenCL;
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
   ceed->data = data;
 
@@ -124,46 +124,14 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id, NULL);
   } else if(gpu) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id, NULL);
+    if(err) {
+      return CeedError(ceed, 1, "OpenCL backend can't initialize the GPUs.");
+    }
   }
 
   data->context = clCreateContext(0, 1, &data->device_id, NULL, NULL, &err);
   data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id, 0, &err);
 
-//dbg("[CeedInit] deviceID: %d", data->device_id);
-
-//char mode[CEED_MAX_RESOURCE_LEN] = {0};
-//// Push deviceID for CUDA and OpenCL mode
-//if (ocl || gpu) sprintf(mode,mode_format,deviceID);
-//else memcpy(mode,mode_format,strlen(mode_format));
-//dbg("[CeedInit] mode: %s", mode);
-//// Now creating OCCA device
-//data->device = occaCreateDevice(occaString(mode));
-//const char *deviceMode = occaDeviceMode(data->device);
-//dbg("[CeedInit] returned deviceMode: %s", deviceMode);
-//// Warning: "OCCA backend failed" is used to grep in test/tap.sh
-//if (cpu && strcmp(occaDeviceMode(data->device), "Serial"))
-//  return CeedError(ceed,1, "OCCA backend failed to use Serial resource");
-//if (omp && strcmp(occaDeviceMode(data->device), "OpenMP"))
-//  return CeedError(ceed,1, "OCCA backend failed to use OpenMP resource");
-//if (gpu && strcmp(occaDeviceMode(data->device), "CUDA"))
-//  return CeedError(ceed,1, "OCCA backend failed to use CUDA resource");
-//if (ocl && strcmp(occaDeviceMode(data->device), "OpenCL"))
-//  return CeedError(ceed,1, "OCCA backend failed to use OpenCL resource");
-//// populating our data struct with libceed_dir
-//ierr = CeedOklDladdr_OpenCL(ceed); CeedChk(ierr);
-//if (data->libceed_dir)
-//  dbg("[CeedInit] libceed_dir: %s", data->libceed_dir);
-//// populating our data struct with occa_cache_dir
-//char occa_cache_home[OCCA_PATH_MAX];
-//const char *HOME = getenv("HOME");
-//if (!HOME) return CeedError(ceed, 1, "Cannot get env HOME");
-//ierr = sprintf(occa_cache_home,"%s/.occa",HOME); CeedChk(!ierr);
-//const char *OCCA_CACHE_DIR = getenv("OCCA_CACHE_DIR");
-//const char *occa_cache_dir = OCCA_CACHE_DIR?OCCA_CACHE_DIR:occa_cache_home;
-//const int occa_cache_dir_len = strlen(occa_cache_dir);
-//ierr = CeedCalloc(occa_cache_dir_len+1,&data->occa_cache_dir); CeedChk(ierr);
-//memcpy(data->occa_cache_dir,occa_cache_dir,occa_cache_dir_len+1);
-//dbg("[CeedInit] occa_cache_dir: %s", data->occa_cache_dir);
   return 0;
 }
 

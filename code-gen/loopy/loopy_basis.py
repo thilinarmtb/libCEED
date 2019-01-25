@@ -252,7 +252,6 @@ mxm = lp.make_kernel(
       """
       B[i, j] = sum(k, A[i, k]*X[k, j])
       """,assumptions="n mod 16 = 0 and m mod 16 = 0 and o mod 16 = 0 and n,m,o >= 16")
-#mxm = lp.set_options(mxm, "write_cl")
 print(mxm)
 
 
