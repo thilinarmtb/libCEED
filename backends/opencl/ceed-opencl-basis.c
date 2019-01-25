@@ -98,7 +98,7 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
 	  	elems_x_tmpSz*sizeof(CeedScalar),NULL,NULL);
   // ***************************************************************************
   cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1, OpenCLKernels, NULL, &err);
+  data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
   clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
   data->kZero   = clCreateKernel(data->program, "kZero"  , &err);
   data->kInterp = clCreateKernel(data->program, "kInterp", &err);
