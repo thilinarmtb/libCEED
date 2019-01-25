@@ -36,6 +36,7 @@ kZero = lp.make_kernel(
     """
     v[e*(nc*elemsize) + i] = 0
     """,
+    name="kZero",
     assumptions="nelem > 0 and vsize > 0",
     target=lp.OpenCLTarget()
 )
@@ -73,6 +74,7 @@ kCeedTensorContract = lp.make_kernel(
     #end
 
     """,
+    name = "kCeedTensorContract",
     target=lp.OpenCLTarget(),
     assumptions="A>0 and B>0 and C>0 and J>0"
     )
@@ -151,6 +153,7 @@ kInterp = lp.make_kernel(
         end
     end
     """,
+    name="kInterp",
     target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
 print(kInterp)
@@ -248,6 +251,7 @@ kGrad = lp.make_kernel(
         end
     end
     """,
+    name="kGrad",
     target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
 print(kGrad)
@@ -303,6 +307,7 @@ kWeight = lp.make_kernel(
     #end
     #end
     """, 
+    name="kWeight",
     target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0 and Q>0"
     )
