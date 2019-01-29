@@ -49,21 +49,24 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   // ***************************************************************************
   cl_int err;
 
-  size_t globalSize, localSize;
+  size_t globalSize = 1, localSize = 1;
   // Number of work items in each local work group
-  localSize = 64;
 
   if (restriction) {
     // Perform: v = r * u
     if (ncomp == 1) {
       dbg("[CeedElemRestriction][Apply] kRestrict[0]");
-      //occaKernelRun(data->kRestrict[0], id, ud, vd);
       err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), &id);
-      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(cl_mem), &ud);
-      err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), &vd);
+      size_t nelem_x_elemsize = r->nelem*r->elemsize;
+      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(CeedInt), &nelem_x_elemsize);
+      err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), &ud);
+      err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), &vd);
 
+      localSize = 1;
       clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[0], 1, NULL,
-		      &globalSize, &localSize, 0, NULL, NULL);
+		      &nelem_x_elemsize, &localSize, 0, NULL, NULL);
+      clFlush(ceed_data->queue);
+      clFinish(ceed_data->queue);
     } else {
       // v is (elemsize x ncomp x nelem), column-major
       if (ordering) {
@@ -77,6 +80,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[1], 1, NULL,
 		      &globalSize, &localSize, 0, NULL, NULL);
+        clFinish(ceed_data->queue);
       } else {
         // u is (ncomp x ndof), column-major
         dbg("[CeedElemRestriction][Apply] kRestrict[2]");
@@ -88,6 +92,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[1], 1, NULL,
 		      &globalSize, &localSize, 0, NULL, NULL);
+        clFinish(ceed_data->queue);
       }
     }
   } else { // ******************************************************************
@@ -103,6 +108,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
       clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
 		      &globalSize, &localSize, 0, NULL, NULL);
+      clFinish(ceed_data->queue);
     } else {
       // u is (elemsize x ncomp x nelem)
       if (ordering) {
@@ -117,7 +123,8 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
         err |= clSetKernelArg(data->kRestrict[0], 4, sizeof(cl_mem), &vd);
   
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[7], 1, NULL,
-  		      &globalSize, &localSize, 0, NULL, NULL);
+  	  	      &globalSize, &localSize, 0, NULL, NULL);
+        clFinish(ceed_data->queue);
       } else {
         // v is (ncomp x ndof), column-major
         dbg("[CeedElemRestriction][Apply] kRestrict[5]");
@@ -245,8 +252,6 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   strcat(compileOptions, tmp);
   sprintf(tmp,",-Delemsize=%d", r->elemsize);
   strcat(compileOptions, tmp);
-  sprintf(tmp,",-Dnelem_x_elemsize=%d", r->nelem*r->elemsize);
-  strcat(compileOptions, tmp);
 
   // OpenCL check for this requirement
   const CeedInt nelem_tile_size = (r->nelem>OPENCL_TILE_SIZE)?OPENCL_TILE_SIZE:r->nelem;
@@ -260,13 +265,18 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
   clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
   data->kRestrict[0] = clCreateKernel(data->program, "kRestrict0", &err);
+  dbg("err after building kRestric0: %d\n",err);
   data->kRestrict[1] = clCreateKernel(data->program, "kRestrict1", &err);
+  dbg("err after building kRestric1: %d\n",err);
   data->kRestrict[2] = clCreateKernel(data->program, "kRestrict2", &err);
+  dbg("err after building kRestric2: %d\n",err);
   // data->kRestrict[3] = occaDeviceBuildKernel(dev, oklPath, "kRestrict3", pKR);
   // data->kRestrict[4] = occaDeviceBuildKernel(dev, oklPath, "kRestrict4", pKR);
   // data->kRestrict[5] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5", pKR);
   data->kRestrict[6] = clCreateKernel(data->program, "kRestrict3b", &err);
+  dbg("err after building kRestric3b: %d\n",err);
   data->kRestrict[7] = clCreateKernel(data->program, "kRestrict4b", &err);
+  dbg("err after building kRestric4b: %d\n",err);
   // data->kRestrict[8] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5b", pKR);
   // free local usage **********************************************************
   dbg("[CeedElemRestriction][Create] done");

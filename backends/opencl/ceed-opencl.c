@@ -122,6 +122,9 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   err = clGetPlatformIDs(1, &data->cpPlatform, NULL);
   if(cpu) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id, NULL);
+    if(err) {
+      return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.");
+    }
   } else if(gpu) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id, NULL);
     if(err) {
