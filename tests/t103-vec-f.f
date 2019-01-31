@@ -1,4 +1,4 @@
-c-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
       program test
 
       include 'ceedf.h'
@@ -21,8 +21,11 @@ c-----------------------------------------------------------------------
       call ceedvectorgetarray(x,ceed_mem_host,a,aoffset,err)
       call ceedvectorgetarray(x,ceed_mem_host,b,boffset,err)
 
+      call ceedvectorrestorearray(x,a,aoffset,err)
+      call ceedvectorrestorearray(x,b,boffset,err)
+
       call ceedvectordestroy(x,err)
       call ceeddestroy(ceed,err)
 
       end
-c-----------------------------------------------------------------------
+!-----------------------------------------------------------------------

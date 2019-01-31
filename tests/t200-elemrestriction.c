@@ -1,6 +1,6 @@
 /// @file
-/// Test creation, use, and destruction of a element restriction
-/// \test Test creation, use, and destruction of a element restriction
+/// Test creation, use, and destruction of an element restriction
+/// \test Test creation, use, and destruction of an element restriction
 #include <ceed.h>
 
 int main(int argc, char **argv) {
@@ -24,14 +24,14 @@ int main(int argc, char **argv) {
   CeedElemRestrictionCreate(ceed, ne, 2, ne+1, 1, CEED_MEM_HOST, CEED_USE_POINTER,
                             ind, &r);
   CeedVectorCreate(ceed, ne*2, &y);
-  CeedVectorSetArray(y, CEED_MEM_HOST, CEED_COPY_VALUES, NULL); // Allocates array
+  CeedVectorSetValue(y, 0); // Allocates array
   CeedElemRestrictionApply(r, CEED_NOTRANSPOSE, CEED_NOTRANSPOSE, x, y,
                            CEED_REQUEST_IMMEDIATE);
   CeedVectorGetArrayRead(y, CEED_MEM_HOST, &yy);
   for (CeedInt i=0; i<ne*2; i++) {
     if (10+(i+1)/2 != yy[i])
-      return CeedError(ceed, (int)i, "Error in restricted array y[%d] = %f",
-                       i, (double)yy[i]);
+      printf("Error in restricted array y[%d] = %f",
+             i, (double)yy[i]);
   }
   CeedVectorRestoreArrayRead(y, &yy);
   CeedVectorDestroy(&x);

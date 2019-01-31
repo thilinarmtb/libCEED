@@ -20,10 +20,11 @@
 //     bp3 -ceed /ocl/occa
 //
 //TESTARGS -ceed {ceed_resource} -test -degree 3
+
+/// @file
+/// Diffusion operator example using PETSc
 const char help[] = "Solve CEED BP3 using PETSc\n";
 
-#include <petscksp.h>
-#include <ceed.h>
 #include <stdbool.h>
 #include "bp3.h"
 
@@ -126,7 +127,8 @@ static PetscErrorCode MatMult_Diff(Mat A, Vec X, Vec Y) {
   ierr = MatShellGetContext(A, &user); CHKERRQ(ierr);
   ierr = VecScatterBegin(user->ltog0, X, user->Xloc, INSERT_VALUES,
                          SCATTER_REVERSE); CHKERRQ(ierr);
-  ierr = VecScatterEnd(user->ltog0, X, user->Xloc, INSERT_VALUES, SCATTER_REVERSE);
+  ierr = VecScatterEnd(user->ltog0, X, user->Xloc, INSERT_VALUES,
+                       SCATTER_REVERSE);
   CHKERRQ(ierr);
   ierr = VecZeroEntries(user->Yloc); CHKERRQ(ierr);
 
@@ -137,6 +139,11 @@ static PetscErrorCode MatMult_Diff(Mat A, Vec X, Vec Y) {
 
   CeedOperatorApply(user->op, user->xceed, user->yceed,
                     CEED_REQUEST_IMMEDIATE);
+  //TODO replace this by SyncArray when available
+  const CeedScalar* array;
+  ierr = CeedVectorGetArrayRead(user->yceed, CEED_MEM_HOST, &array);
+  CHKERRQ(ierr);
+  ierr = CeedVectorRestoreArrayRead(user->yceed, &array); CHKERRQ(ierr);
 
   ierr = VecRestoreArrayRead(user->Xloc, (const PetscScalar**)&x); CHKERRQ(ierr);
   ierr = VecRestoreArray(user->Yloc, &y); CHKERRQ(ierr);
@@ -193,7 +200,7 @@ int main(int argc, char **argv) {
   PetscInt degree, qextra, localdof, localelem, melem[3], mdof[3], p[3],
            irank[3], ldof[3], lsize;
   PetscScalar *r;
-  PetscBool test_mode;
+  PetscBool test_mode, benchmark_mode;
   PetscMPIInt size, rank;
   VecScatter ltog, ltog0, gtogD;
   Ceed ceed;
@@ -208,6 +215,7 @@ int main(int argc, char **argv) {
   Mat mat;
   KSP ksp;
   User user;
+  double my_rt_start, my_rt, rt_min, rt_max;
 
   ierr = PetscInitialize(&argc, &argv, NULL, help);
   if (ierr) return ierr;
@@ -217,6 +225,11 @@ int main(int argc, char **argv) {
   ierr = PetscOptionsBool("-test",
                           "Testing mode (do not print unless error is large)",
                           NULL, test_mode, &test_mode, NULL); CHKERRQ(ierr);
+  benchmark_mode = PETSC_FALSE;
+  ierr = PetscOptionsBool("-benchmark",
+                          "Benchmarking mode (prints benchmark statistics)",
+                          NULL, benchmark_mode, &benchmark_mode, NULL);
+  CHKERRQ(ierr);
   degree = test_mode ? 3 : 1;
   ierr = PetscOptionsInt("-degree", "Polynomial degree of tensor product basis",
                          NULL, degree, &degree, NULL); CHKERRQ(ierr);
@@ -322,26 +335,31 @@ int main(int argc, char **argv) {
     CHKERRQ(ierr);
     ierr = ISCreateGeneral(comm, l0count, ltogind0, PETSC_OWN_POINTER, &ltogis0);
     CHKERRQ(ierr);
-    ierr = ISCreateGeneral(PETSC_COMM_SELF, l0count, locind, PETSC_OWN_POINTER, &locis);
+    ierr = ISCreateGeneral(PETSC_COMM_SELF, l0count, locind, PETSC_OWN_POINTER,
+                           &locis);
     CHKERRQ(ierr);
     ierr = VecScatterCreateWithData(Xloc, locis, X, ltogis0, &ltog0); CHKERRQ(ierr);
-    { // Create global-to-global scatter for Dirichlet values (everything not in
+    {
+      // Create global-to-global scatter for Dirichlet values (everything not in
       // ltogis0, which is the range of ltog0)
       PetscInt xstart, xend, *indD, countD = 0;
       IS isD;
       const PetscScalar *x;
       ierr = VecZeroEntries(Xloc); CHKERRQ(ierr);
       ierr = VecSet(X, 1.0); CHKERRQ(ierr);
-      ierr = VecScatterBegin(ltog0, Xloc, X, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
-      ierr = VecScatterEnd(ltog0, Xloc, X, INSERT_VALUES, SCATTER_FORWARD); CHKERRQ(ierr);
+      ierr = VecScatterBegin(ltog0, Xloc, X, INSERT_VALUES, SCATTER_FORWARD);
+      CHKERRQ(ierr);
+      ierr = VecScatterEnd(ltog0, Xloc, X, INSERT_VALUES, SCATTER_FORWARD);
+      CHKERRQ(ierr);
       ierr = VecGetOwnershipRange(X, &xstart, &xend); CHKERRQ(ierr);
       ierr = PetscMalloc1(xend-xstart, &indD); CHKERRQ(ierr);
-      ierr = VecGetArrayRead(X, &x);CHKERRQ(ierr);
+      ierr = VecGetArrayRead(X, &x); CHKERRQ(ierr);
       for (PetscInt i=0; i<xend-xstart; i++) {
         if (x[i] == 1.) indD[countD++] = xstart + i;
       }
       ierr = VecRestoreArrayRead(X, &x); CHKERRQ(ierr);
-      ierr = ISCreateGeneral(comm, countD, indD, PETSC_COPY_VALUES, &isD); CHKERRQ(ierr);
+      ierr = ISCreateGeneral(comm, countD, indD, PETSC_COPY_VALUES, &isD);
+      CHKERRQ(ierr);
       ierr = PetscFree(indD); CHKERRQ(ierr);
       ierr = VecScatterCreateWithData(X, isD, X, isD, &gtogD); CHKERRQ(ierr);
       ierr = ISDestroy(&isD); CHKERRQ(ierr);
@@ -421,29 +439,35 @@ int main(int argc, char **argv) {
 
   // Create the operator that builds the quadrature data for the diff operator.
   CeedOperatorCreate(ceed, qf_setup, NULL, NULL, &op_setup);
-  CeedOperatorSetField(op_setup, "x", Erestrictx, basisx, CEED_VECTOR_ACTIVE);
-  CeedOperatorSetField(op_setup, "dx", Erestrictx, basisx, CEED_VECTOR_ACTIVE);
-  CeedOperatorSetField(op_setup, "weight", Erestrictxi, basisx,
-                       CEED_VECTOR_NONE);
-  CeedOperatorSetField(op_setup, "rho", Erestrictqdi,
+  CeedOperatorSetField(op_setup, "x", Erestrictx, CEED_NOTRANSPOSE,
+                       basisx, CEED_VECTOR_ACTIVE);
+  CeedOperatorSetField(op_setup, "dx", Erestrictx, CEED_NOTRANSPOSE,
+                       basisx, CEED_VECTOR_ACTIVE);
+  CeedOperatorSetField(op_setup, "weight", Erestrictxi, CEED_NOTRANSPOSE,
+                       basisx, CEED_VECTOR_NONE);
+  CeedOperatorSetField(op_setup, "rho", Erestrictqdi, CEED_NOTRANSPOSE,
                        CEED_BASIS_COLLOCATED, CEED_VECTOR_ACTIVE);
-  CeedOperatorSetField(op_setup, "true_soln", Erestrictui,
+  CeedOperatorSetField(op_setup, "true_soln", Erestrictui, CEED_NOTRANSPOSE,
                        CEED_BASIS_COLLOCATED, target);
-  CeedOperatorSetField(op_setup, "rhs", Erestrictu, basisu, rhsceed);
+  CeedOperatorSetField(op_setup, "rhs", Erestrictu, CEED_NOTRANSPOSE,
+                       basisu, rhsceed);
 
   // Create the diff operator.
   CeedOperatorCreate(ceed, qf_diff, NULL, NULL, &op_diff);
-  CeedOperatorSetField(op_diff, "u", Erestrictu, basisu, CEED_VECTOR_ACTIVE);
-  CeedOperatorSetField(op_diff, "rho", Erestrictqdi,
+  CeedOperatorSetField(op_diff, "u", Erestrictu, CEED_NOTRANSPOSE,
+                       basisu, CEED_VECTOR_ACTIVE);
+  CeedOperatorSetField(op_diff, "rho", Erestrictqdi, CEED_NOTRANSPOSE,
                        CEED_BASIS_COLLOCATED, rho);
-  CeedOperatorSetField(op_diff, "v", Erestrictu, basisu, CEED_VECTOR_ACTIVE);
+  CeedOperatorSetField(op_diff, "v", Erestrictu, CEED_NOTRANSPOSE,
+                       basisu, CEED_VECTOR_ACTIVE);
 
   // Create the error operator
   CeedOperatorCreate(ceed, qf_error, NULL, NULL, &op_error);
-  CeedOperatorSetField(op_error, "u", Erestrictu, basisu, CEED_VECTOR_ACTIVE);
-  CeedOperatorSetField(op_error, "true_soln", Erestrictui,
+  CeedOperatorSetField(op_error, "u", Erestrictu, CEED_NOTRANSPOSE,
+                       basisu, CEED_VECTOR_ACTIVE);
+  CeedOperatorSetField(op_error, "true_soln", Erestrictui, CEED_NOTRANSPOSE,
                        CEED_BASIS_COLLOCATED, target);
-  CeedOperatorSetField(op_error, "error", Erestrictui,
+  CeedOperatorSetField(op_error, "error", Erestrictui, CEED_NOTRANSPOSE,
                        CEED_BASIS_COLLOCATED, CEED_VECTOR_ACTIVE);
 
 
@@ -475,6 +499,10 @@ int main(int argc, char **argv) {
 
   // Setup rho, rhs, and target
   CeedOperatorApply(op_setup, xcoord, rho, CEED_REQUEST_IMMEDIATE);
+  //TODO replace this by SyncArray when available
+  const CeedScalar* array;
+  ierr = CeedVectorGetArrayRead(rhsceed, CEED_MEM_HOST, &array); CHKERRQ(ierr);
+  ierr = CeedVectorRestoreArrayRead(rhsceed, &array); CHKERRQ(ierr);
   CeedVectorDestroy(&xcoord);
 
   // Gather RHS
@@ -497,7 +525,10 @@ int main(int argc, char **argv) {
   }
   ierr = KSPSetFromOptions(ksp); CHKERRQ(ierr);
   ierr = KSPSetOperators(ksp, mat, mat); CHKERRQ(ierr);
+  // Timed solve
+  my_rt_start = MPI_Wtime();
   ierr = KSPSolve(ksp, rhs, X); CHKERRQ(ierr);
+  my_rt = MPI_Wtime() - my_rt_start;
   {
     KSPType ksptype;
     KSPConvergedReason reason;
@@ -510,6 +541,18 @@ int main(int argc, char **argv) {
     if (!test_mode || reason < 0 || rnorm > 1e-8) {
       ierr = PetscPrintf(comm, "KSP %s %s iterations %D rnorm %e\n", ksptype,
                          KSPConvergedReasons[reason], its, (double)rnorm); CHKERRQ(ierr);
+    }
+    if (benchmark_mode && !test_mode) {
+      CeedInt gsize;
+      ierr = VecGetSize(X, &gsize); CHKERRQ(ierr);
+      MPI_Reduce(&my_rt, &rt_min, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+      MPI_Reduce(&my_rt, &rt_max, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+      ierr = PetscPrintf(comm,
+                         "CG solve time  : %g (%g) sec.\n"
+                         "DOFs/sec in CG : %g (%g) million.\n",
+                         rt_max, rt_min,
+                         1e-6*gsize*its/rt_max, 1e-6*gsize*its/rt_min);
+      CHKERRQ(ierr);
     }
   }
 

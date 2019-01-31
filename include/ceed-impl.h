@@ -14,6 +14,8 @@
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
 
+/// @file
+/// Private header for frontend components of libCEED
 #ifndef _ceed_impl_h
 #define _ceed_impl_h
 
@@ -24,6 +26,13 @@
 
 #define CEED_MAX_RESOURCE_LEN 1024
 #define CEED_ALIGN 64
+#define CEED_NUM_BACKEND_FUNCTIONS 25
+
+// Lookup table field for backend functions
+typedef struct {
+  const char *fname;
+  size_t offset;
+} foffset;
 
 struct Ceed_private {
   Ceed delegate;
@@ -43,22 +52,8 @@ struct Ceed_private {
   int (*OperatorCreate)(CeedOperator);
   int refcount;
   void *data;
+  foffset foffsets[CEED_NUM_BACKEND_FUNCTIONS];
 };
-
-/* In the next 3 functions, p has to be the address of a pointer type, i.e. p
-   has to be a pointer to a pointer. */
-CEED_INTERN int CeedMallocArray(size_t n, size_t unit, void *p);
-CEED_INTERN int CeedCallocArray(size_t n, size_t unit, void *p);
-CEED_INTERN int CeedReallocArray(size_t n, size_t unit, void *p);
-CEED_INTERN int CeedFree(void *p);
-
-#define CeedChk(ierr) do { if (ierr) return ierr; } while (0)
-/* Note that CeedMalloc and CeedCalloc will, generally, return pointers with
-   different memory alignments: CeedMalloc returns pointers aligned at
-   CEED_ALIGN bytes, while CeedCalloc uses the alignment of calloc. */
-#define CeedMalloc(n, p) CeedMallocArray((n), sizeof(**(p)), p)
-#define CeedCalloc(n, p) CeedCallocArray((n), sizeof(**(p)), p)
-#define CeedRealloc(n, p) CeedReallocArray((n), sizeof(**(p)), p)
 
 struct CeedVector_private {
   Ceed ceed;
@@ -72,6 +67,7 @@ struct CeedVector_private {
   int refcount;
   CeedInt length;
   uint64_t state;
+  uint64_t numreaders;
   void *data;
 };
 
@@ -94,8 +90,7 @@ struct CeedElemRestriction_private {
 struct CeedBasis_private {
   Ceed ceed;
   int (*Apply)(CeedBasis, CeedInt, CeedTransposeMode, CeedEvalMode,
-               const CeedScalar *,
-               CeedScalar *);
+               CeedVector, CeedVector);
   int (*Destroy)(CeedBasis);
   int refcount;
   bool tensorbasis;      /* flag for tensor basis */
@@ -118,7 +113,7 @@ struct CeedBasis_private {
   void *data;            /* place for the backend to store any data */
 };
 
-struct CeedQFunctionField {
+struct CeedQFunctionField_private {
   const char *fieldname;
   CeedInt ncomp;
   CeedEvalMode emode;
@@ -126,23 +121,47 @@ struct CeedQFunctionField {
 
 struct CeedQFunction_private {
   Ceed ceed;
-  int (*Apply)(CeedQFunction, CeedInt, const CeedScalar *const *,
-               CeedScalar *const *);
+  int (*Apply)(CeedQFunction, CeedInt, CeedVector *,
+               CeedVector *);
   int (*Destroy)(CeedQFunction);
   int refcount;
   CeedInt vlength;    // Number of quadrature points must be padded to a multiple of vlength
-  struct CeedQFunctionField inputfields[16];
-  struct CeedQFunctionField outputfields[16];
+  CeedQFunctionField *inputfields;
+  CeedQFunctionField *outputfields;
   CeedInt numinputfields, numoutputfields;
-  int (*function)(void*, CeedInt, const CeedScalar *const*, CeedScalar *const*);
+  CeedQFunctionUser function;
   const char *focca;
+  bool fortranstatus;
   void *ctx;      /* user context for function */
   size_t ctxsize; /* size of user context; may be used to copy to a device */
   void *data;     /* backend data */
 };
 
-struct CeedOperatorField {
+/// Struct to handle the context data to use the Fortran QFunction stub
+/// @ingroup CeedQFunction
+typedef struct {
+  CeedScalar *innerctx;
+  size_t innerctxsize;
+  void (*f)(void *ctx, int *nq,
+            const CeedScalar *u,const CeedScalar *u1,
+            const CeedScalar *u2,const CeedScalar *u3,
+            const CeedScalar *u4,const CeedScalar *u5,
+            const CeedScalar *u6,const CeedScalar *u7,
+            const CeedScalar *u8,const CeedScalar *u9,
+            const CeedScalar *u10,const CeedScalar *u11,
+            const CeedScalar *u12,const CeedScalar *u13,
+            const CeedScalar *u14,const CeedScalar *u15,
+            CeedScalar *v,CeedScalar *v1,CeedScalar *v2,
+            CeedScalar *v3,CeedScalar *v4,CeedScalar *v5,
+            CeedScalar *v6,CeedScalar *v7,CeedScalar *v8,
+            CeedScalar *v9, CeedScalar *v10,CeedScalar *v11,
+            CeedScalar *v12,CeedScalar *v13,CeedScalar *v14,
+            CeedScalar *v15, int *err);
+} fContext;
+
+struct CeedOperatorField_private {
   CeedElemRestriction Erestrict; /// Restriction from L-vector or NULL if identity
+  CeedTransposeMode lmode;       /// Transpose mode for lvector ordering
   CeedBasis basis;               /// Basis or NULL for collocated fields
   CeedVector
   vec;                /// State vector for passive fields, NULL for active fields
@@ -154,10 +173,9 @@ struct CeedOperator_private {
   int (*Apply)(CeedOperator, CeedVector, CeedVector, CeedRequest *);
   int (*ApplyJacobian)(CeedOperator, CeedVector, CeedVector, CeedVector,
                        CeedVector, CeedRequest *);
-  int (*GetQData)(CeedOperator, CeedVector *);
   int (*Destroy)(CeedOperator);
-  struct CeedOperatorField inputfields[16];
-  struct CeedOperatorField outputfields[16];
+  CeedOperatorField *inputfields;
+  CeedOperatorField *outputfields;
   CeedInt numelements; /// Number of elements
   CeedInt numqpoints;  /// Number of quadrature points over all elements
   CeedInt nfields;     /// Number of fields that have been set
@@ -167,5 +185,15 @@ struct CeedOperator_private {
   bool setupdone;
   void *data;
 };
+
+CEED_INTERN int CeedErrorReturn(Ceed, const char *, int, const char *, int,
+                                const char *, va_list);
+CEED_INTERN int CeedErrorAbort(Ceed, const char *, int, const char *, int,
+                               const char *, va_list);
+CEED_INTERN int CeedErrorExit(Ceed, const char *, int, const char *, int,
+                              const char *, va_list);
+CEED_INTERN int CeedSetErrorHandler(Ceed ceed,
+                                    int (eh)(Ceed, const char *, int, const char *,
+                                        int, const char *, va_list));
 
 #endif

@@ -15,6 +15,7 @@
 // testbed platforms, in support of the nation's exascale computing imperative.
 
 #include <ceed-impl.h>
+#include <ceed-backend.h>
 
 /// @cond DOXYGEN_SKIP
 static struct CeedVector_private ceed_vector_active;
@@ -47,7 +48,7 @@ int CeedVectorCreate(Ceed ceed, CeedInt length, CeedVector *vec) {
     ierr = CeedGetDelegate(ceed, &delegate); CeedChk(ierr);
 
     if (!delegate)
-    return CeedError(ceed, 1, "Backend does not support VecCreate");
+      return CeedError(ceed, 1, "Backend does not support VecCreate");
 
     ierr = CeedVectorCreate(delegate, length, vec); CeedChk(ierr);
     return 0;
@@ -82,6 +83,10 @@ int CeedVectorSetArray(CeedVector vec, CeedMemType mtype, CeedCopyMode cmode,
   if (vec && (vec->state % 2) == 1)
     return CeedError(vec->ceed, 1,
                      "Cannot grant CeedVector array access, the access lock is already in use");
+
+  if (vec && vec->numreaders > 0)
+    return CeedError(vec->ceed, 1,
+                     "Cannot grant CeedVector array access, a process has read access");
 
   if (!vec || !vec->SetArray)
     return CeedError(vec ? vec->ceed : NULL, 1, "Not supported");
@@ -148,6 +153,10 @@ int CeedVectorGetArray(CeedVector vec, CeedMemType mtype, CeedScalar **array) {
     return CeedError(vec->ceed, 1,
                      "Cannot grant CeedVector array access, the access lock is already in use");
 
+  if (vec && vec->numreaders > 0)
+    return CeedError(vec->ceed, 1,
+                     "Cannot grant CeedVector array access, a process has read access");
+
   if (!vec || !vec->GetArray)
     return CeedError(vec ? vec->ceed : NULL, 1, "Not supported");
 
@@ -176,12 +185,13 @@ int CeedVectorGetArrayRead(CeedVector vec, CeedMemType mtype,
 
   if (vec && (vec->state % 2) == 1)
     return CeedError(vec->ceed, 1,
-                     "Cannot grant CeedVector array access, the access lock is already in use");
+                     "Cannot grant CeedVector read-only array access, the access lock is already in use");
 
   if (!vec || !vec->GetArrayRead)
     return CeedError(vec ? vec->ceed : NULL, 1, "Not supported");
 
   ierr = vec->GetArrayRead(vec, mtype, array); CeedChk(ierr);
+  vec->numreaders++;
 
   return 0;
 }
@@ -201,6 +211,10 @@ int CeedVectorRestoreArray(CeedVector vec, CeedScalar **array) {
 
   if (!vec || !vec->RestoreArray)
     return CeedError(vec ? vec->ceed : NULL, 1, "Not supported");
+
+  if (vec && (vec->state % 2) != 1)
+    return CeedError(vec->ceed, 1,
+                     "Cannot restore CeedVector array access, access was not granted");
 
   ierr = vec->RestoreArray(vec, array); CeedChk(ierr);
   vec->state += 1;
@@ -225,6 +239,7 @@ int CeedVectorRestoreArrayRead(CeedVector vec, const CeedScalar **array) {
     return CeedError(vec ? vec->ceed : NULL, 1, "Not supported");
 
   ierr = vec->RestoreArrayRead(vec, array); CeedChk(ierr);
+  vec->numreaders--;
 
   return 0;
 }
@@ -254,6 +269,21 @@ int CeedVectorView(CeedVector vec, const char *fpfmt, FILE *stream) {
 }
 
 /**
+  @brief Get the Ceed associated with a CeedVector
+
+  @param vec           CeedVector to retrieve state
+  @param[out] ceed     Variable to store ceed
+
+  @return An error code: 0 - success, otherwise - failure
+
+  @ref Advanced
+**/
+int CeedVectorGetCeed(CeedVector vec, Ceed *ceed) {
+  *ceed = vec->ceed;
+  return 0;
+}
+
+/**
   @brief Get the length of a CeedVector
 
   @param vec           CeedVector to retrieve length
@@ -261,10 +291,55 @@ int CeedVectorView(CeedVector vec, const char *fpfmt, FILE *stream) {
 
   @return An error code: 0 - success, otherwise - failure
 
-  @ref Utility
+  @ref Advanced
 **/
 int CeedVectorGetLength(CeedVector vec, CeedInt *length) {
   *length = vec->length;
+  return 0;
+}
+
+/**
+  @brief Get the state of a CeedVector
+
+  @param vec           CeedVector to retrieve state
+  @param[out] state    Variable to store state
+
+  @return An error code: 0 - success, otherwise - failure
+
+  @ref Advanced
+**/
+int CeedVectorGetState(CeedVector vec, uint64_t *state) {
+  *state = vec->state;
+  return 0;
+}
+
+/**
+  @brief Get the backend data of a CeedVector
+
+  @param vec           CeedVector to retrieve state
+  @param[out] data     Variable to store data
+
+  @return An error code: 0 - success, otherwise - failure
+
+  @ref Advanced
+**/
+int CeedVectorGetData(CeedVector vec, void* *data) {
+  *data = vec->data;
+  return 0;
+}
+
+/**
+  @brief Set the backend data of a CeedVector
+
+  @param[out] vec     CeedVector to retrieve state
+  @paramdata          Data to set
+
+  @return An error code: 0 - success, otherwise - failure
+
+  @ref Advanced
+**/
+int CeedVectorSetData(CeedVector vec, void* *data) {
+  vec->data = *data;
   return 0;
 }
 

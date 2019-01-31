@@ -57,6 +57,19 @@ or, with optimization flags
 These optimization flags are used by all languages (C, C++, Fortran) and this
 makefile variable can also be set for testing and examples (below).
 
+The library attempts to automatically detect support for the AVX
+instruction set using gcc-style compiler options for the host.
+Support may need to be manually specified via
+
+    make AVX=1
+
+or
+
+    make AVX=0
+
+if your compiler does not support gcc-style options, if you are cross
+compiling, etc.
+
 ## Testing
 
 The test suite produces [TAP](https://testanything.org) output and is run by:
@@ -112,14 +125,43 @@ be provided with the `-ceed` option, for example:
 
 |  CEED resource (`-ceed`) | Backend                                           |
 | :----------------------- | :------------------------------------------------ |
-| `/cpu/self/blocked`      | Serial blocked implementation                     |
 | `/cpu/self/ref`          | Serial reference implementation                   |
+| `/cpu/self/blocked`      | Serial blocked implementation                     |
 | `/cpu/self/tmpl`         | Backend template, dispatches to /cpu/self/blocked |
+| `/cpu/self/avx`          | Vectorized blocked implementation                 |
+| `/cpu/self/xsmm/serial`  | Serial LIBXSMM implementation                     |
+| `/cpu/self/xsmm/blocked` | Blocked LIBXSMM implementation                    |
 | `/cpu/occa`              | Serial OCCA kernels                               |
 | `/gpu/occa`              | CUDA OCCA kernels                                 |
 | `/omp/occa`              | OpenMP OCCA kernels                               |
 | `/ocl/occa`              | OpenCL OCCA kernels                               |
 | `/gpu/magma`             | CUDA MAGMA kernels                                |
+
+
+## Benchmarks
+
+A sequence of benchmarks for all enabled backends can be run using
+
+```console
+make benchmarks
+```
+
+The results from the benchmarks are stored inside the `benchmarks/` directory
+and they can be viewed using the commands (requires python with matplotlib):
+
+```console
+cd benchmarks
+python postprocess-plot.py petsc-bp1-*-output.txt
+python postprocess-plot.py petsc-bp3-*-output.txt
+```
+
+Using the `benchmarks` target runs a comprehensive set of benchmarks which may
+take some time to run. Subsets of the benchmarks can be run using targets such
+as `make bench-petsc-bp1`, or `make bench-petsc-bp3`.
+
+For more details about the benchmarks, see
+[`benchmarks/README.md`](benchmarks/README.md)
+
 
 ## Install
 

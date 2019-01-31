@@ -13,11 +13,11 @@
 // the planning and preparation of a capable exascale ecosystem, including
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
+#include <ceed-backend.h>
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <sys/stat.h>
-#include <ceed-impl.h>
 
 // *****************************************************************************
 #define OCCA_PATH_MAX 4096
@@ -77,14 +77,12 @@ typedef struct {
 typedef struct {
   CeedVector *Evecs; /// E-vectors needed to apply operator (in followed by out)
   CeedScalar **Edata;
-  CeedScalar **qdata;
-  CeedScalar **qdata_alloc; /// Inputs followed by outputs
-  CeedScalar **indata;
-  CeedScalar **outdata;
+  CeedVector *evecsin;   /// Input E-vectors needed to apply operator
+  CeedVector *evecsout;   /// Output E-vectors needed to apply operator
+  CeedVector *qvecsin;   /// Input Q-vectors needed to apply operator
+  CeedVector *qvecsout;   /// Output Q-vectors needed to apply operator
   CeedInt    numein;
   CeedInt    numeout;
-  CeedInt    numqin;
-  CeedInt    numqout;
 } CeedOperator_Occa;
 
 // *****************************************************************************
@@ -141,12 +139,12 @@ CEED_INTERN int CeedBasisCreateTensorH1_Occa(CeedInt dim,
 
 // *****************************************************************************
 CEED_INTERN int CeedBasisCreateH1_Occa(CeedElemTopology topo,
-    CeedInt dim, CeedInt ndof, CeedInt nqpts,
-    const CeedScalar *interp1d,
-    const CeedScalar *grad1d,
-    const CeedScalar *qref1d,
-    const CeedScalar *qweight1d,
-    CeedBasis basis);
+                                       CeedInt dim, CeedInt ndof, CeedInt nqpts,
+                                       const CeedScalar *interp1d,
+                                       const CeedScalar *grad1d,
+                                       const CeedScalar *qref1d,
+                                       const CeedScalar *qweight1d,
+                                       CeedBasis basis);
 
 // *****************************************************************************
 CEED_INTERN int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt Q,
@@ -165,8 +163,8 @@ CEED_INTERN int CeedElemRestrictionCreate_Occa(const CeedMemType mtype,
 
 // *****************************************************************************
 CEED_INTERN int CeedElemRestrictionCreateBlocked_Occa(const CeedMemType mtype,
-     const CeedCopyMode cmode, const CeedInt *indices,
-     const CeedElemRestriction res);
+    const CeedCopyMode cmode, const CeedInt *indices,
+    const CeedElemRestriction res);
 
 // *****************************************************************************
 CEED_INTERN int CeedVectorCreate_Occa(CeedInt n, CeedVector vec);
