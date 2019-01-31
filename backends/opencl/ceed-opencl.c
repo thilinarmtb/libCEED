@@ -122,13 +122,45 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   err = clGetPlatformIDs(1, &data->cpPlatform, NULL);
   if(cpu) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id, NULL);
-    if(err) {
-      return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.");
+    if(err != CL_SUCCESS) {
+      switch (err) {
+        case CL_INVALID_PLATFORM:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+          break;
+        case CL_INVALID_DEVICE_TYPE:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+          break;
+        case CL_INVALID_VALUE:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+          break;
+        case CL_DEVICE_NOT_FOUND:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Device not found");
+          break;
+        default:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+          break;
+      }
     }
   } else if(gpu) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id, NULL);
-    if(err) {
-      return CeedError(ceed, 1, "OpenCL backend can't initialize the GPUs.");
+    if(err != CL_SUCCESS) {
+      switch (err) {
+        case CL_INVALID_PLATFORM:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+          break;
+        case CL_INVALID_DEVICE_TYPE:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+          break;
+        case CL_INVALID_VALUE:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+          break;
+        case CL_DEVICE_NOT_FOUND:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Device not found");
+          break;
+        default:
+          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+          break;
+      }
     }
   }
 
