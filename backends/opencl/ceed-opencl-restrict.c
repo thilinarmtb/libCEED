@@ -57,10 +57,8 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     if (ncomp == 1) {
       dbg("[CeedElemRestriction][Apply] kRestrict[0]");
       err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), (void *)&id);
-      long long nelem_x_elemsize = r->nelem*r->elemsize;
-      printf("ttt: %d sizeof(int) = %d sizeof(long long) =%d\n",nelem_x_elemsize,
-          sizeof(int), sizeof(long long));
-      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(int), (void *)&nelem_x_elemsize);
+      CeedInt nelem_x_elemsize = r->nelem*r->elemsize;
+      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(CeedInt), (void *)&nelem_x_elemsize);
       err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), (void *)&ud);
       err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), (void *)&vd);
 
@@ -75,8 +73,11 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
         // u is (ndof x ncomp), column-major
         dbg("[CeedElemRestriction][Apply] kRestrict[1]");
         //occaKernelRun(data->kRestrict[1], occaInt(ncomp), id, ud, vd);
-        err  = clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &ncomp);
+        err  = clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->elemsize);
         err |= clSetKernelArg(data->kRestrict[1], 1, sizeof(cl_mem), &id);
+        err |= clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->ncomp);
+        err |= clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->ndof);
+        err |= clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->nelem);
         err |= clSetKernelArg(data->kRestrict[1], 2, sizeof(cl_mem), &ud);
         err |= clSetKernelArg(data->kRestrict[1], 3, sizeof(cl_mem), &vd);
 
@@ -87,10 +88,12 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
         // u is (ncomp x ndof), column-major
         dbg("[CeedElemRestriction][Apply] kRestrict[2]");
         //occaKernelRun(data->kRestrict[2], occaInt(ncomp), id, ud, vd);
-        err  = clSetKernelArg(data->kRestrict[2], 0, sizeof(CeedInt), &ncomp);
+        err  = clSetKernelArg(data->kRestrict[2], 0, sizeof(CeedInt), &r->elemsize);
         err |= clSetKernelArg(data->kRestrict[2], 1, sizeof(cl_mem), &id);
-        err |= clSetKernelArg(data->kRestrict[2], 2, sizeof(cl_mem), &ud);
-        err |= clSetKernelArg(data->kRestrict[2], 3, sizeof(cl_mem), &vd);
+        err |= clSetKernelArg(data->kRestrict[2], 2, sizeof(CeedInt), &r->ncomp);
+        err |= clSetKernelArg(data->kRestrict[2], 3, sizeof(CeedInt), &r->nelem);
+        err |= clSetKernelArg(data->kRestrict[2], 4, sizeof(cl_mem), &ud);
+        err |= clSetKernelArg(data->kRestrict[2], 5, sizeof(cl_mem), &vd);
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[1], 1, NULL,
 		      &globalSize, &localSize, 0, NULL, NULL);
