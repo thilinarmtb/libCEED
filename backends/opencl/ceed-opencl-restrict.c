@@ -56,11 +56,13 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     // Perform: v = r * u
     if (ncomp == 1) {
       dbg("[CeedElemRestriction][Apply] kRestrict[0]");
-      err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), &id);
-      size_t nelem_x_elemsize = r->nelem*r->elemsize;
-      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(CeedInt), &nelem_x_elemsize);
-      err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), &ud);
-      err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), &vd);
+      err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), (void *)&id);
+      long long nelem_x_elemsize = r->nelem*r->elemsize;
+      printf("ttt: %d sizeof(int) = %d sizeof(long long) =%d\n",nelem_x_elemsize,
+          sizeof(int), sizeof(long long));
+      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(int), (void *)&nelem_x_elemsize);
+      err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), (void *)&ud);
+      err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), (void *)&vd);
 
       localSize = 1;
       clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[0], 1, NULL,
@@ -240,30 +242,11 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   dbg("[CeedElemRestriction][Create] Building kRestrict");
 
   dbg("[CeedElemRestriction][Create] Initialize kRestrict");
-  //for (int i = 0; i < CEED_OPENCL_NUM_RESTRICTION_KERNELS; ++i) {
-  //  data->kRestrict[i] = occaUndefined;
-  //}
-
-  dbg("[CeedElemRestriction][Create] nelem=%d",r->nelem);
-  char compileOptions[BUFSIZ], tmp[BUFSIZ];
-  sprintf(tmp,"-Dndof=%d", r->ndof);
-  strcpy(compileOptions, tmp);
-  sprintf(tmp,",-Dnelem=%d", r->nelem);
-  strcat(compileOptions, tmp);
-  sprintf(tmp,",-Delemsize=%d", r->elemsize);
-  strcat(compileOptions, tmp);
-
-  // OpenCL check for this requirement
-  const CeedInt nelem_tile_size = (r->nelem>OPENCL_TILE_SIZE)?OPENCL_TILE_SIZE:r->nelem;
-  // OCCA+MacOS implementation need that for now (if DeviceID targets a CPU)
-  const CeedInt tile_size = ocl?1:nelem_tile_size;
-  sprintf(tmp, "-DTILE_SIZE=%d", tile_size);
-  strcat(compileOptions, tmp);
 
   // ***************************************************************************
   cl_int err;
   data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
-  clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
+  clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL, NULL);
   data->kRestrict[0] = clCreateKernel(data->program, "kRestrict0", &err);
   dbg("err after building kRestric0: %d\n",err);
   data->kRestrict[1] = clCreateKernel(data->program, "kRestrict1", &err);

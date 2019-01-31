@@ -24,8 +24,6 @@ static const char *OpenCLKernels =
 "      for (int d = 0; d <= -1 + ncomp; ++d)\n"
 "        vv[elemsize * ncomp * e + elemsize * d + i] = uu[ncomp * indices[elemsize * e + i] + d];\n"
 "}\n"
-"\n";
-/*
 "__kernel void __attribute__ ((reqd_work_group_size(1, 1, 1))) kRestrict1(int const elemsize, __global int const *__restrict__ indices, int const ncomp, int const ndof, int const nelem, __global double const *__restrict__ uu, __global double *__restrict__ vv)\n"
 "{\n"
 "  for (int i = 0; i <= -1 + elemsize; ++i)\n"
@@ -75,5 +73,4 @@ static const char *OpenCLKernels =
 "    }\n"
 "}\n"
 "\n";
-*/
 #endif
