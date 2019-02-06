@@ -40,7 +40,6 @@ setupf = lp.make_kernel(
     )
 print(setupf)    
 
-# Something is messed up here
 massf = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
