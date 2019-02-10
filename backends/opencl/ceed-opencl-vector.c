@@ -13,59 +13,74 @@
 // the planning and preparation of a capable exascale ecosystem, including
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
-
 #define CEED_DEBUG_COLOR 11
 #include "ceed-opencl.h"
-#include <string.h>
+#include "ceed-backend.h"
 
 // *****************************************************************************
 // * Bytes used
 // *****************************************************************************
 static inline size_t bytes(const CeedVector vec) {
-  return vec->length * sizeof(CeedScalar);
+  CeedInt length;
+  CeedVectorGetLength(vec, &length);
+  return length * sizeof(CeedScalar);
 }
 
 // *****************************************************************************
 // * OpenCL data write/read functions
 // *****************************************************************************
 static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
-  const CeedVector_OpenCL *v = vec->data;
-  const Ceed_OpenCL *c = vec->ceed->data;
-  assert(v);
-  assert(c);
-  assert(v->h_array);
-  clEnqueueWriteBuffer(c->queue, v->d_array, CL_TRUE,
-		  0, bytes(vec), v->h_array, 0, NULL, NULL);
+  Ceed ceed;
+  CeedVectorGetCeed(vec, &ceed);
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed, (void*)&ceed_data);
+  CeedVector_OpenCL *data;
+  CeedVectorGetData(vec, (void*)&data);
+  assert(ceed);
+  assert(ceed_data);
+  assert(data);
+  assert(data->h_array);
+  clEnqueueWriteBuffer(ceed_data->queue, data->d_array, CL_TRUE,
+                       0, bytes(vec), data->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
-  const CeedVector_OpenCL *v = vec->data;
-  const Ceed_OpenCL *c = vec->ceed->data;
-  assert(v);
-  assert(c);
-  assert(v->d_array);
-  clEnqueueReadBuffer(c->queue, v->d_array, CL_TRUE,
-		  0, bytes(vec), v->h_array, 0, NULL, NULL);
+  Ceed ceed;
+  CeedVectorGetCeed(vec, &ceed);
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed, (void*)&ceed_data);
+  CeedVector_OpenCL *data;
+  CeedVectorGetData(vec, (void*)&data);
+  assert(ceed);
+  assert(ceed_data);
+  assert(data);
+  assert(data->d_array);
+  clEnqueueReadBuffer(ceed_data->queue, data->d_array, CL_TRUE,
+                      0, bytes(vec), data->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 // * Set the array used by a vector,
 // * freeing any previously allocated array if applicable
 // *****************************************************************************
 static int CeedVectorSetArray_OpenCL(const CeedVector vec,
-                                   const CeedMemType mtype,
-                                   const CeedCopyMode cmode,
-                                   CeedScalar *array) {
-  const Ceed ceed = vec->ceed;
-  CeedVector_OpenCL *data = vec->data;
+                                     const CeedMemType mtype,
+                                     const CeedCopyMode cmode,
+                                     CeedScalar *array) {
   int ierr;
-  //dbg("[CeedVector][Set]");
+  Ceed ceed;
+  ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  CeedInt length;
+  ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
+  CeedVector_OpenCL *data;
+  ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
+  dbg("[CeedVector][Set]");
   if (mtype != CEED_MEM_HOST)
     return CeedError(vec->ceed, 1, "Only MemType = HOST supported");
   ierr = CeedFree(&data->h_array_allocated); CeedChk(ierr);
   switch (cmode) {
   // Implementation will copy the values and not store the passed pointer.
   case CEED_COPY_VALUES:
-    //dbg("\t[CeedVector][Set] CEED_COPY_VALUES");
+    dbg("\t[CeedVector][Set] CEED_COPY_VALUES");
     ierr = CeedMalloc(vec->length, &data->h_array); CeedChk(ierr);
     data->h_array_allocated = data->h_array;
     if (array) memcpy(data->h_array, array, bytes(vec));
@@ -74,20 +89,20 @@ static int CeedVectorSetArray_OpenCL(const CeedVector vec,
   // Implementation takes ownership of the pointer
   // and will free using CeedFree() when done using it
   case CEED_OWN_POINTER:
-    //dbg("\t[CeedVector][Set] CEED_OWN_POINTER");
+    dbg("\t[CeedVector][Set] CEED_OWN_POINTER");
     data->h_array = array;
     data->h_array_allocated = array;
     CeedWriteBuffer_OpenCL(vec);
     break;
   // Implementation can use and modify the data provided by the user
   case CEED_USE_POINTER:
-    //dbg("\t[CeedVector][Set] CEED_USE_POINTER");
+    dbg("\t[CeedVector][Set] CEED_USE_POINTER");
     data->h_array = array;
     CeedWriteBuffer_OpenCL(vec);
     break;
   default: CeedError(ceed,1," OCCA backend no default error");
   }
-  //dbg("\t[CeedVector][Set] done");
+  dbg("\t[CeedVector][Set] done");
   return 0;
 }
 
@@ -97,27 +112,30 @@ static int CeedVectorSetArray_OpenCL(const CeedVector vec,
 // * this will perform a copy (possibly cached).
 // *****************************************************************************
 static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
-                                       const CeedMemType mtype,
-                                       const CeedScalar **array) {
-  //dbg("[CeedVector][Get]");
-  CeedVector_OpenCL *data = vec->data;
+    const CeedMemType mtype,
+    const CeedScalar **array) {
   int ierr;
+  Ceed ceed;
+  ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  dbg("[CeedVector][Get]");
+  CeedVector_OpenCL *data;
+  ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
   if (mtype != CEED_MEM_HOST)
     return CeedError(vec->ceed, 1, "Can only provide to HOST memory");
   if (!data->h_array) { // Allocate if array was not allocated yet
-    //dbg("[CeedVector][Get] Allocating");
+    dbg("[CeedVector][Get] Allocating");
     ierr = CeedVectorSetArray(vec, CEED_MEM_HOST, CEED_COPY_VALUES, NULL);
     CeedChk(ierr);
   }
-  //dbg("[CeedVector][Get] CeedSyncD2H_Occa");
+  dbg("[CeedVector][Get] CeedSyncD2H_OpenCL");
   CeedReadBuffer_OpenCL(vec);
   *array = data->h_array;
   return 0;
 }
 // *****************************************************************************
 static int CeedVectorGetArray_OpenCL(const CeedVector vec,
-                                   const CeedMemType mtype,
-                                   CeedScalar **array) {
+                                     const CeedMemType mtype,
+                                     CeedScalar **array) {
   return CeedVectorGetArrayRead_OpenCL(vec,mtype,(const CeedScalar**)array);
 }
 
@@ -126,8 +144,13 @@ static int CeedVectorGetArray_OpenCL(const CeedVector vec,
 // *****************************************************************************
 static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
     const CeedScalar **array) {
-  //dbg("[CeedVector][Restore]");
-  assert(((CeedVector_OpenCL *)vec->data)->h_array);
+  int ierr;
+  Ceed ceed;
+  ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  dbg("[CeedVector][Restore]");
+  CeedVector_OpenCL *data;
+  ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
+  assert(data->h_array);
   assert(*array);
   CeedWriteBuffer_OpenCL(vec); // sync Host to Device
   *array = NULL;
@@ -135,7 +158,7 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
 }
 // *****************************************************************************
 static int CeedVectorRestoreArray_OpenCL(const CeedVector vec,
-                                       CeedScalar **array) {
+    CeedScalar **array) {
   return CeedVectorRestoreArrayRead_OpenCL(vec,(const CeedScalar**)array);
 }
 
@@ -144,8 +167,11 @@ static int CeedVectorRestoreArray_OpenCL(const CeedVector vec,
 // *****************************************************************************
 static int CeedVectorDestroy_OpenCL(const CeedVector vec) {
   int ierr;
-  CeedVector_OpenCL *data = vec->data;
-  //dbg("[CeedVector][Destroy]");
+  Ceed ceed;
+  ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  CeedVector_OpenCL *data;
+  ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
+  dbg("[CeedVector][Destroy]");
   ierr = CeedFree(&data->h_array_allocated); CeedChk(ierr);
   clReleaseMemObject(data->d_array);
   ierr = CeedFree(&data); CeedChk(ierr);
@@ -157,20 +183,29 @@ static int CeedVectorDestroy_OpenCL(const CeedVector vec) {
 // *****************************************************************************
 int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
   int ierr;
-  Ceed ceed = vec->ceed;
-  const Ceed_OpenCL *ceed_data = ceed->data;
+  Ceed ceed;
+  ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   CeedVector_OpenCL *data;
-  //dbg("[CeedVector][Create] n=%d", n);
-  vec->SetArray = CeedVectorSetArray_OpenCL;
-  vec->GetArray = CeedVectorGetArray_OpenCL;
-  vec->GetArrayRead = CeedVectorGetArrayRead_OpenCL;
-  vec->RestoreArray = CeedVectorRestoreArray_OpenCL;
-  vec->RestoreArrayRead = CeedVectorRestoreArrayRead_OpenCL;
-  vec->Destroy = CeedVectorDestroy_OpenCL;
+  dbg("[CeedVector][Create] n=%d", n);
+  ierr = CeedSetBackendFunction(ceed, "Vector", vec, "SetArray",
+                                CeedVectorSetArray_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Vector", vec, "GetArray",
+                                CeedVectorGetArray_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Vector", vec, "GetArrayRead",
+                                CeedVectorGetArrayRead_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Vector", vec, "RestoreArray",
+                                CeedVectorRestoreArray_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Vector", vec, "RestoreArrayRead",
+                                CeedVectorRestoreArrayRead_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Vector", vec, "Destroy",
+                                CeedVectorDestroy_OpenCL); CeedChk(ierr);
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
-  vec->data = data;
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec),
-		  NULL, NULL);
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+                                 bytes(vec),
+                                 NULL, NULL);
+  ierr = CeedVectorSetData(vec, (void *)&data); CeedChk(ierr);
   return 0;
 }

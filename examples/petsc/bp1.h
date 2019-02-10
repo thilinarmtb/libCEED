@@ -14,6 +14,12 @@
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
 
+/// @file
+/// libCEED QFunctions for mass operator example using PETSc
+
+#include <petscksp.h>
+#include <ceed.h>
+
 // *****************************************************************************
 static int Setup(void *ctx, CeedInt Q,
                  const CeedScalar *const *in, CeedScalar *const *out) {
@@ -27,7 +33,7 @@ static int Setup(void *ctx, CeedInt Q,
                       + J[0][2][i] * (J[1][0][i]*J[2][1][i] - J[1][1][i]*J[2][0][i]));
     rho[i] = det * w[i];
     true_soln[i] = PetscSqrtScalar(PetscSqr(x[0][i]) + PetscSqr(x[1][i]) + PetscSqr(
-                                  x[2][i]));
+                                     x[2][i]));
     rhs[i] = rho[i] * true_soln[i];
   }
   return 0;

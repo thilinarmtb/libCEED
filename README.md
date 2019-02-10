@@ -57,6 +57,19 @@ or, with optimization flags
 These optimization flags are used by all languages (C, C++, Fortran) and this
 makefile variable can also be set for testing and examples (below).
 
+The library attempts to automatically detect support for the AVX
+instruction set using gcc-style compiler options for the host.
+Support may need to be manually specified via
+
+    make AVX=1
+
+or
+
+    make AVX=0
+
+if your compiler does not support gcc-style options, if you are cross
+compiling, etc.
+
 ## Testing
 
 The test suite produces [TAP](https://testanything.org) output and is run by:
@@ -67,11 +80,50 @@ or, using the `prove` tool distributed with Perl (recommended)
 
     make prove
 
+## Backends
+
+There are multiple supported backends, which can be selected at runtime in the examples:
+
+|  CEED resource           | Backend                                           |
+| :----------------------- | :------------------------------------------------ |
+| `/cpu/self/ref/serial`   | Serial reference implementation                   |
+| `/cpu/self/ref/blocked`  | Blocked refrence implementation                   |
+| `/cpu/self/tmpl`         | Backend template, dispatches to /cpu/self/blocked |
+| `/cpu/self/avx`          | Blocked AVX implementation                        |
+| `/cpu/self/xsmm/serial`  | Serial LIBXSMM implementation                     |
+| `/cpu/self/xsmm/blocked` | Blocked LIBXSMM implementation                    |
+| `/cpu/occa`              | Serial OCCA kernels                               |
+| `/gpu/occa`              | CUDA OCCA kernels                                 |
+| `/omp/occa`              | OpenMP OCCA kernels                               |
+| `/ocl/occa`              | OpenCL OCCA kernels                               |
+| `/gpu/cuda`              | Pure CUDA kernels                                 |
+| `/gpu/magma`             | CUDA MAGMA kernels                                |
+
+
+The `/cpu/self/*/serial` backends process one element at a time and are intended for meshes
+with a smaller number of high order elements. The `/cpu/self/*/blocked` backends process
+blocked batches of eight interlaced elements and are intended for meshes with higher numbers
+of elements.
+
+The `/cpu/self/ref/*` backends are written in pure C and provide basic functionality.
+
+The `/cpu/self/avx` backend relies upon AVX instructions to provide vectorized CPU performance.
+
+The `/cpu/self/xsmm/*` backends relies upon the [LIBXSMM](http://github.com/hfp/libxsmm) package
+to provide vectorized CPU performance.
+
+The `/*/occa` backends rely upon the [OCCA](http://github.com/libocca/occa) package to provide
+cross platform performance.
+
+The `/gpu/cuda` backend provides GPU performance strictly using CUDA.
+
+The `/gpu/magma` backend relies upon the [MAGMA](https://bitbucket.org/icl/magma) package.
+
 ## Examples
 
 libCEED comes with several examples of its usage, ranging from standalone C
 codes in the `/examples/ceed` directory to examples based on external packages,
-such as MFEM, PETSc and Nek5000.
+such as MFEM, PETSc, and Nek5000. Nek5000 v18.0 or greater is required.
 
 To build the examples, set the `MFEM_DIR`, `PETSC_DIR` and `NEK5K_DIR` variables
 and run:
@@ -106,20 +158,34 @@ cd examples/nek5000
 cd ../..
 ```
 
-The above code assumes a GPU-capable machine enabled in the OCCA
-backend. Depending on the available backends, other Ceed resource specifiers can
-be provided with the `-ceed` option, for example:
+The above code assumes a GPU-capable machine with the OCCA backend 
+enabled. Depending on the available backends, other Ceed resource specifiers can
+be provided with the `-ceed` option.
 
-|  CEED resource (`-ceed`) | Backend                                           |
-| :----------------------- | :------------------------------------------------ |
-| `/cpu/self/blocked`      | Serial blocked implementation                     |
-| `/cpu/self/ref`          | Serial reference implementation                   |
-| `/cpu/self/tmpl`         | Backend template, dispatches to /cpu/self/blocked |
-| `/cpu/occa`              | Serial OCCA kernels                               |
-| `/gpu/occa`              | CUDA OCCA kernels                                 |
-| `/omp/occa`              | OpenMP OCCA kernels                               |
-| `/ocl/occa`              | OpenCL OCCA kernels                               |
-| `/gpu/magma`             | CUDA MAGMA kernels                                |
+## Benchmarks
+
+A sequence of benchmarks for all enabled backends can be run using
+
+```console
+make benchmarks
+```
+
+The results from the benchmarks are stored inside the `benchmarks/` directory
+and they can be viewed using the commands (requires python with matplotlib):
+
+```console
+cd benchmarks
+python postprocess-plot.py petsc-bp1-*-output.txt
+python postprocess-plot.py petsc-bp3-*-output.txt
+```
+
+Using the `benchmarks` target runs a comprehensive set of benchmarks which may
+take some time to run. Subsets of the benchmarks can be run using targets such
+as `make bench-petsc-bp1`, or `make bench-petsc-bp3`.
+
+For more details about the benchmarks, see
+[`benchmarks/README.md`](benchmarks/README.md)
+
 
 ## Install
 

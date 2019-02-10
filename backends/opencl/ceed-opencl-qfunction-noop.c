@@ -15,27 +15,39 @@
 // testbed platforms, in support of the nation's exascale computing imperative.
 #define CEED_DEBUG_COLOR 177
 #include "ceed-opencl.h"
+#include "ceed-backend.h"
 
 // *****************************************************************************
 // * Alloc function for no-operator case
 // *****************************************************************************
 int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
-                                  CeedInt *idx_p,
-                                  CeedInt *iOf7) {
+                                    CeedInt *idx_p,
+                                    CeedInt *iOf7) {
+  int ierr;
   CeedInt idx = 0;
-  const Ceed ceed = qf->ceed;
-  CeedQFunction_OpenCL *data = qf->data;
-  Ceed_OpenCL *ceed_data = qf->ceed->data;
-  const int nIn = qf->numinputfields; assert(nIn<N_MAX_IDX);
-  const CeedInt cbytes = qf->ctxsize;
-  const CeedInt bytes = sizeof(CeedScalar);
+  Ceed ceed;
+  ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
+  CeedQFunction_OpenCL *data;
+  ierr = CeedQFunctionGetData(qf, (void*)&data); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
+  int nIn;
+  ierr = CeedQFunctionGetNumArgs(qf, &nIn, NULL);
+  assert(nIn<N_MAX_IDX);
+  size_t cbytes;
+  ierr = CeedQFunctionGetContextSize(qf, &cbytes); CeedChk(ierr);
   const CeedInt dim = 1; // !?
   // ***************************************************************************
   dbg("[CeedQFunction][AllocNoOpIn] nIn=%d",nIn);
+  CeedQFunctionField *inputfields;
   for (CeedInt i=0; i<nIn; i++) {
-    const CeedEvalMode emode = qf->inputfields[i].emode;
-    const char *name = qf->inputfields[i].fieldname;
-    const CeedInt ncomp = qf->inputfields[i].ncomp;
+    char *name;
+    ierr = CeedQFunctionFieldGetName(inputfields[i], &name); CeedChk(ierr);
+    CeedInt ncomp;
+    ierr = CeedQFunctionFieldGetNumComponents(inputfields[i], &ncomp);
+    CeedChk(ierr);
+    CeedEvalMode emode;
+    ierr = CeedQFunctionFieldGetEvalMode(inputfields[i], &emode); CeedChk(ierr);
     switch(emode) {
     case CEED_EVAL_INTERP:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > INTERP (%d)", name,Q*ncomp);
@@ -73,19 +85,15 @@ int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   dbg("[CeedQFunction][AllocNoOpIn] ilen=%d", ilen);
   dbg("[CeedQFunction][AllocNoOpIn] Alloc IN of %d", ilen);
   // INPUT+IDX alloc ***********************************************************
-  //data->o_indata = occaDeviceMalloc(device, ilen*bytes, NULL, NO_PROPS);
   data->o_indata = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-		  ilen*sizeof(CeedScalar), NULL, NULL);
-  //data->d_idx = occaDeviceMalloc(device, idx*sizeof(int), NULL, NO_PROPS);
+                                  ilen*sizeof(CeedScalar), NULL, NULL);
   data->d_idx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-		  idx*sizeof(int), NULL, NULL);
-  //occaCopyPtrToMem(data->d_idx,iOf7,idx*sizeof(int),0,NO_PROPS);
+                               idx*sizeof(int), NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_idx, CL_TRUE, 0, idx*sizeof(int),
-		  iOf7, 0, NULL, NULL);
+                       iOf7, 0, NULL, NULL);
   // CTX alloc *****************************************************************
-  //data->d_ctx = occaDeviceMalloc(device,cbytes>0?cbytes:32,NULL,NO_PROPS);
   data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-		  cbytes>0?cbytes:32, NULL, NULL);
+                               cbytes>0?cbytes:32, NULL, NULL);
   return 0;
 }
 
@@ -93,20 +101,32 @@ int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
 // * Alloc function for no-operator case
 // *****************************************************************************
 int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
-                                   CeedInt *odx_p,
-                                   CeedInt *oOf7) {
+                                     CeedInt *odx_p,
+                                     CeedInt *oOf7) {
+  int ierr;
   CeedInt odx = 0;
-  const Ceed ceed = qf->ceed;
-  CeedQFunction_OpenCL *data = qf->data;
-  Ceed_OpenCL *ceed_data = qf->ceed->data;
+  Ceed ceed;
+  ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
+  CeedQFunction_OpenCL *data;
+  ierr = CeedQFunctionGetData(qf, (void*)&data); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   const CeedInt bytes = sizeof(CeedScalar);
   const CeedInt dim = 1; // !?
-  const int nOut = qf->numoutputfields; assert(nOut<N_MAX_IDX);
+  CeedInt nOut;
+  ierr = CeedQFunctionGetNumArgs(qf, NULL, &nOut); CeedChk(ierr);
+  assert(nOut<N_MAX_IDX);
   dbg("[CeedQFunction][AllocNoOpOut] nOut=%d",nOut);
+  CeedQFunctionField *outputfields;
+  ierr = CeedQFunctionGetFields(qf, NULL, &outputfields); CeedChk(ierr);
   for (CeedInt i=0; i<nOut; i++) {
-    const char *name = qf->outputfields[i].fieldname;
-    const CeedInt ncomp = qf->outputfields[i].ncomp;
-    const CeedEvalMode emode = qf->outputfields[i].emode;
+    char *name;
+    ierr = CeedQFunctionFieldGetName(outputfields[i], &name); CeedChk(ierr);
+    CeedInt ncomp;
+    ierr = CeedQFunctionFieldGetNumComponents(outputfields[i], &ncomp);
+    CeedChk(ierr);
+    CeedEvalMode emode;
+    ierr = CeedQFunctionFieldGetEvalMode(outputfields[i], &emode); CeedChk(ierr);
     switch(emode) {
     case CEED_EVAL_NONE:
       dbg("[CeedQFunction][AllocOpOut] out \"%s\" NONE (%d)",name,Q*ncomp);
@@ -137,15 +157,12 @@ int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
   dbg("[CeedQFunction][AllocNoOpOut] olen=%d", olen);
   // OUTPUT alloc **********************************************************
   if (olen>0) {
-    //data->o_outdata = occaDeviceMalloc(device, olen*bytes, NULL, NO_PROPS);
     data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-  		  olen*bytes, NULL, NULL);
-    //data->d_odx = occaDeviceMalloc(device, odx*sizeof(int), NULL, NO_PROPS);
+                                     olen*bytes, NULL, NULL);
     data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-  		  odx*sizeof(int), NULL, NULL);
-    //occaCopyPtrToMem(data->d_odx,oOf7,odx*sizeof(int),0,NO_PROPS);
+                                 odx*sizeof(int), NULL, NULL);
     clEnqueueWriteBuffer(ceed_data->queue, data->d_odx, CL_TRUE, 0, odx*sizeof(int),
-  		  oOf7, 0, NULL, NULL);
+                         oOf7, 0, NULL, NULL);
   }
   return 0;
 }
@@ -154,35 +171,42 @@ int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
 // * Fill function for no-operator case
 // *****************************************************************************
 int CeedQFunctionFillNoOp_OpenCL(CeedQFunction qf, CeedInt Q,
-                               cl_mem d_indata,
-                               CeedInt *iOf7,
-                               CeedInt *oOf7,
-                               const CeedScalar *const *in) {
-  const Ceed ceed = qf->ceed;
-  const Ceed_OpenCL *ceed_data = qf->ceed->data;
-  const int nIn = qf->numinputfields;
+                                 cl_mem d_indata,
+                                 CeedInt *iOf7,
+                                 CeedInt *oOf7,
+                                 const CeedScalar *const *in) {
+  int ierr;
+  Ceed ceed;
+  ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
+  CeedInt nIn;
+  ierr = CeedQFunctionGetNumArgs(qf, &nIn, NULL); CeedChk(ierr);
   const CeedInt ilen = iOf7[nIn];
   const CeedInt bytes = sizeof(CeedScalar);
+  CeedQFunctionField *inputfields;
+  ierr = CeedQFunctionGetFields(qf, &inputfields, NULL); CeedChk(ierr);
   for (CeedInt i=0; i<nIn; i++) {
-    const CeedEvalMode emode = qf->inputfields[i].emode;
-    const CeedInt ncomp = qf->inputfields[i].ncomp;
+    CeedInt ncomp;
+    ierr = CeedQFunctionFieldGetNumComponents(inputfields[i], &ncomp);
+    CeedChk(ierr);
+    CeedEvalMode emode;
+    ierr = CeedQFunctionFieldGetEvalMode(inputfields[i], &emode); CeedChk(ierr);
     const CeedInt length = iOf7[i+1]-iOf7[i];
     switch (emode) {
     case CEED_EVAL_INTERP:
       dbg("[CeedQFunction][FillNoOp] INTERP ilen=%d:%d", ilen, Q*ncomp);
       dbg("[CeedQFunction][FillNoOp] INTERP iOf7[%d]=%d", i,iOf7[i]);
       assert(length==Q*ncomp);
-      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
       clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
-		      length*bytes, in[i], 0, NULL, NULL);
+                           length*bytes, in[i], 0, NULL, NULL);
       break;
     case CEED_EVAL_GRAD:
       dbg("[CeedQFunction][FillNoOp] GRAD ilen=%d:%d", ilen, Q*ncomp);
       dbg("[CeedQFunction][FillNoOp] GRAD iOf7[%d]=%d", i,iOf7[i]);
       assert(length==Q*ncomp);
-      //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
       clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
-		      length*bytes, in[i], 0, NULL, NULL);
+                           length*bytes, in[i], 0, NULL, NULL);
       break;
     case CEED_EVAL_WEIGHT:
       dbg("[CeedQFunction][FillNoOp] WEIGHT ilen=%d:%d", ilen, Q);
@@ -190,7 +214,7 @@ int CeedQFunctionFillNoOp_OpenCL(CeedQFunction qf, CeedInt Q,
       assert(length==Q);
       //occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
       clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
-		      length*bytes, in[i], 0, NULL, NULL);
+                           length*bytes, in[i], 0, NULL, NULL);
       break;
     case CEED_EVAL_NONE:
       break; // No action

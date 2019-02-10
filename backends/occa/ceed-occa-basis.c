@@ -21,21 +21,26 @@
 // *****************************************************************************
 static int CeedBasisBuildKernel(CeedBasis basis) {
   int ierr;
-  const Ceed ceed = basis->ceed;
-  const Ceed_Occa *ceed_data = ceed->data;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  Ceed_Occa *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   const occaDevice dev = ceed_data->device;
-  CeedBasis_Occa *data = basis->data;
+  CeedBasis_Occa *data;
+  ierr = CeedBasisGetData(basis, (void*)&data); CeedChk(ierr);
   // ***************************************************************************
-  const int dim = basis->dim;
-  const int P1d = basis->P1d;
-  const int Q1d = basis->Q1d;
-  const CeedInt ncomp = basis->ncomp;
+  CeedInt dim, P1d, Q1d, ncomp;
+  ierr = CeedBasisGetDimension(basis, &dim); CeedChk(ierr);
+  ierr = CeedBasisGetNumNodes1D(basis, &P1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumQuadraturePoints1D(basis, &Q1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumComponents(basis, &ncomp); CeedChk(ierr);
   const CeedInt nqpt = ncomp*CeedIntPow(Q1d,dim);
   const CeedInt vsize = ncomp*CeedIntPow(P1d,dim);
   // ***************************************************************************
   const CeedElemRestriction er = data->er; assert(er);
-  const CeedInt nelem = er->nelem;
-  const CeedInt elemsize = er->elemsize;
+  CeedInt nelem, elemsize;
+  ierr = CeedElemRestrictionGetNumElements(er, &nelem); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetElementSize(er, &elemsize); CeedChk(ierr);
   const bool ocl = ceed_data->ocl;
   // ***************************************************************************
   occaProperties pKR = occaCreateProperties();
@@ -129,8 +134,11 @@ static int CeedTensorContract_Occa(CeedInt A, CeedInt B, CeedInt C, CeedInt J,
 int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt QnD,
                              CeedTransposeMode tmode, CeedEvalMode emode,
                              const CeedVector u, CeedVector v) {
-  const Ceed ceed = basis->ceed;
-  CeedBasis_Occa *data = basis->data;
+  int ierr;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  CeedBasis_Occa *data;
+  ierr = CeedBasisGetData(basis, (void*)&data); CeedChk(ierr);
   const CeedInt ready =  data->ready;
   // ***************************************************************************
   // We were waiting for the CeedElemRestriction to fill nelem and elemsize
@@ -143,7 +151,8 @@ int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt QnD,
   // ***************************************************************************
   if (transpose) {
     dbg("[CeedBasis][ApplyElems] transpose");
-    const CeedVector_Occa *v_data = v->data;
+    CeedVector_Occa *v_data;
+    ierr = CeedVectorGetData(v, (void *)&v_data); CeedChk(ierr);
     const occaMemory d_v = v_data->d_array;
     occaKernelRun(data->kZero, d_v);
   }
@@ -157,8 +166,12 @@ int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt QnD,
     const occaMemory d_tmp0 = data->tmp0;
     const occaMemory d_tmp1 = data->tmp1;
     const occaMemory d_interp1d = data->interp1d;
-    const CeedVector_Occa *u_data = u->data; assert(u_data);
-    const CeedVector_Occa *v_data = v->data; assert(v_data);
+    CeedVector_Occa *u_data;
+    ierr = CeedVectorGetData(u, (void *)&u_data); CeedChk(ierr);
+    assert(u_data);
+    CeedVector_Occa *v_data;
+    ierr = CeedVectorGetData(v, (void *)&v_data); CeedChk(ierr);
+    assert(v_data);
     const occaMemory d_u = u_data->d_array;
     const occaMemory d_v = v_data->d_array;
     occaKernelRun(data->kInterp,occaInt(QnD),
@@ -173,8 +186,12 @@ int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt QnD,
     const occaMemory d_tmp1 = data->tmp1;
     const occaMemory d_grad1d = data->grad1d;
     const occaMemory d_interp1d = data->interp1d;
-    const CeedVector_Occa *u_data = u->data; assert(u_data);
-    const CeedVector_Occa *v_data = v->data; assert(v_data);
+    CeedVector_Occa *u_data;
+    ierr = CeedVectorGetData(u, (void *)&u_data); CeedChk(ierr);
+    assert(u_data);
+    CeedVector_Occa *v_data;
+    ierr = CeedVectorGetData(v, (void *)&v_data); CeedChk(ierr);
+    assert(v_data);
     const occaMemory d_u = u_data->d_array;
     const occaMemory d_v = v_data->d_array;
     occaKernelRun(data->kGrad,occaInt(QnD),
@@ -186,11 +203,14 @@ int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt QnD,
   if (emode & CEED_EVAL_WEIGHT) {
     dbg("[CeedBasis][ApplyElems] CEED_EVAL_WEIGHT");
     if (transpose)
-      return CeedError(basis->ceed, 1,
+      return CeedError(ceed, 1,
                        "CEED_EVAL_WEIGHT incompatible with CEED_TRANSPOSE");
-    const CeedInt Q1d = basis->Q1d;
+    CeedInt Q1d;
+    ierr = CeedBasisGetNumQuadraturePoints1D(basis, &Q1d); CeedChk(ierr);
     const occaMemory d_qw = data->qweight1d;
-    const CeedVector_Occa *v_data = v->data; assert(v_data);
+    CeedVector_Occa *v_data;
+    ierr = CeedVectorGetData(v, (void *)&v_data); CeedChk(ierr);
+    assert(v_data);
     const occaMemory d_v = v_data->d_array;
     occaKernelRun(data->kWeight,occaInt(QnD),occaInt(Q1d),d_qw,d_v);
   }
@@ -202,19 +222,34 @@ int CeedBasisApplyElems_Occa(CeedBasis basis, CeedInt QnD,
 // *****************************************************************************
 static int CeedBasisApply_Occa(CeedBasis basis, CeedInt nelem,
                                CeedTransposeMode tmode, CeedEvalMode emode,
-                               const CeedScalar *u, CeedScalar *v) {
+                               CeedVector U, CeedVector V) {
   int ierr;
-  const CeedInt dim = basis->dim;
-  const CeedInt ncomp = basis->ncomp;
-  const CeedInt nqpt = ncomp*CeedIntPow(basis->Q1d, dim);
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  CeedInt dim, P1d, Q1d, ncomp, nqpt;
+  ierr = CeedBasisGetDimension(basis, &dim); CeedChk(ierr);
+  ierr = CeedBasisGetNumNodes1D(basis, &P1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumQuadraturePoints1D(basis, &Q1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumComponents(basis, &ncomp); CeedChk(ierr);
+  ierr = CeedBasisGetNumQuadraturePoints(basis, &nqpt); CeedChk(ierr);
+  nqpt *= ncomp;
   const CeedInt transpose = (tmode == CEED_TRANSPOSE);
+  const CeedScalar *u;
+  CeedScalar *v;
+  if (U) {
+    ierr = CeedVectorGetArrayRead(U, CEED_MEM_HOST, &u); CeedChk(ierr);
+  } else if (emode != CEED_EVAL_WEIGHT) {
+    return CeedError(ceed, 1,
+                     "An input vector is required for this CeedEvalMode");
+  }
+  ierr = CeedVectorGetArray(V, CEED_MEM_HOST, &v); CeedChk(ierr);
 
   if (nelem != 1)
-    return CeedError(basis->ceed, 1,
+    return CeedError(ceed, 1,
                      "This backend does not support BasisApply for multiple elements");
   // ***************************************************************************
   if (transpose) {
-    const CeedInt vsize = ncomp*CeedIntPow(basis->P1d, dim);
+    const CeedInt vsize = ncomp*CeedIntPow(P1d, dim);
     //dbg("[CeedBasis][Apply] transpose");
     for (CeedInt i = 0; i < vsize; i++)
       v[i] = 0.0;
@@ -225,14 +260,16 @@ static int CeedBasisApply_Occa(CeedBasis basis, CeedInt nelem,
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_INTERP) {
-    const CeedInt P = transpose?basis->Q1d:basis->P1d;
-    const CeedInt Q = transpose?basis->P1d:basis->Q1d;
+    const CeedInt P = transpose?Q1d:P1d;
+    const CeedInt Q = transpose?P1d:Q1d;
     CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
     //dbg("[CeedBasis][Apply] CEED_EVAL_INTERP");
     CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
+    CeedScalar *interp1d;
+    ierr = CeedBasisGetInterp(basis, &interp1d); CeedChk(ierr);
     for (CeedInt d=0; d<dim; d++) {
       ierr = CeedTensorContract_Occa(pre, P, post, Q,
-                                     basis->interp1d,
+                                     interp1d,
                                      tmode, transpose&&(d==dim-1),
                                      d==0?u:tmp[d%2],
                                      d==dim-1?v:tmp[(d+1)%2]);
@@ -240,20 +277,21 @@ static int CeedBasisApply_Occa(CeedBasis basis, CeedInt nelem,
       pre /= P;
       post *= Q;
     }
-    if (!transpose) v += nqpt;
-    else u += nqpt;
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_GRAD) {
-    const CeedInt P = transpose?basis->Q1d:basis->P1d;
-    const CeedInt Q = transpose?basis->P1d:basis->Q1d;
+    const CeedInt P = transpose?Q1d:P1d;
+    const CeedInt Q = transpose?P1d:Q1d;
     //dbg("[CeedBasis][Apply] CEED_EVAL_GRAD, P=%d, Q=%d",P,Q);
     CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
     for (CeedInt p=0; p<dim; p++) {
       CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
+      CeedScalar *interp1d, *grad1d;
+      ierr = CeedBasisGetInterp(basis, &interp1d); CeedChk(ierr);
+      ierr = CeedBasisGetGrad(basis, &grad1d); CeedChk(ierr);
       for (CeedInt d=0; d<dim; d++) {
         ierr = CeedTensorContract_Occa(pre, P, post, Q,
-                                       (p==d)?basis->grad1d:basis->interp1d,
+                                       (p==d)?grad1d:interp1d,
                                        tmode, transpose&&(d==dim-1),
                                        d==0?u:tmp[d%2], d==dim-1?v:tmp[(d+1)%2]);
         CeedChk(ierr);
@@ -263,27 +301,36 @@ static int CeedBasisApply_Occa(CeedBasis basis, CeedInt nelem,
       if (!transpose) v += nqpt;
       else u += nqpt;
     }
+
+    if (!transpose) v -= nqpt*dim;
+    else u -= nqpt*dim;
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_WEIGHT) {
     //dbg("[CeedBasis][Apply] CEED_EVAL_WEIGHT");
     if (transpose)
-      return CeedError(basis->ceed, 1,
+      return CeedError(ceed, 1,
                        "CEED_EVAL_WEIGHT incompatible with CEED_TRANSPOSE");
     // *************************************************************************
-    CeedInt Q = basis->Q1d;
+    CeedInt Q = Q1d;
     for (CeedInt d=0; d<dim; d++) {
       const CeedInt pre = CeedIntPow(Q, dim-d-1), post = CeedIntPow(Q, d);
+      CeedScalar *qweight1d;
+      ierr = CeedBasisGetQWeights(basis, &qweight1d); CeedChk(ierr);
       for (CeedInt i=0; i<pre; i++) {
         for (CeedInt j=0; j<Q; j++) {
           for (CeedInt k=0; k<post; k++) {
             v[(i*Q + j)*post + k] =
-              basis->qweight1d[j] * (d == 0 ? 1 : v[(i*Q + j)*post + k]);
+              qweight1d[j] * (d == 0 ? 1 : v[(i*Q + j)*post + k]);
           }
         }
       }
     }
   }
+  if (U) {
+    ierr = CeedVectorRestoreArrayRead(U, &u); CeedChk(ierr);
+  }
+  ierr = CeedVectorRestoreArray(V, &v); CeedChk(ierr);
   return 0;
 }
 
@@ -292,8 +339,10 @@ static int CeedBasisApply_Occa(CeedBasis basis, CeedInt nelem,
 // *****************************************************************************
 static int CeedBasisDestroy_Occa(CeedBasis basis) {
   int ierr;
-  const Ceed ceed = basis->ceed;
-  CeedBasis_Occa *data = basis->data;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  CeedBasis_Occa *data;
+  ierr = CeedBasisGetData(basis, (void*)&data); CeedChk(ierr);
   dbg("[CeedBasis][Destroy]");
   occaFree(data->kZero);
   occaFree(data->kInterp);
@@ -318,13 +367,14 @@ int CeedBasisCreateTensorH1_Occa(CeedInt dim, CeedInt P1d, CeedInt Q1d,
                                  CeedBasis basis) {
   int ierr;
   CeedBasis_Occa *data;
-  Ceed ceed = basis->ceed;
-  const Ceed_Occa *ceed_data = ceed->data;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  Ceed_Occa *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   const occaDevice dev = ceed_data->device;
   dbg("[CeedBasis][CreateTensorH1]");
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
-  basis->data = data;
   // ***************************************************************************
   assert(qref1d);
   data->qref1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
@@ -344,9 +394,12 @@ int CeedBasisCreateTensorH1_Occa(CeedInt dim, CeedInt P1d, CeedInt Q1d,
   data->grad1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
   occaCopyPtrToMem(data->grad1d,grad1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
                    NO_PROPS);
+  ierr = CeedBasisSetData(basis, (void *)&data); CeedChk(ierr);
   // ***************************************************************************
-  basis->Apply = CeedBasisApply_Occa;
-  basis->Destroy = CeedBasisDestroy_Occa;
+  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Apply",
+                                CeedBasisApply_Occa); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Destroy",
+                                CeedBasisDestroy_Occa); CeedChk(ierr);
   return 0;
 }
 
@@ -354,11 +407,14 @@ int CeedBasisCreateTensorH1_Occa(CeedInt dim, CeedInt P1d, CeedInt Q1d,
 // * CeedBasisCreateH1_Occa
 // *****************************************************************************
 int CeedBasisCreateH1_Occa(CeedElemTopology topo, CeedInt dim,
-                          CeedInt ndof, CeedInt nqpts,
-                          const CeedScalar *interp,
-                          const CeedScalar *grad,
-                          const CeedScalar *qref,
-                          const CeedScalar *qweight,
-                          CeedBasis basis) {
-  return CeedError(basis->ceed, 1, "Backend does not implement non-tensor bases");
+                           CeedInt ndof, CeedInt nqpts,
+                           const CeedScalar *interp,
+                           const CeedScalar *grad,
+                           const CeedScalar *qref,
+                           const CeedScalar *qweight,
+                           CeedBasis basis) {
+  int ierr;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  return CeedError(ceed, 1, "Backend does not implement non-tensor bases");
 }

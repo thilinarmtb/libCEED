@@ -50,7 +50,6 @@ typedef struct {
   cl_mem tmp0,tmp1;
   cl_program program;
   cl_kernel kZero,kInterp,kGrad,kWeight;
-  char *compleOptions;
 } CeedBasis_OpenCL;
 
 // *****************************************************************************
@@ -59,14 +58,12 @@ typedef struct {
 typedef struct {
   CeedVector *Evecs; /// E-vectors needed to apply operator (in followed by out)
   CeedScalar **Edata;
-  CeedScalar **qdata;
-  CeedScalar **qdata_alloc; /// Inputs followed by outputs
-  CeedScalar **indata;
-  CeedScalar **outdata;
+  CeedVector *evecsin;   /// Input E-vectors needed to apply operator
+  CeedVector *evecsout;   /// Output E-vectors needed to apply operator
+  CeedVector *qvecsin;   /// Input Q-vectors needed to apply operator
+  CeedVector *qvecsout;   /// Output Q-vectors needed to apply operator
   CeedInt    numein;
   CeedInt    numeout;
-  CeedInt    numqin;
-  CeedInt    numqout;
 } CeedOperator_OpenCL;
 
 // *****************************************************************************
@@ -145,8 +142,8 @@ CEED_INTERN int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
 
 // *****************************************************************************
 CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
-     const CeedCopyMode cmode, const CeedInt *indices,
-     const CeedElemRestriction res);
+    const CeedCopyMode cmode, const CeedInt *indices,
+    const CeedElemRestriction res);
 
 // *****************************************************************************
 CEED_INTERN int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);
