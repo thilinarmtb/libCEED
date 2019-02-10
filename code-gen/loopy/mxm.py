@@ -24,16 +24,16 @@ queue = cl.CommandQueue(ctx)
 #a = cl.array.arange(queue, n, dtype=np.float32)
 n = 16*16
 
-x_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float64)
-y_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float64)
-z_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float64)
-a_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float64)
-b_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float64)
-x_mat_dev = cl.array.Array(queue, (n, n), dtype=np.float64)
+x_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
+y_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
+z_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
+a_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float32)
+b_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float32)
+x_mat_dev = cl.array.Array(queue, (n, n), dtype=np.float32)
 x_mat_host = np.random.rand(n,n)
 a_mat_host = np.random.rand(n,n)
-x_vec_host = np.random.randn(n).astype(np.float64)
-y_vec_host = np.random.randn(n).astype(np.float64)
+x_vec_host = np.random.randn(n).astype(np.float32)
+y_vec_host = np.random.randn(n).astype(np.float32)
 
 '''
 def test_plain_matrix_mul(ctx_factory):
@@ -93,12 +93,13 @@ mxm = lp.make_kernel(
 #mxm = lp.prioritize_loops(mxm, "k,kk,i,ii,j") #Based on whether or not ii and kk is used
 #mxm = lp.prioritize_loops(mxm, "k,kk,j,i,ii")
 #mxm = lp.prioritize_loops(mxm, "i, ii, k, kk, j");
-mxm = lp.set_options(mxm, "write_cl")
-mxm = lp.split_iname(mxm, "i", LM, outer_tag="g.0", inner_tag="l.1")
-mxm = lp.split_iname(mxm, "j", LN, outer_tag="g.1", inner_tag="l.0")
-mxm = lp.split_iname(mxm, "k", LO, inner_tag="unr")
-mxm = lp.add_prefetch(mxm, "A", ["k_inner", "i_inner"], default_tag="l.auto")
-mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
+
+#mxm = lp.set_options(mxm, "write_cl")
+#mxm = lp.split_iname(mxm, "i", LM, outer_tag="g.0", inner_tag="l.1")
+#mxm = lp.split_iname(mxm, "j", LN, outer_tag="g.1", inner_tag="l.0")
+#mxm = lp.split_iname(mxm, "k", LO, inner_tag="unr")
+#mxm = lp.add_prefetch(mxm, "A", ["k_inner", "i_inner"], default_tag="l.auto")
+#mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
 
 
 
@@ -133,8 +134,8 @@ mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
 
 
 
-#code, _ = lp.generate_code(mxm)
-#print(code)
+code, _ = lp.generate_code(mxm)
+print(code)
 
 # transform
 # ---------
@@ -142,9 +143,9 @@ mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
 
 # execute
 # -------
-evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
+#evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
 #evt, (out,) = knl(queue, a=a)
 
 #print(B)
 #print(a_mat_host @ x_mat_host)
-print((B == a_mat_host @ x_mat_host).all())
+#print((B == a_mat_host @ x_mat_host).all())
