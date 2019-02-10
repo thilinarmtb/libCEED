@@ -15,13 +15,15 @@
 // testbed platforms, in support of the nation's exascale computing imperative.
 #define CEED_DEBUG_COLOR 198
 #include "ceed-opencl.h"
+#include "ceed-backend.h"
 
 // *****************************************************************************
 // * Destroy the CeedOperator_OpenCL
 // *****************************************************************************
 static int CeedOperatorDestroy_OpenCL(CeedOperator op) {
-  CeedOperator_OpenCL *impl = op->data;
   int ierr;
+  CeedOperator_OpenCL *impl = op->data;
+  ierr = CeedOperatorGetData(op, (void*)&impl); CeedChk(ierr);
 
   for (CeedInt i=0; i<impl->numein+impl->numeout; i++) {
     if (impl->Evecs[i]) {

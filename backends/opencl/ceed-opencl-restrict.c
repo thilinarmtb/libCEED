@@ -15,6 +15,7 @@
 // testbed platforms, in support of the nation's exascale computing imperative.
 #define CEED_DEBUG_COLOR 13
 #include "ceed-opencl.h"
+#include "ceed-backend.h"
 
 // *****************************************************************************
 // * Bytes used

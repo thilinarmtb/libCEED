@@ -15,75 +15,82 @@
 // testbed platforms, in support of the nation's exascale computing imperative.
 #define CEED_DEBUG_COLOR 249
 #include "ceed-opencl.h"
+#include "ceed-backend.h"
 
 // *****************************************************************************
 // * buildKernel
 // *****************************************************************************
 static int CeedBasisBuildKernel(CeedBasis basis) {
-  const Ceed ceed = basis->ceed;
-  const Ceed_OpenCL *ceed_data = ceed->data;
-  CeedBasis_OpenCL *data = basis->data;
+  int ierr;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
+  CeedBasis_OpenCL *data;
+  ierr = CeedBasisGetData(basis, (void*)&data); CeedChk(ierr);
   // ***************************************************************************
-  const int dim = basis->dim;
-  const int P1d = basis->P1d;
-  const int Q1d = basis->Q1d;
-  const CeedInt ncomp = basis->ncomp;
+  CeedInt dim, P1d, Q1d, ncomp;
+  ierr = CeedBasisGetDimension(basis, &dim); CeedChk(ierr);
+  ierr = CeedBasisGetNumNodes1D(basis, &P1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumQuadraturePoints1D(basis, &Q1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumComponents(basis, &ncomp); CeedChk(ierr);
   const CeedInt nqpt = ncomp*CeedIntPow(Q1d,dim);
   const CeedInt vsize = ncomp*CeedIntPow(P1d,dim);
   // ***************************************************************************
   const CeedElemRestriction er = data->er; assert(er);
-  const CeedInt nelem = er->nelem;
-  const CeedInt elemsize = er->elemsize;
-  const bool ocl = ceed_data->ocl;
+  CeedInt nelem, elemsize;
+  ierr = CeedElemRestrictionGetNumElements(er, &nelem); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetElementSize(er, &elemsize); CeedChk(ierr);
+  //const bool ocl = ceed_data->ocl;
   // ***************************************************************************
-  char compileOptions[BUFSIZ], tmp[BUFSIZ];
-  sprintf(tmp, "-Ddim=%d", dim);
-  strcat(compileOptions, tmp);
-  sprintf(tmp, ",-DP1d=%d", P1d);
-  strcat(compileOptions, tmp);
-  sprintf(tmp, ",-DQ1d=%d", Q1d);
-  strcat(compileOptions, tmp);
-  sprintf(tmp, ",-Dnc=%d", ncomp);
-  strcat(compileOptions, tmp);
-  sprintf(tmp, ",-Dncomp=%d", ncomp);
-  strcat(compileOptions, tmp);
-  sprintf(tmp, ",-Dnqpt=%d", nqpt);
-  strcat(compileOptions, tmp);
-  sprintf(tmp, ",-Dvsize=%d", vsize);
-  strcat(compileOptions, tmp);
+  //char compileOptions[BUFSIZ], tmp[BUFSIZ];
+  //sprintf(tmp, "-Ddim=%d", dim);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-DP1d=%d", P1d);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-DQ1d=%d", Q1d);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-Dnc=%d", ncomp);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-Dncomp=%d", ncomp);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-Dnqpt=%d", nqpt);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-Dvsize=%d", vsize);
+  //strcat(compileOptions, tmp);
 
-  dbg("[CeedBasis][BK] compileOptions=%s", compileOptions);
+  //dbg("[CeedBasis][BK] compileOptions=%s", compileOptions);
   dbg("[CeedBasis][BK] dim=%d",dim);
   dbg("[CeedBasis][BK] P1d=%d",P1d);
   dbg("[CeedBasis][BK] Q1d=%d",Q1d);
   dbg("[CeedBasis][BK] ncomp=%d",ncomp);
   dbg("[CeedBasis][BK] nqpt=%d",nqpt);
   dbg("[CeedBasis][BK] vsize=%d",vsize);
-  // ***************************************************************************
-  sprintf(tmp, "-Dnelem=%d", nelem);
-  strcat(compileOptions, tmp);
-  sprintf(tmp,",-Delemsize=%d", elemsize);
-  strcat(compileOptions, tmp);
+  //// ***************************************************************************
+  //sprintf(tmp, "-Dnelem=%d", nelem);
+  //strcat(compileOptions, tmp);
+  //sprintf(tmp,",-Delemsize=%d", elemsize);
+  //strcat(compileOptions, tmp);
 
   dbg("[CeedBasis][BK] nelem=%d",nelem);
   dbg("[CeedBasis][BK] elemsize=%d",elemsize);
-  // ***************************************************************************
-  // OpenCL check for this requirement
+  //// ***************************************************************************
+  //// OpenCL check for this requirement
   const CeedInt elem_tile_size = (nelem>OPENCL_TILE_SIZE)?OPENCL_TILE_SIZE:nelem;
-  // OCCA+MacOS implementation needs that for now (if DeviceID targets a CPU)
+  //// OCCA+MacOS implementation needs that for now (if DeviceID targets a CPU)
   const CeedInt tile_size = ocl?1:elem_tile_size;
-  sprintf(tmp, ",-DTILE_SIZE=%d", tile_size);
-  strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-DTILE_SIZE=%d", tile_size);
+  //strcat(compileOptions, tmp);
 
   dbg("[CeedBasis][BK] TILE_SIZE=%d",tile_size);
-  // ***************************************************************************
+  //// ***************************************************************************
   const CeedInt M1d = (Q1d>P1d)?Q1d:P1d;
-  sprintf(tmp, ",-DM1d=%d", M1d);
-  strcat(compileOptions, tmp);
+  //sprintf(tmp, ",-DM1d=%d", M1d);
+  //strcat(compileOptions, tmp);
   const CeedInt MPow = CeedIntPow(M1d,dim-1);
   const CeedInt tmpSz = ncomp*M1d*CeedIntPow(M1d,dim-1);
-  sprintf(tmp,",-DtmpSz=%d", tmpSz);
-  strcat(compileOptions, tmp);
+  //sprintf(tmp,",-DtmpSz=%d", tmpSz);
+  //strcat(compileOptions, tmp);
 
   dbg("[CeedBasis][BK] nelem=%d, ncomp=%d, M1d=%d, MPow=%d",
       nelem,ncomp,M1d,MPow);
@@ -99,11 +106,15 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
   // ***************************************************************************
   cl_int err;
   data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
-  clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
+  clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL, NULL);
   data->kZero   = clCreateKernel(data->program, "kZero"  , &err);
+  dbg("err after building kZero: %d\n",err);
   data->kInterp = clCreateKernel(data->program, "kInterp", &err);
+  dbg("err after building kInterp: %d\n",err);
   data->kGrad   = clCreateKernel(data->program, "kGrad"  , &err);
+  dbg("err after building kGrrad: %d\n",err);
   data->kWeight = clCreateKernel(data->program, "kWeight", &err);
+  dbg("err after building kWeight: %d\n",err);
   // free local usage **********************************************************
   return 0;
 }
@@ -142,9 +153,11 @@ static int CeedTensorContract_OpenCL(CeedInt A, CeedInt B, CeedInt C, CeedInt J,
 int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
                              CeedTransposeMode tmode, CeedEvalMode emode,
                              const CeedVector u, CeedVector v) {
-  const Ceed ceed = basis->ceed;
-  const Ceed_OpenCL *ceed_data = ceed->data;
-  CeedBasis_OpenCL *data = basis->data;
+  int ierr;
+  const Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  CeedBasis_OpenCL *data;
+  ierr = CeedBasisGetData(basis, (void*)&data); CeedChk(ierr);
   const CeedInt ready =  data->ready;
   // ***************************************************************************
   // We were waiting for the CeedElemRestriction to fill nelem and elemsize

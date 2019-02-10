@@ -78,7 +78,7 @@ kCeedTensorContract = lp.make_kernel(
     target=lp.OpenCLTarget(),
     assumptions="A>0 and B>0 and C>0 and J>0"
     )
-print(kCeedTensorContract)
+#print(kCeedTensorContract)
 
 
 kInterp = lp.make_kernel(
@@ -156,7 +156,7 @@ kInterp = lp.make_kernel(
     name="kInterp",
     target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
-print(kInterp)
+#print(kInterp)
 
 #Surely there is a way to combine kGrad and kInterp. They are mostly identical codewise
 kGrad = lp.make_kernel(
@@ -254,7 +254,7 @@ kGrad = lp.make_kernel(
     name="kGrad",
     target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0")
-print(kGrad)
+#print(kGrad)
 
 
 
@@ -312,7 +312,7 @@ kWeight = lp.make_kernel(
     assumptions="nelem>0 and dim>0 and Q>0"
     )
 #kWeight = lp.prioritize_loops(kWeight,"e,d,i,j,k")
-print(kWeight)
+#print(kWeight)
 
 kernelList1 = [kZero]
 kernelList2 = [kCeedTensorContract]
