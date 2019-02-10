@@ -171,10 +171,6 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
     const cl_mem d_u = u_data->d_array;
     const cl_mem d_v = v_data->d_array;
 
-    //occaKernelRun(data->kInterp,occaInt(QnD),
-    //              occaInt(transpose),occaInt(tmode),
-    //              d_tmp0, d_tmp1, d_interp1d,
-    //              d_u, d_v);
     err  = clSetKernelArg(data->kInterp, 0, sizeof(CeedInt), &QnD);
     err |= clSetKernelArg(data->kInterp, 1, sizeof(CeedInt), &transpose);
     err |= clSetKernelArg(data->kInterp, 2, sizeof(CeedInt), &tmode);
@@ -198,10 +194,7 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
     const CeedVector_OpenCL *v_data = v->data; assert(v_data);
     const cl_mem d_u = u_data->d_array;
     const cl_mem d_v = v_data->d_array;
-    //occaKernelRun(data->kGrad,occaInt(QnD),
-    //              occaInt(transpose),occaInt(tmode),
-    //              d_tmp0,d_tmp1,d_grad1d,d_interp1d,
-    //              d_u, d_v);
+
     err  = clSetKernelArg(data->kGrad, 0, sizeof(CeedInt), &QnD);
     err |= clSetKernelArg(data->kGrad, 1, sizeof(CeedInt), &transpose);
     err |= clSetKernelArg(data->kGrad, 2, sizeof(CeedInt), &tmode);
@@ -243,12 +236,27 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
 // *****************************************************************************
 static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
                                  CeedTransposeMode tmode, CeedEvalMode emode,
-                                 const CeedScalar *u, CeedScalar *v) {
+                                 const CeedScalar *U, CeedScalar *V) {
   int ierr;
-  const CeedInt dim = basis->dim;
-  const CeedInt ncomp = basis->ncomp;
-  const CeedInt nqpt = ncomp*CeedIntPow(basis->Q1d, dim);
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  CeedInt dim, P1d, Q1d, ncomp, nqpt;
+  ierr = CeedBasisGetDimension(basis, &dim); CeedChk(ierr);
+  ierr = CeedBasisGetNumNodes1D(basis, &P1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumQuadraturePoints1D(basis, &Q1d); CeedChk(ierr);
+  ierr = CeedBasisGetNumComponents(basis, &ncomp); CeedChk(ierr);
+  ierr = CeedBasisGetNumQuadraturePoints(basis, &nqpt); CeedChk(ierr);
+  nqpt *= ncomp;
   const CeedInt transpose = (tmode == CEED_TRANSPOSE);
+  const CeedScalar *u;
+  CeedScalar *v;
+  if (U) {
+    ierr = CeedVectorGetArrayRead(U, CEED_MEM_HOST, &u); CeedChk(ierr);
+  } else if (emode != CEED_EVAL_WEIGHT) {
+    return CeedError(ceed, 1,
+                     "An input vector is required for this CeedEvalMode");
+  }
+  ierr = CeedVectorGetArray(V, CEED_MEM_HOST, &v); CeedChk(ierr);
 
   if (nelem != 1)
     return CeedError(basis->ceed, 1,
@@ -256,13 +264,13 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
   // ***************************************************************************
   if (transpose) {
     const CeedInt vsize = ncomp*CeedIntPow(basis->P1d, dim);
-    //dbg("[CeedBasis][Apply] transpose");
+    dbg("[CeedBasis][Apply] transpose");
     for (CeedInt i = 0; i < vsize; i++)
       v[i] = 0.0;
   }
   // ***************************************************************************
   if (emode == CEED_EVAL_NONE) {
-    //dbg("[CeedBasis][Apply] CEED_EVAL_NONE");
+    dbg("[CeedBasis][Apply] CEED_EVAL_NONE");
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_INTERP) {
@@ -325,6 +333,10 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
       }
     }
   }
+  if (U) {
+    ierr = CeedVectorRestoreArrayRead(U, &u); CeedChk(ierr);
+  }
+  ierr = CeedVectorRestoreArray(V, &v); CeedChk(ierr);
   return 0;
 }
 
@@ -333,8 +345,10 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
 // *****************************************************************************
 static int CeedBasisDestroy_OpenCL(CeedBasis basis) {
   int ierr;
-  const Ceed ceed = basis->ceed;
-  CeedBasis_OpenCL *data = basis->data;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  CeedBasis_OpenCL *data;
+  ierr = CeedBasisGetData(basis, (void*)&data); CeedChk(ierr);
   dbg("[CeedBasis][Destroy]");
   clReleaseKernel(data->kZero);
   clReleaseKernel(data->kInterp);
@@ -359,50 +373,43 @@ int CeedBasisCreateTensorH1_OpenCL(CeedInt dim, CeedInt P1d, CeedInt Q1d,
                                    CeedBasis basis) {
   int ierr;
   CeedBasis_OpenCL *data;
-  Ceed ceed = basis->ceed;
-  const Ceed_OpenCL *ceed_data = ceed->data;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   dbg("[CeedBasis][CreateTensorH1]");
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
-  basis->data = data;
   // ***************************************************************************
   assert(qref1d);
-  //data->qref1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-  //occaCopyPtrToMem(data->qref1d,qref1d,Q1d*sizeof(CeedScalar),NO_OFFSET,NO_PROPS);
   data->qref1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                                 Q1d*sizeof(CeedScalar), NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->qref1d, CL_TRUE, 0,
                        Q1d*sizeof(CeedScalar), qref1d, 0, NULL, NULL);
   // ***************************************************************************
   assert(qweight1d);
-  //data->qweight1d = occaDeviceMalloc(dev,Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-  //occaCopyPtrToMem(data->qweight1d,qweight1d,Q1d*sizeof(CeedScalar),NO_OFFSET,
-  //                 NO_PROPS);
   data->qweight1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                                    Q1d*sizeof(CeedScalar), NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->qweight1d, CL_TRUE, 0,
                        Q1d*sizeof(CeedScalar), qweight1d, 0, NULL, NULL);
   // ***************************************************************************
   assert(interp1d);
-  //data->interp1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-  //occaCopyPtrToMem(data->interp1d,interp1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
-  //                 NO_PROPS);
   data->interp1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                                   P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->interp1d, CL_TRUE, 0,
                        P1d*Q1d*sizeof(CeedScalar), interp1d, 0, NULL, NULL);
   // ***************************************************************************
   assert(grad1d);
-  //data->grad1d = occaDeviceMalloc(dev,P1d*Q1d*sizeof(CeedScalar),NULL,NO_PROPS);
-  //occaCopyPtrToMem(data->grad1d,grad1d,P1d*Q1d*sizeof(CeedScalar),NO_OFFSET,
-  //                 NO_PROPS);
   data->grad1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                                 P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->grad1d, CL_TRUE, 0,
                        P1d*Q1d*sizeof(CeedScalar), grad1d, 0, NULL, NULL);
+  ierr = CeedBasisSetData(basis, (void *)&data); CeedChk(ierr);
   // ***************************************************************************
-  basis->Apply = CeedBasisApply_OpenCL;
-  basis->Destroy = CeedBasisDestroy_OpenCL;
+  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Apply",
+                                CeedBasisApply_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Basis", basis, "Destroy",
+                                CeedBasisDestroy_OpenCL); CeedChk(ierr);
   return 0;
 }
 
@@ -416,5 +423,8 @@ int CeedBasisCreateH1_OpenCL(CeedElemTopology topo, CeedInt dim,
                              const CeedScalar *qref,
                              const CeedScalar *qweight,
                              CeedBasis basis) {
-  return CeedError(basis->ceed, 1, "Backend does not implement non-tensor bases");
+  int ierr;
+  Ceed ceed;
+  ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);
+  return CeedError(ceed, 1, "Backend does not implement non-tensor bases");
 }

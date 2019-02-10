@@ -30,27 +30,27 @@ static inline size_t bytes(const CeedVector vec) {
 // * OpenCL data write/read functions
 // *****************************************************************************
 static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
-  CeedVector_OpenCL *data;
-  CeedVectorGetData(vec, (void*)&data);
   Ceed_OpenCL *c;
   CeedVectorGetCeed(vec, (void*)&c);
-  assert(data);
+  CeedVector_OpenCL *data;
+  CeedVectorGetData(vec, (void*)&data);
   assert(c);
+  assert(data);
   assert(data->h_array);
-  clEnqueueWriteBuffer(c->queue, d->d_array, CL_TRUE,
-                       0, bytes(vec), d->h_array, 0, NULL, NULL);
+  clEnqueueWriteBuffer(c->queue, data->d_array, CL_TRUE,
+                       0, bytes(vec), data->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
-  CeedVector_OpenCL *data;
-  CeedVectorGetData(vec, (void*)&data);
   Ceed_OpenCL *c;
   CeedVectorGetCeed(vec, (void*)&c);
-  assert(data);
+  CeedVector_OpenCL *data;
+  CeedVectorGetData(vec, (void*)&data);
   assert(c);
+  assert(data);
   assert(data->d_array);
-  clEnqueueReadBuffer(c->queue, v->d_array, CL_TRUE,
-                      0, bytes(vec), v->h_array, 0, NULL, NULL);
+  clEnqueueReadBuffer(c->queue, data->d_array, CL_TRUE,
+                      0, bytes(vec), data->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 // * Set the array used by a vector,
@@ -144,11 +144,11 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
   dbg("[CeedVector][Restore]");
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
-  assert((data->h_array);
-         assert(*array);
-         CeedWriteBuffer_OpenCL(vec); // sync Host to Device
-         *array = NULL;
-         return 0;
+  assert(data->h_array);
+  assert(*array);
+  CeedWriteBuffer_OpenCL(vec); // sync Host to Device
+  *array = NULL;
+  return 0;
 }
 // *****************************************************************************
 static int CeedVectorRestoreArray_OpenCL(const CeedVector vec,
