@@ -91,8 +91,7 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
 // * CEED_EVAL_WEIGHT: Q
 // *****************************************************************************
 static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
-                                     const CeedScalar *const *In,
-                                     CeedScalar *const *Out) {
+                                     CeedVector *In, CeedVector *Out) {
   int ierr;
   Ceed ceed;
   ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);

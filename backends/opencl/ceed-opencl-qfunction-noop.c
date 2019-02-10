@@ -36,7 +36,6 @@ int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   assert(nIn<N_MAX_IDX);
   size_t cbytes;
   ierr = CeedQFunctionGetContextSize(qf, &cbytes); CeedChk(ierr);
-  const CeedInt bytes = sizeof(CeedScalar);
   const CeedInt dim = 1; // !?
   // ***************************************************************************
   dbg("[CeedQFunction][AllocNoOpIn] nIn=%d",nIn);
@@ -180,7 +179,7 @@ int CeedQFunctionFillNoOp_OpenCL(CeedQFunction qf, CeedInt Q,
   Ceed ceed;
   ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
   Ceed_OpenCL *ceed_data;
-  ierr = CeedGetData(ceed, &ceed_data); CeedChk(ierr);
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   CeedInt nIn;
   ierr = CeedQFunctionGetNumArgs(qf, &nIn, NULL); CeedChk(ierr);
   const CeedInt ilen = iOf7[nIn];

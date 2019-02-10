@@ -162,7 +162,7 @@ static int CeedVectorRestoreArray_OpenCL(const CeedVector vec,
 static int CeedVectorDestroy_OpenCL(const CeedVector vec) {
   int ierr;
   Ceed ceed;
-  CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
   dbg("[CeedVector][Destroy]");

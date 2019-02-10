@@ -236,7 +236,7 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
 // *****************************************************************************
 static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
                                  CeedTransposeMode tmode, CeedEvalMode emode,
-                                 const CeedScalar *U, CeedScalar *V) {
+                                 CeedVector U, CeedVector V) {
   int ierr;
   Ceed ceed;
   ierr = CeedBasisGetCeed(basis, &ceed); CeedChk(ierr);

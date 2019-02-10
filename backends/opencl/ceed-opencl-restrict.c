@@ -58,8 +58,8 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     if (ncomp == 1) {
       dbg("[CeedElemRestriction][Apply] kRestrict[0]");
       err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), (void *)&id);
-      CeedInt nelem_x_elemsize = r->nelem*r->elemsize;
-      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(CeedInt),
+      size_t nelem_x_elemsize = r->nelem*r->elemsize;
+      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(size_t),
                             (void *)&nelem_x_elemsize);
       err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), (void *)&ud);
       err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), (void *)&vd);
@@ -199,7 +199,6 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   int ierr;
   CeedElemRestriction_OpenCL *data;
   Ceed_OpenCL *ceed_data = ceed->data;
-  const bool ocl = ceed_data->ocl;
   CeedInt *used_indices;
   // ***************************************************************************
   if (mtype != CEED_MEM_HOST)
