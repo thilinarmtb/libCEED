@@ -96,15 +96,26 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   // Warning: "backend cannot use resource" is used to grep in test/tap.sh
   if (!cpu && !gpu)
     return CeedError(ceed, 1, "OpenCL backend cannot use resource: %s", resource);
-  ceed->Error = CeedError_OpenCL;
-  ceed->Destroy = CeedDestroy_OpenCL;
-  ceed->VecCreate = CeedVectorCreate_OpenCL;
-  ceed->ElemRestrictionCreate = CeedElemRestrictionCreate_OpenCL;
-  ceed->ElemRestrictionCreateBlocked = CeedElemRestrictionCreateBlocked_OpenCL;
-  ceed->BasisCreateTensorH1 = CeedBasisCreateTensorH1_OpenCL;
-  ceed->BasisCreateH1 = CeedBasisCreateH1_OpenCL;
-  ceed->QFunctionCreate = CeedQFunctionCreate_OpenCL;
-  ceed->OperatorCreate = CeedOperatorCreate_OpenCL;
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "Error",
+                                CeedError_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "Destroy",
+                                CeedDestroy_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "VecCreate",
+                                CeedVectorCreate_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "BasisCreateTensorH1",
+                                CeedBasisCreateTensorH1_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "BasisCreateH1",
+                                CeedBasisCreateH1_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "ElemRestrictionCreate",
+                                CeedElemRestrictionCreate_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed,
+                                "ElemRestrictionCreateBlocked",
+                                CeedElemRestrictionCreateBlocked_OpenCL);
+  CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "QFunctionCreate",
+                                CeedQFunctionCreate_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "OperatorCreate",
+                                CeedOperatorCreate_OpenCL); CeedChk(ierr);
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
   ceed->data = data;
 
@@ -113,8 +124,6 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   // push ocl to our data, to be able to check it later for the kernels
   data->libceed_dir = NULL;
   if (data->debug) {
-//    occaPropertiesSet(occaSettings(), "device/verbose", occaBool(1));
-//    occaPropertiesSet(occaSettings(), "kernel/verbose", occaBool(1));
   }
   // Now that we can dbg, output resource and deviceID
   dbg("[CeedInit] resource: %s", resource);
@@ -124,6 +133,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   if(cpu) {
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id,
                          NULL);
+    dbg("CPU is selected.");
     if(err != CL_SUCCESS) {
       switch (err) {
       case CL_INVALID_PLATFORM:
@@ -148,6 +158,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
       }
     }
   } else if(gpu) {
+    dbg("GPU is selected.");
     err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id,
                          NULL);
     if(err != CL_SUCCESS) {

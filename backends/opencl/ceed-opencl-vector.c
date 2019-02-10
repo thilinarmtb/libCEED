@@ -30,26 +30,32 @@ static inline size_t bytes(const CeedVector vec) {
 // * OpenCL data write/read functions
 // *****************************************************************************
 static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
-  Ceed_OpenCL *c;
-  CeedVectorGetCeed(vec, (void*)&c);
+  Ceed ceed;
+  CeedVectorGetCeed(vec, &ceed);
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed, (void*)&ceed_data);
   CeedVector_OpenCL *data;
   CeedVectorGetData(vec, (void*)&data);
-  assert(c);
+  assert(ceed);
+  assert(ceed_data);
   assert(data);
   assert(data->h_array);
-  clEnqueueWriteBuffer(c->queue, data->d_array, CL_TRUE,
+  clEnqueueWriteBuffer(ceed_data->queue, data->d_array, CL_TRUE,
                        0, bytes(vec), data->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
-  Ceed_OpenCL *c;
-  CeedVectorGetCeed(vec, (void*)&c);
+  Ceed ceed;
+  CeedVectorGetCeed(vec, &ceed);
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed, (void*)&ceed_data);
   CeedVector_OpenCL *data;
   CeedVectorGetData(vec, (void*)&data);
-  assert(c);
+  assert(ceed);
+  assert(ceed_data);
   assert(data);
   assert(data->d_array);
-  clEnqueueReadBuffer(c->queue, data->d_array, CL_TRUE,
+  clEnqueueReadBuffer(ceed_data->queue, data->d_array, CL_TRUE,
                       0, bytes(vec), data->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
