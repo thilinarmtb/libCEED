@@ -57,7 +57,8 @@ static int CeedTensorContract8_Avx(Ceed ceed, CeedInt A, CeedInt B,
   }
 
   const int JJ = 4, CC=8;
-  if (C % CC) return CeedError(ceed, 2, "Tensor [%d, %d, %d]: last dimension not divisible by %d", A, B, C, CC);
+  if (C % CC) return CeedError(ceed, 2,
+                                 "Tensor [%d, %d, %d]: last dimension not divisible by %d", A, B, C, CC);
 
   if (!Add) {
     for (CeedInt q=0; q<A*J*C; q++) {
@@ -79,7 +80,7 @@ static int CeedTensorContract8_Avx(Ceed ceed, CeedInt A, CeedInt B,
             __m256d tqv = _mm256_set1_pd(t[(j+jj)*tstride0 + b*tstride1]);
             for (CeedInt cc=0; cc<CC/4; cc++) { // unroll
               vv[jj][cc] += _mm256_mul_pd(tqv,
-                              _mm256_loadu_pd(&u[(a*B+b)*C+c+cc*4]));
+                                          _mm256_loadu_pd(&u[(a*B+b)*C+c+cc*4]));
             }
           }
         }

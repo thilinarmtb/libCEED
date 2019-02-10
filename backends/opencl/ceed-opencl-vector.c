@@ -38,7 +38,7 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
   assert(c);
   assert(data->h_array);
   clEnqueueWriteBuffer(c->queue, d->d_array, CL_TRUE,
-		  0, bytes(vec), d->h_array, 0, NULL, NULL);
+                       0, bytes(vec), d->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
@@ -50,16 +50,16 @@ static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
   assert(c);
   assert(data->d_array);
   clEnqueueReadBuffer(c->queue, v->d_array, CL_TRUE,
-		  0, bytes(vec), v->h_array, 0, NULL, NULL);
+                      0, bytes(vec), v->h_array, 0, NULL, NULL);
 }
 // *****************************************************************************
 // * Set the array used by a vector,
 // * freeing any previously allocated array if applicable
 // *****************************************************************************
 static int CeedVectorSetArray_OpenCL(const CeedVector vec,
-                                   const CeedMemType mtype,
-                                   const CeedCopyMode cmode,
-                                   CeedScalar *array) {
+                                     const CeedMemType mtype,
+                                     const CeedCopyMode cmode,
+                                     CeedScalar *array) {
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
@@ -106,8 +106,8 @@ static int CeedVectorSetArray_OpenCL(const CeedVector vec,
 // * this will perform a copy (possibly cached).
 // *****************************************************************************
 static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
-                                       const CeedMemType mtype,
-                                       const CeedScalar **array) {
+    const CeedMemType mtype,
+    const CeedScalar **array) {
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
@@ -128,8 +128,8 @@ static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
 }
 // *****************************************************************************
 static int CeedVectorGetArray_OpenCL(const CeedVector vec,
-                                   const CeedMemType mtype,
-                                   CeedScalar **array) {
+                                     const CeedMemType mtype,
+                                     CeedScalar **array) {
   return CeedVectorGetArrayRead_OpenCL(vec,mtype,(const CeedScalar**)array);
 }
 
@@ -145,14 +145,14 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
   assert((data->h_array);
-  assert(*array);
-  CeedWriteBuffer_OpenCL(vec); // sync Host to Device
-  *array = NULL;
-  return 0;
+         assert(*array);
+         CeedWriteBuffer_OpenCL(vec); // sync Host to Device
+         *array = NULL;
+         return 0;
 }
 // *****************************************************************************
 static int CeedVectorRestoreArray_OpenCL(const CeedVector vec,
-                                       CeedScalar **array) {
+    CeedScalar **array) {
   return CeedVectorRestoreArrayRead_OpenCL(vec,(const CeedScalar**)array);
 }
 
@@ -197,8 +197,9 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
                                 CeedVectorDestroy_OpenCL); CeedChk(ierr);
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec),
-		  NULL, NULL);
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+                                 bytes(vec),
+                                 NULL, NULL);
   ierr = CeedVectorSetData(vec, (void *)&data); CeedChk(ierr);
   return 0;
 }

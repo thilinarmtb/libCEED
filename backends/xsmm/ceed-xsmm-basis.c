@@ -23,12 +23,12 @@
 // TRANSPOSE:   V_ajc = T_bj U_abc
 // If Add != 0, "=" is replaced by "+="
 static int CeedTensorContract_Xsmm_Blocked(Ceed ceed, CeedInt A, CeedInt B,
-                                           CeedInt C, CeedInt J,
-                                           const CeedScalar *restrict t,
-                                           CeedTransposeMode tmode,
-                                           const CeedInt Add,
-                                           const CeedScalar *restrict u,
-                                           CeedScalar *restrict v) {
+    CeedInt C, CeedInt J,
+    const CeedScalar *restrict t,
+    CeedTransposeMode tmode,
+    const CeedInt Add,
+    const CeedScalar *restrict u,
+    CeedScalar *restrict v) {
   CeedScalar alpha = 1.0, beta = 1.0;
   char transu = 'N', transt = 'N';
   if (tmode == CEED_TRANSPOSE)
@@ -46,12 +46,12 @@ static int CeedTensorContract_Xsmm_Blocked(Ceed ceed, CeedInt A, CeedInt B,
 }
 
 static int CeedTensorContract_Xsmm_Serial(Ceed ceed, CeedInt A, CeedInt B,
-                                          CeedInt C, CeedInt J,
-                                          const CeedScalar *restrict t,
-                                          CeedTransposeMode tmode,
-                                          const CeedInt Add,
-                                          const CeedScalar *restrict u,
-                                          CeedScalar *restrict v) {
+    CeedInt C, CeedInt J,
+    const CeedScalar *restrict t,
+    CeedTransposeMode tmode,
+    const CeedInt Add,
+    const CeedScalar *restrict u,
+    CeedScalar *restrict v) {
   CeedScalar alpha = 1.0, beta = 1.0;
   char transu = 'N', transt = 'N';
   if ((tmode == CEED_TRANSPOSE && C != 1)
@@ -67,11 +67,11 @@ static int CeedTensorContract_Xsmm_Serial(Ceed ceed, CeedInt A, CeedInt B,
       libxsmm_dgemm(&transu, &transt, &C, &J, &B,
                     &alpha, &u[a*B*C], NULL, &t[0], NULL,
                     &beta, &v[a*J*C], NULL);
-   else
-      // libXSMM GEMM
-      libxsmm_dgemm(&transt, &transu, &J, &A, &B,
-                    &alpha, &t[0], NULL, &u[0], NULL,
-                    &beta, &v[0], NULL);
+  else
+    // libXSMM GEMM
+    libxsmm_dgemm(&transt, &transu, &J, &A, &B,
+                  &alpha, &t[0], NULL, &u[0], NULL,
+                  &beta, &v[0], NULL);
 
   return 0;
 }

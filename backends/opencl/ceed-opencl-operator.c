@@ -145,14 +145,14 @@ static int CeedOperatorDump_OpenCL(CeedOperator op) {
 // * Setup infields or outfields
 // *****************************************************************************
 static int CeedOperatorSetupFields_OpenCL(CeedOperator op,
-                                        struct CeedQFunctionField qfields[16],
-                                        struct CeedOperatorField ofields[16],
-                                        CeedVector *evecs, CeedScalar **qdata, CeedScalar **qdata_alloc,
-                                        CeedScalar **indata,
-                                        const CeedInt starti,
-                                        CeedInt startq,
-                                        const CeedInt numfields,
-                                        const CeedInt Q) {
+    struct CeedQFunctionField qfields[16],
+    struct CeedOperatorField ofields[16],
+    CeedVector *evecs, CeedScalar **qdata, CeedScalar **qdata_alloc,
+    CeedScalar **indata,
+    const CeedInt starti,
+    CeedInt startq,
+    const CeedInt numfields,
+    const CeedInt Q) {
   CeedQFunction qf = op->qf;
   CeedQFunction_OpenCL *qf_data = qf->data;
   const Ceed ceed = op->ceed;
@@ -166,7 +166,8 @@ static int CeedOperatorSetupFields_OpenCL(CeedOperator op,
     CeedEvalMode emode = qfields[i].emode;
     if (emode != CEED_EVAL_WEIGHT) {
       dbg("\t\t[CeedOperator][SetupFields] restriction");
-      ierr = CeedElemRestrictionCreateVector(ofields[i].Erestrict, NULL, &evecs[i+starti]);
+      ierr = CeedElemRestrictionCreateVector(ofields[i].Erestrict, NULL,
+                                             &evecs[i+starti]);
       CeedChk(ierr);
     } else {
       dbg("\t\t[CeedOperator][SetupFields] no restriction");
@@ -226,7 +227,8 @@ static int CeedOperatorSetup_OpenCL(CeedOperator op) {
 
   // ***************************************************************************
   // Count infield and outfield array sizes and evectors
-  ierr= CeedQFunctionGetNumArgs(qf, &numinputfields, &numoutputfields); CeedChk(ierr);
+  ierr= CeedQFunctionGetNumArgs(qf, &numinputfields, &numoutputfields);
+  CeedChk(ierr);
   data->numein = numinputfields;
   for (CeedInt i=0; i<numinputfields; i++) {
     CeedEvalMode emode = qf->inputfields[i].emode;
@@ -281,16 +283,16 @@ static int CeedOperatorSetup_OpenCL(CeedOperator op) {
   dbg("\t[CeedOperator][Setup] Set up IN fields:");
   // Infields
   ierr = CeedOperatorSetupFields_OpenCL(op,qf->inputfields, op->inputfields,
-                                      data->Evecs, data->qdata, data->qdata_alloc, data->indata,
-                                      0, 0,
-                                      numinputfields, Q);
+                                        data->Evecs, data->qdata, data->qdata_alloc, data->indata,
+                                        0, 0,
+                                        numinputfields, Q);
   CeedChk(ierr);
   dbg("\t[CeedOperator][Setup] Set up OUT fields:");
   // Outfields
   ierr = CeedOperatorSetupFields_OpenCL(op,qf->outputfields, op->outputfields,
-                                      data->Evecs, data->qdata, data->qdata_alloc, data->indata,
-                                      numinputfields, data->numqin,
-                                      numoutputfields, Q); CeedChk(ierr);
+                                        data->Evecs, data->qdata, data->qdata_alloc, data->indata,
+                                        numinputfields, data->numqin,
+                                        numoutputfields, Q); CeedChk(ierr);
   op->setupdone = true;
   dbg("\t[CeedOperator][Setup] done");
   return 0;
@@ -308,7 +310,7 @@ static int SyncToHostPointer(CeedVector vec) {
 //  occaCopyMemToPtr(outvdata->h_array, outvdata->d_array,
 //                   vec->length * sizeof(CeedScalar), NO_OFFSET, NO_PROPS);
     clEnqueueReadBuffer(ceed_data->queue, outvdata->d_array, CL_TRUE, 0,
-		    vec->length*sizeof(CeedScalar), outvdata->h_array, 0, NULL, NULL);
+                        vec->length*sizeof(CeedScalar), outvdata->h_array, 0, NULL, NULL);
   }
   return 0;
 }
@@ -317,9 +319,9 @@ static int SyncToHostPointer(CeedVector vec) {
 // * Apply CeedOperator to a vector
 // *****************************************************************************
 static int CeedOperatorApply_OpenCL(CeedOperator op,
-                                  CeedVector invec,
-                                  CeedVector outvec,
-                                  CeedRequest *request) {
+                                    CeedVector invec,
+                                    CeedVector outvec,
+                                    CeedRequest *request) {
   const Ceed ceed = op->ceed;
   dbg("[CeedOperator][Apply]");
   CeedOperator_OpenCL *data = op->data;
@@ -331,7 +333,8 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
   // ***************************************************************************
   dbg("[CeedOperator][Dump] Setup?");
   ierr = CeedOperatorSetup_OpenCL(op); CeedChk(ierr);
-  ierr= CeedQFunctionGetNumArgs(qf, &numinputfields, &numoutputfields); CeedChk(ierr);
+  ierr= CeedQFunctionGetNumArgs(qf, &numinputfields, &numoutputfields);
+  CeedChk(ierr);
   //CeedOperatorDump_OpenCL(op);
 
   // Tell CeedQFunction_OpenCL's structure we are coming from an operator ********
@@ -511,7 +514,7 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
   for (CeedInt i=0; i<numoutputfields; i++) {
     // Restore evec
     ierr = CeedVectorRestoreArray(data->Evecs[i+data->numein],
-                                    &data->Edata[i + numinputfields]); CeedChk(ierr);
+                                  &data->Edata[i + numinputfields]); CeedChk(ierr);
     // Active
     if (op->outputfields[i].vec == CEED_VECTOR_ACTIVE) {
       // Restrict
@@ -522,7 +525,8 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
       // Passive
       // Restrict
       ierr = CeedElemRestrictionApply(op->outputfields[i].Erestrict, CEED_TRANSPOSE,
-                                      lmode, data->Evecs[i+data->numein], op->outputfields[i].vec, request); CeedChk(ierr);
+                                      lmode, data->Evecs[i+data->numein], op->outputfields[i].vec, request);
+      CeedChk(ierr);
       ierr = SyncToHostPointer(op->outputfields[i].vec); CeedChk(ierr);
     }
   }

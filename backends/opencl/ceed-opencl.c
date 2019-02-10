@@ -20,9 +20,9 @@
 // * CeedError_OpenCL
 // *****************************************************************************
 static int CeedError_OpenCL(Ceed ceed,
-                          const char *file, int line,
-                          const char *func, int code,
-                          const char *format, va_list args) {
+                            const char *file, int line,
+                            const char *func, int code,
+                            const char *format, va_list args) {
   fprintf(stderr, "CEED-OpenCL error @ %s:%d %s\n", file, line, func);
   vfprintf(stderr, format, args);
   fprintf(stderr,"\n");
@@ -51,8 +51,8 @@ static int CeedDestroy_OpenCL(Ceed ceed) {
 // * CeedDebugImpl256
 // *****************************************************************************
 void CeedDebugImpl256_OpenCL(const Ceed ceed,
-                      const unsigned char color,
-                      const char *format,...) {
+                             const unsigned char color,
+                             const char *format,...) {
   const Ceed_OpenCL *data=ceed->data;
   if (!data->debug) return;
   va_list args;
@@ -70,7 +70,7 @@ void CeedDebugImpl256_OpenCL(const Ceed ceed,
 // * CeedDebugImpl
 // *****************************************************************************
 void CeedDebugImpl_OpenCL(const Ceed ceed,
-                   const char *format,...) {
+                          const char *format,...) {
   const Ceed_OpenCL *data=ceed->data;
   if (!data->debug) return;
   va_list args;
@@ -121,51 +121,62 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   cl_int err;
   err = clGetPlatformIDs(1, &data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id, NULL);
+    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id,
+                         NULL);
     if(err != CL_SUCCESS) {
       switch (err) {
-        case CL_INVALID_PLATFORM:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Platform");
-          break;
-        case CL_INVALID_DEVICE_TYPE:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
-          break;
-        case CL_INVALID_VALUE:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
-          break;
-        case CL_DEVICE_NOT_FOUND:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Device not found");
-          break;
-        default:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
-          break;
+      case CL_INVALID_PLATFORM:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+        break;
+      case CL_INVALID_DEVICE_TYPE:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+        break;
+      case CL_INVALID_VALUE:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Invalid Value");
+        break;
+      case CL_DEVICE_NOT_FOUND:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Device not found");
+        break;
+      default:
+        return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+        break;
       }
     }
   } else if(gpu) {
-    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id, NULL);
+    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id,
+                         NULL);
     if(err != CL_SUCCESS) {
       switch (err) {
-        case CL_INVALID_PLATFORM:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Platform");
-          break;
-        case CL_INVALID_DEVICE_TYPE:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
-          break;
-        case CL_INVALID_VALUE:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
-          break;
-        case CL_DEVICE_NOT_FOUND:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Device not found");
-          break;
-        default:
-          return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
-          break;
+      case CL_INVALID_PLATFORM:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+        break;
+      case CL_INVALID_DEVICE_TYPE:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+        break;
+      case CL_INVALID_VALUE:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Invalid Value");
+        break;
+      case CL_DEVICE_NOT_FOUND:
+        return CeedError(ceed, 1,
+                         "OpenCL backend can't initialize the CPUs.: Device not found");
+        break;
+      default:
+        return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+        break;
       }
     }
   }
 
   data->context = clCreateContext(0, 1, &data->device_id, NULL, NULL, &err);
-  data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id, 0, &err);
+  data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id,
+                0, &err);
 
   return 0;
 }

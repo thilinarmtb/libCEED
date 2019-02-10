@@ -145,8 +145,8 @@ CEED_INTERN int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
 
 // *****************************************************************************
 CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
-     const CeedCopyMode cmode, const CeedInt *indices,
-     const CeedElemRestriction res);
+    const CeedCopyMode cmode, const CeedInt *indices,
+    const CeedElemRestriction res);
 
 // *****************************************************************************
 CEED_INTERN int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);

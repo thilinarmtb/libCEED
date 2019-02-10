@@ -23,9 +23,10 @@
 // * functions for the 'no-operator' case
 // *****************************************************************************
 int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*);
-int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*) ;
+int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*,
+                                     CeedInt*) ;
 int CeedQFunctionFillNoOp_OpenCL(CeedQFunction, CeedInt, cl_mem,
-                               CeedInt*, CeedInt*, const CeedScalar*const*);
+                                 CeedInt*, CeedInt*, const CeedScalar*const*);
 
 // *****************************************************************************
 // * functions for the 'operator' case
@@ -33,7 +34,7 @@ int CeedQFunctionFillNoOp_OpenCL(CeedQFunction, CeedInt, cl_mem,
 int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*);
 int CeedQFunctionAllocOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*) ;
 int CeedQFunctionFillOp_OpenCL(CeedQFunction, CeedInt, cl_mem,
-                             CeedInt*, CeedInt*, const CeedScalar*const*);
+                               CeedInt*, CeedInt*, const CeedScalar*const*);
 
 // *****************************************************************************
 // * buildKernel
@@ -72,8 +73,10 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   dbg("[CeedQFunction][BuildKernel] name=%s",data->qFunctionName);
 
   cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1, (const char **) &OpenCLKernels, NULL, &err);
-  clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL, NULL);
+  data->program = clCreateProgramWithSource(ceed_data->context, 1,
+                  (const char **) &OpenCLKernels, NULL, &err);
+  clBuildProgram(data->program, 1, &ceed_data->device_id, compileOptions, NULL,
+                 NULL);
   data->kQFunctionApply = clCreateKernel(data->program, "QFunctionApply", &err);
 
   return 0;
@@ -88,8 +91,8 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
 // * CEED_EVAL_WEIGHT: Q
 // *****************************************************************************
 static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
-                                   const CeedScalar *const *in,
-                                   CeedScalar *const *out) {
+                                     const CeedScalar *const *in,
+                                     CeedScalar *const *out) {
   const Ceed ceed = qf->ceed;
   dbg("[CeedQFunction][Apply]");
   CeedQFunction_OpenCL *data = qf->data;
@@ -130,7 +133,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   // ***************************************************************************
   //if (cbytes>0) occaCopyPtrToMem(d_ctx,qf->ctx,cbytes,0,NO_PROPS);
   if (cbytes>0) clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-		  cbytes, qf->ctx, 0, NULL, NULL);
+                                       cbytes, qf->ctx, 0, NULL, NULL);
 
   // ***************************************************************************
   dbg("[CeedQFunction][Apply] occaKernelRun");
@@ -149,13 +152,14 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_indata);
   err |= clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), &d_outdata);
 
-  clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL, &globalSize,
-		  &localSize, 0, NULL, NULL);
+  clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL,
+                         &globalSize,
+                         &localSize, 0, NULL, NULL);
 
   // ***************************************************************************
 //if (cbytes>0) occaCopyMemToPtr(qf->ctx,d_ctx,cbytes,0,NO_PROPS);
   if (cbytes>0) clEnqueueReadBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-		  cbytes, qf->ctx, 0, NULL, NULL);
+                                      cbytes, qf->ctx, 0, NULL, NULL);
 
   // ***************************************************************************
   const int nOut = qf->numoutputfields;
@@ -169,22 +173,25 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
       dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
       //occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
       //                 NO_PROPS);
-      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0, Q*ncomp*nelem*bytes,
-		      out[i], 0, NULL, NULL);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0,
+                          Q*ncomp*nelem*bytes,
+                          out[i], 0, NULL, NULL);
       break;
     case CEED_EVAL_INTERP:
       dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
       //occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
       //                 NO_PROPS);
-      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0, Q*ncomp*nelem*bytes,
-		      out[i], 0, NULL, NULL);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0,
+                          Q*ncomp*nelem*bytes,
+                          out[i], 0, NULL, NULL);
       break;
     case CEED_EVAL_GRAD:
       dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
       //occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*dim*nelem*bytes,data->oOf7[i]*bytes,
       //                 NO_PROPS);
-      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0, Q*ncomp*dim*nelem*bytes,
-		      out[i], 0, NULL, NULL);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0,
+                          Q*ncomp*dim*nelem*bytes,
+                          out[i], 0, NULL, NULL);
       break;
     case CEED_EVAL_WEIGHT:
       break; // no action
