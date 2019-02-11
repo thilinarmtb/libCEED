@@ -52,7 +52,7 @@ massf = lp.make_kernel(
     for i
         <> index0 = iOf7_0 + i
         <> index1 = iOf7_1 + i
-        out[oOf7_0 + i] = in[index0]*in[index1]
+        out[i + oOf7_0] = in[index0]*in[index1]
     end
     """,
     name="massf",
