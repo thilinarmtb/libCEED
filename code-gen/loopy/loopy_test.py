@@ -30,10 +30,11 @@ z_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
 a_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float32)
 b_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float32)
 x_mat_dev = cl.array.Array(queue, (n, n), dtype=np.float32)
-x_mat_host = np.float32(np.random.rand(n,n))
-a_mat_host = np.float32(np.random.rand(n,n))
+x_mat_host = np.float32(np.random.rand(n,n), dtype=np.float32)
+a_mat_host = np.float32(np.random.rand(n,n), dtype=np.float32)
 x_vec_host = np.random.randn(n).astype(np.float32)
 y_vec_host = np.random.randn(n).astype(np.float32)
+ind_vec_host = np.zeros((n,), dtype=np.int32)
 
 '''
 def test_plain_matrix_mul(ctx_factory):
@@ -96,11 +97,11 @@ mxm = lp.make_kernel(
 mxm = lp.set_options(mxm, "write_cl")
 
 #Github optimizations
-mxm = lp.split_iname(mxm, "i", LM, outer_tag="g.0", inner_tag="l.1")
-mxm = lp.split_iname(mxm, "j", LN, outer_tag="g.1", inner_tag="l.0")
-mxm = lp.split_iname(mxm, "k", LO, inner_tag="unr")
-mxm = lp.add_prefetch(mxm, "A", ["k_inner", "i_inner"], default_tag="l.auto")
-mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
+#mxm = lp.split_iname(mxm, "i", LM, outer_tag="g.0", inner_tag="l.1")
+#mxm = lp.split_iname(mxm, "j", LN, outer_tag="g.1", inner_tag="l.0")
+#mxm = lp.split_iname(mxm, "k", LO, inner_tag="unr")
+#mxm = lp.add_prefetch(mxm, "A", ["k_inner", "i_inner"], default_tag="l.auto")
+#mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
 
 
 
@@ -144,11 +145,49 @@ mxm = lp.add_prefetch(mxm, "X", ["j_inner", "k_inner", ], default_tag="l.auto")
 
 # execute
 # -------
-#evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
-mxm = lp.add_and_infer_dtypes(mxm, {"A":np.float64, "X": np.float64})
+
+mxm = lp.add_and_infer_dtypes(mxm, {"A":np.float32, "X": np.float32})
+evt, (B,) = mxm(queue, A=a_mat_host, X=x_mat_host)#, B=b_mat_dev)
 print(lp.generate_code_v2(mxm).device_code())
 #evt, (out,) = knl(queue, a=a)
 
 #print(B)
 #print(a_mat_host @ x_mat_host)
-#print((B - a_mat_host @ x_mat_host).max())
+print((B - a_mat_host @ x_mat_host).max())
+
+
+# Now try with restriction kernel
+#kRestrict0 = lp.make_kernel(
+#    "{ [i]: 0<=i<nelem_x_elemsize}",
+#    """
+#    vv[i] = uu[indices[i]]
+#    """,
+#    name="kRestrict0",
+#    assumptions="nelem_x_elemsize > 0",
+#    target=lp.OpenCLTarget() #Don't want to hardcode this, but will do for now 
+#)
+#'''
+
+#kZero = lp.make_kernel(
+#    "{ [i]: 0<=i<vsize }",
+#    """
+#    v[i] = a[i]
+#    """,
+#    name="kZero",
+#    assumptions="vsize > 0",
+#    target=lp.OpenCLTarget()
+#)
+
+
+#kRestrict0 = lp.set_options(kRestrict0, "write_cl")
+#kRestrict0 = lp.add_and_infer_dtypes(kRestrict0, {"vv":np.float32, "uu":np.float32, "indices":np.int32})
+#print(ind_vec_host)
+#evt, (vv,) = kRestrict0(queue, uu=x_vec_host, indices=ind_vec_host)
+#print(lp.generate_code_v2(kRestrict0).device_code())
+
+#kZero = lp.set_options(kZero, "write_cl")
+#kZero = lp.add_and_infer_dtypes(kZero, {"v": np.float32})
+#evt, (v,) = kZero(queue, a=x_vec_dev)
+#print(lp.generate_code_v2(kZero).device_code())
+#print(v)
+
