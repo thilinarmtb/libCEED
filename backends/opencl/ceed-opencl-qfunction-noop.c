@@ -31,15 +31,18 @@ int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   ierr = CeedQFunctionGetData(qf, (void*)&data); CeedChk(ierr);
   Ceed_OpenCL *ceed_data;
   ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
+
   int nIn;
   ierr = CeedQFunctionGetNumArgs(qf, &nIn, NULL);
   assert(nIn<N_MAX_IDX);
   size_t cbytes;
   ierr = CeedQFunctionGetContextSize(qf, &cbytes); CeedChk(ierr);
+  const CeedInt bytes = sizeof(CeedScalar);
   const CeedInt dim = 1; // !?
   // ***************************************************************************
   dbg("[CeedQFunction][AllocNoOpIn] nIn=%d",nIn);
   CeedQFunctionField *inputfields;
+  ierr = CeedQFunctionGetFields(qf, &inputfields, NULL); CeedChk(ierr);
   for (CeedInt i=0; i<nIn; i++) {
     char *name;
     ierr = CeedQFunctionFieldGetName(inputfields[i], &name); CeedChk(ierr);

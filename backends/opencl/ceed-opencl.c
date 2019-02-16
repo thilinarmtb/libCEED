@@ -19,7 +19,7 @@
 // *****************************************************************************
 // * Callback function for OpenCL
 // *****************************************************************************
-void *pfn_notify(const char *errinfo, const void *private_info, size_t cb,
+void pfn_notify(const char *errinfo, const void *private_info, size_t cb,
                  void *user_data) {
   fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, errinfo);
   fflush(stderr);
