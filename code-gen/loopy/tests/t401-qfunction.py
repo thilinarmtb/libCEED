@@ -15,10 +15,12 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 setup = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
+    <> dummy = ctx[0]    
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
     name="setup",
     assumptions="Q >= 0",
+    kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()
     )
 #print(setup)    
@@ -26,10 +28,11 @@ setup = lp.make_kernel(
 mass = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    out[i + oOf7[0]] = scale[4] * in[i + iOf7[0]] * in[i + iOf7[1]]
+    out[i + oOf7[0]] = ctx[4] * in[i + iOf7[0]] * in[i + iOf7[1]]
     """,
     name="mass",
     assumptions="Q >= 0",
+    kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()
     )
 #print(mass)
@@ -42,7 +45,8 @@ for k in kernelList1:
     k = lp.add_and_infer_dtypes(k, {
         "in": np.float64,
         "oOf7": np.int32,
-        "iOf7": np.int32
+        "iOf7": np.int32,
+        "ctx": np.float64
         })
     code = lp.generate_code_v2(k).device_code()
     print(code)
@@ -54,7 +58,7 @@ for k in kernelList2:
         "in": np.float64,
         "oOf7": np.int32,
         "iOf7": np.int32,
-        "scale": np.float64
+        "ctx": np.float64
         })
     code = lp.generate_code_v2(k).device_code()
     print(code)

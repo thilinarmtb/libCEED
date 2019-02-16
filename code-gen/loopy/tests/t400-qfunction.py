@@ -12,10 +12,12 @@ filterwarnings('error', category=lp.LoopyWarning)
 import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
+#ctx = lp.ArrayArg("ctx", dtype=np.int32, address_space=lp.auto)
+
 setup = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    ctx[0] = ctx[0]
+    <> dummy = ctx[0] # Need to figure out how to remove
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
     name="setup",
@@ -28,7 +30,7 @@ setup = lp.make_kernel(
 mass = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    ctx[0] = ctx[0]
+    <> dummy = ctx[0]
     out[i + oOf7[0]] = in[i + iOf7[0]] * in[i + iOf7[1]]
     """,
     name="mass",
