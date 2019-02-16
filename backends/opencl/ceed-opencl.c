@@ -16,8 +16,15 @@
 #define CEED_DEBUG_COLOR 10
 #include "ceed-opencl.h"
 #include "ceed-backend.h"
-
 // *****************************************************************************
+// * Callback function for OpenCL
+// *****************************************************************************
+void *pfn_notify(const char *errinfo, const void *private_info, size_t cb,
+                 void *user_data) {
+  fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, errinfo);
+  fflush(stderr);
+}
+//*****************************************************************************
 // * CeedError_OpenCL
 // *****************************************************************************
 static int CeedError_OpenCL(Ceed ceed,
@@ -186,7 +193,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     }
   }
 
-  data->context = clCreateContext(0, 1, &data->device_id, NULL, NULL, &err);
+  data->context = clCreateContext(0, 1, &data->device_id, pfn_notify, NULL, &err);
   data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id,
                 0, &err);
 

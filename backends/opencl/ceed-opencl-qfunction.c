@@ -40,9 +40,13 @@ int CeedQFunctionFillOp_OpenCL(CeedQFunction, CeedInt, cl_mem,
 // * buildKernel
 // *****************************************************************************
 static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
-  const Ceed ceed = qf->ceed;
-  CeedQFunction_OpenCL *data=qf->data;
-  const Ceed_OpenCL *ceed_data=qf->ceed->data;
+  int ierr;
+  Ceed ceed;
+  ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
+  CeedQFunction_OpenCL *data;
+  ierr = CeedQFunctionGetData(qf, (void*)&data); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
   const bool ocl = ceed_data->ocl;
   assert(ceed_data);
 
@@ -74,9 +78,90 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   cl_int err;
   data->program = clCreateProgramWithSource(ceed_data->context, 1,
                   (const char **) &OpenCLKernels, NULL, &err);
-  clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL,
-                 NULL);
-  data->kQFunctionApply = clCreateKernel(data->program, "QFunctionApply", &err);
+  switch(err) {
+  case CL_INVALID_CONTEXT:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid context.");
+    break;
+  case CL_INVALID_VALUE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
+
+  err = clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL,
+                       NULL);
+  // Determine the size of the log
+  size_t log_size;
+  char *log;
+  switch(err) {
+  case CL_INVALID_PROGRAM:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+    break;
+  case CL_INVALID_VALUE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    break;
+  case CL_INVALID_DEVICE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid device.");
+    break;
+  case CL_INVALID_BINARY:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
+    break;
+  case CL_INVALID_BUILD_OPTIONS:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
+    break;
+  case CL_INVALID_OPERATION:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
+    break;
+  case CL_COMPILER_NOT_AVAILABLE:
+    return CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
+    break;
+  case CL_BUILD_PROGRAM_FAILURE:
+    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG, 0, NULL,
+                          &log_size);
+    // Allocate memory for the log
+    log = (char *) malloc(log_size);
+    // Get the log
+    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG, log_size,
+                          log, NULL);
+    // Print the log
+    printf("%s\n", log);
+    return CeedError(ceed, 1, "OpenCL backend: Build program failure.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
+
+  data->kQFunctionApply = clCreateKernel(data->program, data->qFunctionName,
+                                         &err);
+  switch(err) {
+  case CL_INVALID_PROGRAM:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+    break;
+  case CL_INVALID_PROGRAM_EXECUTABLE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid program executable.");
+    break;
+  case CL_INVALID_KERNEL_NAME:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel name.");
+    break;
+  case CL_INVALID_KERNEL_DEFINITION:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel definition.");
+    break;
+  case CL_INVALID_VALUE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
 
   return 0;
 }
@@ -149,7 +234,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   if (cbytes>0) {
     ierr = CeedQFunctionGetInnerContext(qf, &ctx); CeedChk(ierr);
     clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-                                       cbytes, qf->ctx, 0, NULL, NULL);
+                         cbytes, qf->ctx, 0, NULL, NULL);
   }
 
   // ***************************************************************************
@@ -158,16 +243,15 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   cl_int err;
   size_t globalSize, localSize;
   // Number of work items in each local work group
-  localSize = 64;
+  localSize = 1;
   // Number of total work items - localSize must be devisor
   globalSize = ceil(Q/(float)localSize)*localSize;
 
-  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), &d_ctx);
-  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), &Q);
-  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), &d_idx);
-  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), &d_odx);
-  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_indata);
-  err |= clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), &d_outdata);
+  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(CeedInt), &Q);
+  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(cl_mem), &d_idx);
+  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), &d_odx);
+  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), &d_indata);
+  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_outdata);
 
   clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL,
                          &globalSize,
