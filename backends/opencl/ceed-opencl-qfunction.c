@@ -247,11 +247,12 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   // Number of total work items - localSize must be devisor
   globalSize = ceil(Q/(float)localSize)*localSize;
 
-  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(CeedInt), &Q);
-  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(cl_mem), &d_idx);
-  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), &d_odx);
-  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), &d_indata);
-  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_outdata);
+  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), &d_ctx);
+  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), &Q);
+  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), &d_idx);
+  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), &d_odx);
+  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_indata);
+  err |= clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), &d_outdata);
 
   clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL,
                          &globalSize,
