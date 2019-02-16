@@ -15,7 +15,7 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 setup = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    <int32> dummy = ctx[0]
+    ctx[0] = ctx[0]
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
     name="setup",
@@ -28,7 +28,7 @@ setup = lp.make_kernel(
 mass = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    <int32> dummy = ctx[0]
+    ctx[0] = ctx[0]
     out[i + oOf7[0]] = in[i + iOf7[0]] * in[i + iOf7[1]]
     """,
     name="mass",
