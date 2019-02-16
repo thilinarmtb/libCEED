@@ -18,7 +18,7 @@ setup = lp.make_kernel(
     <> dummy = ctx[0]    
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
-    name="setup",
+    name="t401_qfunction_setup",
     assumptions="Q >= 0",
     kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()
@@ -30,7 +30,7 @@ mass = lp.make_kernel(
     """
     out[i + oOf7[0]] = ctx[4] * in[i + iOf7[0]] * in[i + iOf7[1]]
     """,
-    name="mass",
+    name="t401_qfunction_mass",
     assumptions="Q >= 0",
     kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()

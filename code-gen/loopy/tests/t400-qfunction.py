@@ -20,7 +20,7 @@ setup = lp.make_kernel(
     <> dummy = ctx[0] # Need to figure out how to remove
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
-    name="setup",
+    name="t400_qfunction_setup",
     assumptions="Q >= 0",
     kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()
@@ -33,7 +33,7 @@ mass = lp.make_kernel(
     <> dummy = ctx[0]
     out[i + oOf7[0]] = in[i + iOf7[0]] * in[i + iOf7[1]]
     """,
-    name="mass",
+    name="t400_qfunction_mass",
     assumptions="Q >= 0",
     kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()
