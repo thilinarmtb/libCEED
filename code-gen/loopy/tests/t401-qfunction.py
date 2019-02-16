@@ -37,22 +37,9 @@ mass = lp.make_kernel(
     )
 #print(mass)
 
-kernelList1 = [setup]
-kernelList2 = [mass]
+kernelList1 = [setup,mass]
 
 for k in kernelList1:
-    k = lp.set_options(k, "write_cl")
-    k = lp.add_and_infer_dtypes(k, {
-        "in": np.float64,
-        "oOf7": np.int32,
-        "iOf7": np.int32,
-        "ctx": np.float64
-        })
-    code = lp.generate_code_v2(k).device_code()
-    print(code)
-    print()
-
-for k in kernelList2:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {
         "in": np.float64,
