@@ -29,11 +29,11 @@ masssetupf = lp.make_kernel(
         <> index3 = offset + (6 + e)*Q
         <> index4 = offset + (3 + f)*Q
         
-        <> detv[dd] = (-1**dd)*in[index0] * \
+        <> detv = (-1**dd)*in[index0] * \
             (in[index1]*in[index2] - in[index3]*in[index4])
     end
 
-    <> det = sum(dd, detv[dd])
+    <> det = sum(dd, detv)
     <> val1 = det*in[i + iOf7[2]]
     out[i + oOf7[0]] = val1
     out[i + oOf7[1]] = val1 * sqrt(sum(d, in[d*Q + i + iOf7[0] ]))
