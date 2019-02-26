@@ -19,26 +19,25 @@ masssetupf = lp.make_kernel(
     """
     <> dummy = ctx[0] # Need to figure out how to remove
     for i
-    <> offset = iOf7[1] + i
+        <> offset = iOf7[1] + i
+        for d
+            <> e = (d + 1) % 3 
+            <> f = (d + 2) % 3
+            <> index0 = offset + (0 + d)*Q 
+            <> index1 = offset + (3 + e)*Q
+            <> index2 = offset + (6 + f)*Q
+            <> index3 = offset + (6 + e)*Q
+            <> index4 = offset + (3 + f)*Q
 
-    for d
-        <> e = (d + 1) % 3 
-        <> f = (d + 2) % 3
-        <> index0 = offset + (0 + d)*Q 
-        <> index1 = offset + (3 + e)*Q
-        <> index2 = offset + (6 + f)*Q
-        <> index3 = offset + (6 + e)*Q
-        <> index4 = offset + (3 + f)*Q
-
-        <> val = in[d*Q + i + iOf7[0]]**2 
-        <> detv = (-1**d)*in[index0] * \
-            (in[index1]*in[index2] - in[index3]*in[index4])
-    end
-    <> w = sqrt(simul_reduce(sum, d, val))
-    <> det = simul_reduce(sum, d, detv)
-    <> val1 = det*in[i + iOf7[2]]
-    out[i + oOf7[0]] = val1
-    out[i + oOf7[1]] = val1 * w 
+            <> val = in[d*Q + i + iOf7[0]]**2 
+            <> detv = (-1**d)*in[index0] * \
+                (in[index1]*in[index2] - in[index3]*in[index4])
+        end
+        <> w = sqrt(simul_reduce(sum, d, val))
+        <> det = simul_reduce(sum, d, detv)
+        <> val1 = det*in[i + iOf7[2]]
+        out[i + oOf7[0]] = val1
+        out[i + oOf7[1]] = val1 * w 
     end
     """,
     name="masssetupf",
