@@ -44,7 +44,7 @@ for os in ["e","f","os0","os1","os2","os3","os4","s"]:
 masssetupf = lp.precompute(masssetupf, "w")
 masssetupf = lp.prioritize_loops(masssetupf,"i,d")
 masssetupf = lp.tag_inames(masssetupf, {"d": "unr"})
-#masssetupf = lp.split_iname(masssetupf, "i", 8, inner_tag="ilp", slabs=(0,1))
+#masssetupf = lp.split_iname(masssetupf, "i", 4, outer_tag="g.0")
 
 #print(setup)    
 

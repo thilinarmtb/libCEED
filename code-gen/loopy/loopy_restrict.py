@@ -106,7 +106,7 @@ kRestrict6 = lp.split_iname(kRestrict6, "i", 4, inner_tag="vec", slabs=(0,1))
 kRestrict6 = lp.split_array_axis(kRestrict6, "vv,uu", axis_nr=0, count=4)
 kRestrict6 = lp.tag_array_axes(kRestrict6, "vv,uu", "C,vec")
 # Pull entire cache line
-kRestrict6 = lp.split_iname(kRestrict6, "i_outer", 2, outer_tag="l.0", inner_tag="ilp", slabs=(0,1))
+kRestrict6 = lp.split_iname(kRestrict6, "i_outer", 2, outer_tag="g.0", inner_tag="ilp", slabs=(0,1))
 #print(kRestrict6)
 
 kernelList1 = [kRestrict0, kRestrict2]

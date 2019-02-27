@@ -50,7 +50,7 @@ kZero = lp.tag_inames(kZero, {"e":"g.0"})
 #kRestrict6 = lp.split_array_axis(kZero, "v", axis_nr=0, count=4)
 #kRestrict6 = lp.tag_array_axes(kZero, "v", "C,vec")
 # l.0 same length as cache line
-kZero = lp.split_iname(kZero, "i", 8, inner_tag="ilp",outer_tag="l.0", slabs=(0,1))
+kZero = lp.split_iname(kZero, "i", 8, inner_tag="ilp",outer_tag="g.1", slabs=(0,1))
 
 kCeedTensorContract = lp.make_kernel(
     ["{ [a,b,c,j]: 0<=a<A and 0<=b<B and 0<=c<C and 0<=j<J }"
