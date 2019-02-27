@@ -35,6 +35,7 @@ typedef struct {
   cl_program program;
   cl_kernel kRestrict[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
   char *compleOptions;
+  int identity;
 } CeedElemRestriction_OpenCL;
 
 // *****************************************************************************

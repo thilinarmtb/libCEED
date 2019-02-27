@@ -47,13 +47,27 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   const cl_mem vd = v_data->d_array;
   const CeedTransposeMode restriction = (tmode == CEED_NOTRANSPOSE);
   const CeedTransposeMode ordering = (lmode == CEED_NOTRANSPOSE);
+  const bool identity = data->identity;
   // ***************************************************************************
   cl_int err;
 
   size_t globalSize = 1, localSize = 1;
   // Number of work items in each local work group
 
-  if (restriction) {
+  if (identity) {
+    dbg("[CeedElemRestriction][Apply] kRestrict[6]");
+    size_t nelem_x_elemsize_x_ncomp = r->nelem*r->elemsize*r->ncomp;
+    err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(size_t),
+                          (void *)&nelem_x_elemsize_x_ncomp);
+    err |= clSetKernelArg(data->kRestrict[6], 2, sizeof(cl_mem), (void *)&ud);
+    err |= clSetKernelArg(data->kRestrict[6], 3, sizeof(cl_mem), (void *)&vd);
+
+    localSize = 1;
+    clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
+                           &nelem_x_elemsize_x_ncomp, &localSize, 0, NULL, NULL);
+    clFlush(ceed_data->queue);
+    clFinish(ceed_data->queue);
+  } else if (restriction) {
     // Perform: v = r * u
     if (ncomp == 1) {
       dbg("[CeedElemRestriction][Apply] kRestrict[0]");
@@ -123,7 +137,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
         dbg("[CeedElemRestriction][Apply] kRestrict[7]");
         // occaKernelRun(data->kRestrict[4], occaInt(ncomp), id, ud, vd);
         //occaKernelRun(data->kRestrict[7], occaInt(ncomp), id, od,ud, vd);
-        err  = clSetKernelArg(data->kRestrict[2], 0, sizeof(CeedInt), &ncomp);
+        err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(CeedInt), &ncomp);
         err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(cl_mem), &id);
         err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), &od);
         err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), &ud);
@@ -230,6 +244,7 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   ierr = CeedMalloc(r->ndof+1, &toffsets); CeedChk(ierr);
   CeedInt *tindices;
   ierr = CeedMalloc(r->elemsize*r->nelem, &tindices); CeedChk(ierr);
+  if(indices) {
   CeedElemRestrictionOffset_OpenCL(r,used_indices,toffsets,tindices);
   //occaCopyPtrToMem(data->d_toffsets,toffsets,
   //                 (1+r->ndof)*sizeof(CeedInt),NO_OFFSET,NO_PROPS);
@@ -238,6 +253,9 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   //occaCopyPtrToMem(data->d_tindices,tindices,bytes(r),NO_OFFSET,NO_PROPS);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_tindices, CL_TRUE, 0,
                        bytes(r), tindices, 0, NULL, NULL);
+  } else {
+    data->identity = 1;
+  }
   // ***************************************************************************
   //occaCopyPtrToMem(data->d_indices,used_indices,bytes(r),NO_OFFSET,NO_PROPS);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
@@ -261,8 +279,8 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   // data->kRestrict[3] = occaDeviceBuildKernel(dev, oklPath, "kRestrict3", pKR);
   // data->kRestrict[4] = occaDeviceBuildKernel(dev, oklPath, "kRestrict4", pKR);
   // data->kRestrict[5] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5", pKR);
-  data->kRestrict[6] = clCreateKernel(data->program, "kRestrict3b", &err);
-  dbg("err after building kRestric3b: %d\n",err);
+  data->kRestrict[6] = clCreateKernel(data->program, "kRestrict6", &err);
+  dbg("err after building kRestric6: %d\n",err);
   data->kRestrict[7] = clCreateKernel(data->program, "kRestrict4b", &err);
   dbg("err after building kRestric4b: %d\n",err);
   // data->kRestrict[8] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5b", pKR);
