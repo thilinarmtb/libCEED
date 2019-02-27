@@ -18,7 +18,7 @@ masssetupf = lp.make_kernel(
     "{ [i,d,dd]: 0<=i<Q and 0<=d,dd<3 }",
     """
     val := in[dd*Q + iOf7[0]]**2
-    w := sqrt(simul_reduce(sum, dd, val))
+    w := sqrt(reduce(sum, dd, val))
     e := (d + 1) % 3
     f := (d + 2) % 3
     os0 := iOf7[1] + (0 + d)*Q 
@@ -30,8 +30,7 @@ masssetupf = lp.make_kernel(
 
     <> dummy = ctx[0] # Need to figure out how to remove
 
-    <> det = sum(d, s*in[i+os0] * (in[i+os1]*in[i+os2] - in[i+os3]*in[i+os4]))
-    <> val1 = det*in[i + iOf7[2]]
+    <> val1 = in[i + iOf7[2]]*reduce(sum,d, s*in[i+os0] * (in[i+os1]*in[i+os2] - in[i+os3]*in[i+os4]))
     out[i + oOf7[0]] = val1
     out[i + oOf7[1]] = val1 * w 
     """,
@@ -65,7 +64,7 @@ massf = lp.make_kernel(
     target=lp.OpenCLTarget()
     )
 print(massf)
-#massf = lp.split_iname(massf, "i", 8, outer_tag="g.0", inner_tag="ilp", slabs=(0,1))
+massf = lp.split_iname(massf, "i", 8, outer_tag="g.0", inner_tag="ilp", slabs=(0,1))
 #massf = lp.split_array_axis(massf, "out,in", axis_nr=0, count=4)
 #massf = lp.tag_array_axes(massf, "out, in", "C,vec")
 
