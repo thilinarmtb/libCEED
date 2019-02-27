@@ -334,7 +334,6 @@ for k in kernelList1:
     code = lp.generate_code_v2(k).device_code()
     print(code)
 
-'''
 for k in kernelList2:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {
@@ -411,4 +410,3 @@ for k in kernelList5:
     })
     code = lp.generate_code_v2(k).device_code()
     print(code)
-'''
