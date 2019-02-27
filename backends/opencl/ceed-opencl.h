@@ -34,6 +34,7 @@ typedef struct {
   cl_mem d_tindices;
   cl_program program;
   cl_kernel kRestrict[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
+  cl_kernel kRestrict6;
   char *compleOptions;
   int identity;
 } CeedElemRestriction_OpenCL;
@@ -94,7 +95,7 @@ typedef struct {
   _Bool debug;
   _Bool ocl;
   char *libceed_dir;
-  cl_platform_id cpPlatform;        // OpenCL platform
+  cl_platform_id cpPlatform[2];     // OpenCL platform
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue

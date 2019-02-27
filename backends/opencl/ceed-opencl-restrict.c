@@ -21,7 +21,11 @@
 // * Bytes used
 // *****************************************************************************
 static inline size_t bytes(const CeedElemRestriction res) {
-  return res->nelem * res->elemsize * sizeof(CeedInt);
+  int ierr;
+  CeedInt nelem, elemsize;
+  ierr = CeedElemRestrictionGetNumElements(res, &nelem); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetElementSize(res, &elemsize); CeedChk(ierr);
+  return nelem * elemsize * sizeof(CeedInt);
 }
 
 // *****************************************************************************
@@ -33,40 +37,47 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
                                     CeedTransposeMode lmode,
                                     CeedVector u, CeedVector v,
                                     CeedRequest *request) {
-  const Ceed ceed = r->ceed;
-  const Ceed_OpenCL *ceed_data = ceed->data;
-  const CeedInt ncomp = r->ncomp;
+  int ierr;
+  Ceed ceed;
+  ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
+  CeedInt ncomp;
+  ierr = CeedElemRestrictionGetNumComponents(r, &ncomp); CeedChk(ierr);
   dbg("[CeedElemRestriction][Apply]");
   const CeedElemRestriction_OpenCL *data = r->data;
   const cl_mem id = data->d_indices;
   const cl_mem tid = data->d_tindices;
   const cl_mem od = data->d_toffsets;
-  const CeedVector_OpenCL *u_data = u->data;
-  const CeedVector_OpenCL *v_data = v->data;
+  CeedVector_OpenCL *u_data;
+  ierr = CeedVectorGetData(u, (void *)&u_data); CeedChk(ierr);
+  CeedVector_OpenCL *v_data;
+  ierr = CeedVectorGetData(v, (void *)&v_data); CeedChk(ierr);
   const cl_mem ud = u_data->d_array;
   const cl_mem vd = v_data->d_array;
   const CeedTransposeMode restriction = (tmode == CEED_NOTRANSPOSE);
   const CeedTransposeMode ordering = (lmode == CEED_NOTRANSPOSE);
-  const bool identity = data->identity;
+  const int identity = 1;
   // ***************************************************************************
   cl_int err;
-
   size_t globalSize = 1, localSize = 1;
-  // Number of work items in each local work group
+  Ceed_OpenCL *ceed_data = ceed->data;
 
   if (identity) {
     dbg("[CeedElemRestriction][Apply] kRestrict[6]");
-    size_t nelem_x_elemsize_x_ncomp = r->nelem*r->elemsize*r->ncomp;
-    err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(size_t),
+    CeedInt nelem_x_elemsize_x_ncomp = r->nelem*r->elemsize*r->ncomp;
+    globalSize = (size_t) nelem_x_elemsize_x_ncomp;
+    err = clSetKernelArg(data->kRestrict[6], 0, sizeof(CeedInt),
                           (void *)&nelem_x_elemsize_x_ncomp);
-    err |= clSetKernelArg(data->kRestrict[6], 2, sizeof(cl_mem), (void *)&ud);
-    err |= clSetKernelArg(data->kRestrict[6], 3, sizeof(cl_mem), (void *)&vd);
+    err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&ud);
+    err |= clSetKernelArg(data->kRestrict[6], 2, sizeof(cl_mem), (void *)&vd);
 
+    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done");
     localSize = 1;
     clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
-                           &nelem_x_elemsize_x_ncomp, &localSize, 0, NULL, NULL);
-    clFlush(ceed_data->queue);
+                           &globalSize, &localSize, 0, NULL, NULL);
+    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done 1");
     clFinish(ceed_data->queue);
+    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done 2");
+    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done 3");
   } else if (restriction) {
     // Perform: v = r * u
     if (ncomp == 1) {
@@ -91,11 +102,11 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
         //occaKernelRun(data->kRestrict[1], occaInt(ncomp), id, ud, vd);
         err  = clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->elemsize);
         err |= clSetKernelArg(data->kRestrict[1], 1, sizeof(cl_mem), &id);
-        err |= clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->ncomp);
-        err |= clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->ndof);
-        err |= clSetKernelArg(data->kRestrict[1], 0, sizeof(CeedInt), &r->nelem);
-        err |= clSetKernelArg(data->kRestrict[1], 2, sizeof(cl_mem), &ud);
-        err |= clSetKernelArg(data->kRestrict[1], 3, sizeof(cl_mem), &vd);
+        err |= clSetKernelArg(data->kRestrict[1], 2, sizeof(CeedInt), &r->ncomp);
+        err |= clSetKernelArg(data->kRestrict[1], 3, sizeof(CeedInt), &r->ndof);
+        err |= clSetKernelArg(data->kRestrict[1], 4, sizeof(CeedInt), &r->nelem);
+        err |= clSetKernelArg(data->kRestrict[1], 5, sizeof(cl_mem), &ud);
+        err |= clSetKernelArg(data->kRestrict[1], 6, sizeof(cl_mem), &vd);
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[1], 1, NULL,
                                &globalSize, &localSize, 0, NULL, NULL);
@@ -119,13 +130,13 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   } else { // ******************************************************************
     // Note: in transpose mode, we perform: v += r^t * u
     if (ncomp == 1) {
-      dbg("[CeedElemRestriction][Apply] kRestrict[6]");
+      dbg("[CeedElemRestriction][Apply] kRestrict[3]");
       // occaKernelRun(occa->kRestrict[3], id, ud, vd);
       //occaKernelRun(data->kRestrict[6], tid, od, ud, vd);
-      err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), &tid);
-      err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(cl_mem), &od);
-      err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), &ud);
-      err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), &vd);
+      err  = clSetKernelArg(data->kRestrict[3], 0, sizeof(cl_mem), &tid);
+      err |= clSetKernelArg(data->kRestrict[3], 1, sizeof(cl_mem), &od);
+      err |= clSetKernelArg(data->kRestrict[3], 2, sizeof(cl_mem), &ud);
+      err |= clSetKernelArg(data->kRestrict[3], 3, sizeof(cl_mem), &vd);
 
       clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
                              &globalSize, &localSize, 0, NULL, NULL);
@@ -137,11 +148,11 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
         dbg("[CeedElemRestriction][Apply] kRestrict[7]");
         // occaKernelRun(data->kRestrict[4], occaInt(ncomp), id, ud, vd);
         //occaKernelRun(data->kRestrict[7], occaInt(ncomp), id, od,ud, vd);
-        err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(CeedInt), &ncomp);
-        err |= clSetKernelArg(data->kRestrict[0], 1, sizeof(cl_mem), &id);
-        err |= clSetKernelArg(data->kRestrict[0], 2, sizeof(cl_mem), &od);
-        err |= clSetKernelArg(data->kRestrict[0], 3, sizeof(cl_mem), &ud);
-        err |= clSetKernelArg(data->kRestrict[0], 4, sizeof(cl_mem), &vd);
+        err  = clSetKernelArg(data->kRestrict[4], 0, sizeof(CeedInt), &ncomp);
+        err |= clSetKernelArg(data->kRestrict[4], 1, sizeof(cl_mem), &id);
+        err |= clSetKernelArg(data->kRestrict[4], 2, sizeof(cl_mem), &od);
+        err |= clSetKernelArg(data->kRestrict[4], 3, sizeof(cl_mem), &ud);
+        err |= clSetKernelArg(data->kRestrict[4], 4, sizeof(cl_mem), &vd);
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[7], 1, NULL,
                                &globalSize, &localSize, 0, NULL, NULL);
@@ -156,6 +167,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   }
   if (request != CEED_REQUEST_IMMEDIATE && request != CEED_REQUEST_ORDERED)
     *request = NULL;
+  dbg("[CeedElemRestriction][Apply] kRestrict[6] Done");
   return 0;
 }
 
@@ -165,11 +177,26 @@ static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
   const Ceed ceed = r->ceed;
   CeedElemRestriction_OpenCL *data = r->data;
   dbg("[CeedElemRestriction][Destroy]");
-  for (int i=0; i<9; i++) {
-    clReleaseKernel(data->kRestrict[i]);
-    //data->kRestrict[i] = NULL;
+  cl_int err;
+  for (int i=0; i<7; i++) {
+    err = clReleaseKernel(data->kRestrict[i]);
+    switch(err) {
+      case CL_SUCCESS:
+        printf("Successfully released kernel %d\n", i);
+        break;
+      case CL_INVALID_KERNEL:
+        printf("Invalid kernel %d\n", i);
+        break;
+      default:
+        break;
+    }
   }
+  clReleaseMemObject(data->d_indices);
+  clReleaseMemObject(data->d_toffsets);
+  clReleaseMemObject(data->d_tindices);
+  clReleaseProgram(data->program);
   ierr = CeedFree(&data); CeedChk(ierr);
+  dbg("[CeedElemRestriction][Destroy] Done.");
   return 0;
 }
 
@@ -181,9 +208,11 @@ int CeedElemRestrictionOffset_OpenCL(const CeedElemRestriction r,
                                      const CeedInt *indices,
                                      CeedInt *toffsets,
                                      CeedInt *tindices) {
-  const CeedInt nelem = r->nelem;
-  const CeedInt elemsize = r->elemsize;
-  const CeedInt ndof = r->ndof;
+  int ierr;
+  CeedInt nelem, elemsize, ndof;
+  ierr = CeedElemRestrictionGetNumElements(r, &nelem); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetElementSize(r, &elemsize); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetNumDoF(r, &ndof); CeedChk(ierr);
   for (int i=0; i<=ndof; ++i) toffsets[i]=0;
   for (int e=0; e < nelem; ++e)
     for (int i=0; i < elemsize; ++i)
@@ -208,31 +237,33 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
                                      const CeedCopyMode cmode,
                                      const CeedInt *indices,
                                      const CeedElemRestriction r) {
-  const Ceed ceed = r->ceed;
-  dbg("[CeedElemRestriction][Create]");
   int ierr;
+  Ceed ceed;
+  ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
+  CeedInt ndof, nelem, ncomp, elemsize;
+  ierr = CeedElemRestrictionGetNumDoF(r, &ndof); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetNumElements(r, &nelem); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetElementSize(r, &elemsize); CeedChk(ierr);
+  ierr = CeedElemRestrictionGetNumComponents(r, &ncomp); CeedChk(ierr);
+  dbg("[CeedElemRestriction][Create]");
   CeedElemRestriction_OpenCL *data;
-  Ceed_OpenCL *ceed_data = ceed->data;
-  CeedInt *used_indices;
+  Ceed_OpenCL *ceed_data;
+  ierr = CeedGetData(ceed, (void*)&ceed_data); CeedChk(ierr);
+  //const bool ocl = ceed_data->ocl;
+  //const occaDevice dev = ceed_data->device;
   // ***************************************************************************
   if (mtype != CEED_MEM_HOST)
     return CeedError(ceed, 1, "Only MemType = HOST supported");
-  r->Apply = CeedElemRestrictionApply_OpenCL;
-  r->Destroy = CeedElemRestrictionDestroy_OpenCL;
+  ierr = CeedSetBackendFunction(ceed, "ElemRestriction", r, "Apply",
+                                CeedElemRestrictionApply_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "ElemRestriction", r, "Destroy",
+                                CeedElemRestrictionDestroy_OpenCL); CeedChk(ierr);
   // Allocating occa & device **************************************************
   dbg("[CeedElemRestriction][Create] Allocating");
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
-  r->data = data;
   // ***************************************************************************
-  // This is a temporary handling of null indices for identity restrictions
-  if (indices == NULL) {
-    dbg("[CeedElemRestriction][Create] Identity Restriction");
-    ierr = CeedMalloc(r->ndof, &used_indices); CeedChk(ierr);
-    for (CeedInt i=0; i<r->ndof; i++) used_indices[i] = i;
-  } else {
-    used_indices = (CeedInt *) indices;
-  }
-  // ***************************************************************************
+  CeedInt *toffsets;
+  CeedInt *tindices;
   data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                                     bytes(r), NULL, NULL);
   data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
@@ -240,26 +271,23 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                                     bytes(r), NULL, NULL);
   // ***************************************************************************
-  CeedInt *toffsets;
-  ierr = CeedMalloc(r->ndof+1, &toffsets); CeedChk(ierr);
-  CeedInt *tindices;
-  ierr = CeedMalloc(r->elemsize*r->nelem, &tindices); CeedChk(ierr);
+  ierr = CeedMalloc(ndof+1, &toffsets); CeedChk(ierr);
+  ierr = CeedMalloc(elemsize*nelem, &tindices); CeedChk(ierr);
   if(indices) {
-  CeedElemRestrictionOffset_OpenCL(r,used_indices,toffsets,tindices);
+  CeedElemRestrictionOffset_OpenCL(r,indices,toffsets,tindices);
   //occaCopyPtrToMem(data->d_toffsets,toffsets,
   //                 (1+r->ndof)*sizeof(CeedInt),NO_OFFSET,NO_PROPS);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_toffsets, CL_TRUE, 0,
-                       (1+r->ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
+                       (1+ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
   //occaCopyPtrToMem(data->d_tindices,tindices,bytes(r),NO_OFFSET,NO_PROPS);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_tindices, CL_TRUE, 0,
                        bytes(r), tindices, 0, NULL, NULL);
+  //occaCopyPtrToMem(data->d_indices,indices,bytes(r),NO_OFFSET,NO_PROPS);
+  clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
+                       bytes(r), indices, 0, NULL, NULL);
   } else {
     data->identity = 1;
   }
-  // ***************************************************************************
-  //occaCopyPtrToMem(data->d_indices,used_indices,bytes(r),NO_OFFSET,NO_PROPS);
-  clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
-                       bytes(r), used_indices, 0, NULL, NULL);
   // ***************************************************************************
   dbg("[CeedElemRestriction][Create] Building kRestrict");
 
@@ -271,29 +299,28 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
                   (const char **) &OpenCLKernels, NULL, &err);
   clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL, NULL);
   data->kRestrict[0] = clCreateKernel(data->program, "kRestrict0", &err);
-  dbg("err after building kRestric0: %d\n",err);
+  dbg("err after building kRestrict0: %d\n",err);
   data->kRestrict[1] = clCreateKernel(data->program, "kRestrict1", &err);
-  dbg("err after building kRestric1: %d\n",err);
+  dbg("err after building kRestrict1: %d\n",err);
   data->kRestrict[2] = clCreateKernel(data->program, "kRestrict2", &err);
-  dbg("err after building kRestric2: %d\n",err);
-  // data->kRestrict[3] = occaDeviceBuildKernel(dev, oklPath, "kRestrict3", pKR);
-  // data->kRestrict[4] = occaDeviceBuildKernel(dev, oklPath, "kRestrict4", pKR);
-  // data->kRestrict[5] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5", pKR);
+  dbg("err after building kRestrict2: %d\n",err);
+  data->kRestrict[3] = clCreateKernel(data->program, "kRestrict2", &err);
+  dbg("err after building kRestrict3: %d\n",err);
+  data->kRestrict[4] = clCreateKernel(data->program, "kRestrict2", &err);
+  dbg("err after building kRestrict4: %d\n",err);
+  data->kRestrict[5] = clCreateKernel(data->program, "kRestrict2", &err);
+  dbg("err after building kRestrict5: %d\n",err);
   data->kRestrict[6] = clCreateKernel(data->program, "kRestrict6", &err);
-  dbg("err after building kRestric6: %d\n",err);
-  data->kRestrict[7] = clCreateKernel(data->program, "kRestrict4b", &err);
-  dbg("err after building kRestric4b: %d\n",err);
-  // data->kRestrict[8] = occaDeviceBuildKernel(dev, oklPath, "kRestrict5b", pKR);
+  dbg("err after building kRestrict6: %d\n",err);
   // free local usage **********************************************************
   dbg("[CeedElemRestriction][Create] done");
   // free indices as needed ****************************************************
-  if (indices == NULL) {
-    ierr = CeedFree(&used_indices); CeedChk(ierr);
-  } else if (cmode == CEED_OWN_POINTER) {
+  if (cmode == CEED_OWN_POINTER) {
     ierr = CeedFree(&indices); CeedChk(ierr);
   }
   ierr = CeedFree(&toffsets); CeedChk(ierr);
   ierr = CeedFree(&tindices); CeedChk(ierr);
+  ierr = CeedElemRestrictionSetData(r, (void*)&data); CeedChk(ierr);
   return 0;
 }
 // *****************************************************************************
@@ -301,5 +328,8 @@ int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
     const CeedCopyMode cmode,
     const CeedInt *indices,
     const CeedElemRestriction r) {
-  return CeedError(r->ceed, 1, "Backend does not implement blocked restrictions");
+  int ierr;
+  Ceed ceed;
+  ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
+  return CeedError(ceed, 1, "Backend does not implement blocked restrictions");
 }
