@@ -101,6 +101,10 @@ kRestrict6 = lp.make_kernel(
     assumptions="nelem_x_elemsize_x_ncomp > 0",
     target=lp.OpenCLTarget()
     )
+kRestrict6 = lp.split_iname(kRestrict6, "i", 4, outer_tag="g.0", inner_tag="vec", slabs=(0,1))
+kRestrict6 = lp.split_array_axis(kRestrict6, "vv,uu", axis_nr=0, count=4)
+kRestrict6 = lp.tag_array_axes(kRestrict6, "vv,uu", "C,vec")
+#print(kRestrict6)
 
 kernelList1 = [kRestrict0, kRestrict2]
 kernelList2 = [kRestrict1, kRestrict3b]
