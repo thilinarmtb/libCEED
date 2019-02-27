@@ -136,9 +136,9 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   dbg("[CeedInit] resource: %s", resource);
 
   cl_int err;
-  err = clGetPlatformIDs(1, &data->cpPlatform, NULL);
+  err = clGetPlatformIDs(2, data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,&data->device_id,
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,&data->device_id,
                          NULL);
     dbg("CPU is selected.");
     if(err != CL_SUCCESS) {
@@ -166,7 +166,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     }
   } else if(gpu) {
     dbg("GPU is selected.");
-    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,&data->device_id,
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_GPU, 1,&data->device_id,
                          NULL);
     if(err != CL_SUCCESS) {
       switch (err) {

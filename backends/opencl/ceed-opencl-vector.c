@@ -47,16 +47,21 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
   Ceed ceed;
   CeedVectorGetCeed(vec, &ceed);
+  dbg("[CeedReadBuffer] Init.");
   Ceed_OpenCL *ceed_data;
   CeedGetData(ceed, (void*)&ceed_data);
   CeedVector_OpenCL *data;
   CeedVectorGetData(vec, (void*)&data);
+  dbg("[CeedReadBuffer] Got data.");
   assert(ceed);
   assert(ceed_data);
+  dbg("[CeedReadBuffer] Got data 1.");
   assert(data);
-  assert(data->d_array);
+  assert(data->h_array);
+  dbg("[CeedReadBuffer] Got data 2.");
   clEnqueueReadBuffer(ceed_data->queue, data->d_array, CL_TRUE,
                       0, bytes(vec), data->h_array, 0, NULL, NULL);
+  dbg("[CeedReadBuffer] Done.");
 }
 // *****************************************************************************
 // * Set the array used by a vector,

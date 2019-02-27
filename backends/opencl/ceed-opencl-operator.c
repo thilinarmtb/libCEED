@@ -461,7 +461,7 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
     for (CeedInt i=0; i<numoutputfields; i++) {
       ierr = CeedQFunctionFieldGetEvalMode(qfoutputfields[i], &emode);
       CeedChk(ierr);
-      dbg("\t\t[CeedOperator][Apply] OUT %n",i);
+      dbg("\t\t[CeedOperator][Apply] OUT %d",i);
       if (emode == CEED_EVAL_NONE) {
         dbg("\t\t[CeedOperator][Apply] out NONE, Edata[%d] => outdata[%d]",
             i + numinputfields,i);
