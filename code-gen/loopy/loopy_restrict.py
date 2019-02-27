@@ -60,13 +60,17 @@ kRestrict2 = lp.make_kernel(
     )
 
 kRestrict3b = lp.make_kernel(
-    "{ [i,j]: 0<=i<ndof and rng1<=j<rngN }",
+    "{ [i,j]: 0<=i<ndof, rng1<=j<rngN }",
     """
-    vv[i] = sum(j, uu[indices[j]])
+    <> rng1 = toffsets[i]
+    <> rngN = toffsets[i+1]
+    for j
+        vv[i] = sum(j, uu[indices[j]])
+    end
     """,
     name="kRestrict3b",
     target=lp.OpenCLTarget(),
-    assumptions="ndof>0 and rng1>0 and rngN > rng1")
+    assumptions="ndof>0 and rng1>=0 and rngN >= rng1")
 
 kRestrict4b = lp.make_kernel(
     "{ [i,d,j]: 0<=i<ndof and 0<=d<ncomp and rng1<=j<rngN }",
@@ -88,9 +92,20 @@ kRestrict5b = lp.make_kernel(
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0"
     )
 
+kRestrict6 = lp.make_kernel(
+    "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
+    """
+    vv[i] = uu[i]
+    """,
+    name="kRestrict6",
+    assumptions="nelem_x_elemsize_x_ncomp > 0",
+    target=lp.OpenCLTarget()
+    )
+
 kernelList1 = [kRestrict0, kRestrict2]
 kernelList2 = [kRestrict1, kRestrict3b]
 kernelList3 = [kRestrict4b, kRestrict5b]
+kernelList4 = [kRestrict6]
 
 
 for k in kernelList1:
@@ -98,16 +113,27 @@ for k in kernelList1:
     k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64})
     code = lp.generate_code_v2(k).device_code()
     print(code)
+    print()
     #print(k)
-
+'''
 for k in kernelList2:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64, "ndof": np.int32})
     code = lp.generate_code_v2(k).device_code()
     print(code)
+    print()
 
 for k in kernelList3:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64, "elemsize": np.int32})
     code = lp.generate_code_v2(k).device_code()
     print(code)
+    print()
+'''
+for k in kernelList4:
+    k = lp.set_options(k, "write_cl")
+    k = lp.add_and_infer_dtypes(k, {"uu": np.float64})
+    code = lp.generate_code_v2(k).device_code()
+    print(code)
+    print()
+ 
