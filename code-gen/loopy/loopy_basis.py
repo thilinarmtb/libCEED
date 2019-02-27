@@ -34,15 +34,23 @@ y_vec_host = np.random.randn(n).astype(np.float32)
 kZero = lp.make_kernel(
     "{ [e,i]: 0<=e<nelem and 0<=i<vsize }",
     """
-    v[e*(nc*elemsize) + i] = 0
+    m := nc*elemsize
+    v[e*m + i] = 0
     """,
     name="kZero",
     assumptions="nelem > 0 and vsize > 0",
     target=lp.OpenCLTarget()
 )
-#z_tst_dat = np.float32(np.random.rand(2,64))
-#kZero = lp.set_options(kZero, "write_cl")
-#evt, (out,) = kZero(queue, v=z_tst_dat,nc=1,nelem=6,vsize=64, elemsize=64)
+
+kZero = lp.prioritize_loops(kZero, "e,i")
+kZero = lp.precompute(kZero, "m")
+kZero = lp.tag_inames(kZero, {"e":"g.0"}) 
+### Not sure why this is not working
+#kZero = lp.split_iname(kZero, "i", 4, inner_tag="vec")
+#kRestrict6 = lp.split_array_axis(kZero, "v", axis_nr=0, count=4)
+#kRestrict6 = lp.tag_array_axes(kZero, "v", "C,vec")
+# l.0 same length as cache line
+kZero = lp.split_iname(kZero, "i", 8, inner_tag="ilp",outer_tag="l.0", slabs=(0,1))
 
 kCeedTensorContract = lp.make_kernel(
     ["{ [a,b,c,j]: 0<=a<A and 0<=b<B and 0<=c<C and 0<=j<J }"
@@ -326,6 +334,7 @@ for k in kernelList1:
     code = lp.generate_code_v2(k).device_code()
     print(code)
 
+'''
 for k in kernelList2:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {
@@ -402,3 +411,4 @@ for k in kernelList5:
     })
     code = lp.generate_code_v2(k).device_code()
     print(code)
+'''
