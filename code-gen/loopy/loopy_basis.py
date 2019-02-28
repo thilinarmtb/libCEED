@@ -278,29 +278,52 @@ kGrad = lp.make_kernel(
 #kIntern_fused = lp.fuse_kernels((kInterp, kCeedTensorContract), data_flow=data_flow)
 #print(kInterk_fused)
 
+# Only works for 3D, if need 2D or 1D add separate cases to handle
 kWeight = lp.make_kernel(
     ["{ [e]: 0<=e<nelem}",
-#     "{ [i]: 0<=i<pre }",
-#     "{ [k]: 0<=k<post }"
-     "{ [d]: 0<=d<dim }",
-#    "{ [dInd]: 2<=dInd<dim+2}",
-#    "{ [kInd]: kInd=k+v_shift}",
+#     "{ [ii]: 0<=ii<QQ }",
+     "{ [d]: 0<=d<dim and dim=3 }",
      "{ [i,j,k]: 0<=i,j,k<Q }" ],
     """
-    <> v_shift = (QnD*nc + QnD*nc*dim)
-    for e,i,j,k
-        <> v_offset = e*QnD*nc*(dim + 2) + v_shift
-        <> xs =((i*Q + j)*Q + k) + v_offset
-        
-        #Above is equivalent to below?
-        #<> post = pow(Q, d)
-        #<> pre = pow(Q, dim-d-1) 
-        #<> xs =((i*Q + j)*post + k) + v_offset
-        if d == 0
-            d_v[xs] = qweight1d[j]
-        else
-            d_v[xs] = qweight1d[j]*d_v[xs]
+    v_shift := (QnD*nc + QnD*nc*dim)
+    m := QnD*nc*(dim + 2) 
+    v_offset := e*m + v_shift
+    ii := Q*i + k
+    xs0 := ((ii * Q + j)    + 0 ) + v_offset
+    xs1 := ((i  * Q + j)*Q  + k ) + v_offset
+    xs2 := ((0  * Q + j)*QQ + ii) + v_offset
+    QQ := Q**2
+    #xs := ((i*Q**(dim-d-1) + j)*Q + k) + v_offset
+
+    #post := Q**d
+    #pre := Q**(dim-d-1)
+    #xs := ((i*Q + j)*post + k) + v_offset
+    #<> val = pre #For some reason won't generate val without this
+
+    for e, i,j,k
+        # For contiguous accesses need separate loops with separate orderings?
+        #Race condition if do this? 
+        #Ideal way to do this is probably coordinate so all values
+        # local memory.
+        d_v[xs0] = qweight1d[j] {id=d0} #Possibly tag each for separate loops #i,k,j
+        with {id_prefix=d1}
+            <> ind1 = xs1
+            d_v[ind1] = qweight1d[j]*d_v[ind1] #i,j,k
         end
+        with {id_prefix=d2}
+            <> ind2 = xs2
+            d_v[ind2] = qweight1d[j]*d_v[ind2]#j,i,k
+        end
+        #Above xs is equivalent to below?
+        #<> post = Q**d
+        #<> pre = Q**(dim-d-1) 
+        #if i < pre and k < post
+        #    if d == 0
+        #        d_v[xs] = qweight1d[j]
+        #    else    
+        #        d_v[xs] = qweight1d[j]*d_v[xs]
+        #    end
+        #end
     end
 
     #for kInd
@@ -319,6 +342,22 @@ kWeight = lp.make_kernel(
     target=lp.OpenCLTarget(),
     assumptions="nelem>0 and dim>0 and Q>0"
     )
+kWeight = lp.precompute(kWeight, "v_shift")
+kWeight = lp.precompute(kWeight, "m")
+kWeight = lp.add_prefetch(kWeight, "qweight1d","j")
+kWeight = lp.precompute(kWeight, "QQ")
+kWeight = lp.precompute(kWeight, "v_offset")
+kWeight = lp.duplicate_inames(kWeight,"i,j,k", within="id:d0")
+kWeight = lp.duplicate_inames(kWeight,"i,j,k", within="id:d1*")
+kWeight = lp.duplicate_inames(kWeight,"i,j,k", within="id:d2*")
+kWeight = lp.prioritize_loops(kWeight, "i_0,k_0,j_0")
+kWeight = lp.prioritize_loops(kWeight, "i_1,j_1,k_1")
+kWeight = lp.prioritize_loops(kWeight, "j_2,i_2,k_2")
+#kWeight = lp.tag_inames(kWeight, [("e", "g.0")])
+#kWeight = lp.precompute(kWeight, "xs2(ii,j)")
+#kWeight = lp.tag_inames(kWeight, [("d", "unr")])
+#kWeight = lp.precompute(kWeight, "post", "d")
+#kWeight = lp.precompute(kWeight, "pre", "d")
 #kWeight = lp.prioritize_loops(kWeight,"e,d,i,j,k")
 #print(kWeight)
 
