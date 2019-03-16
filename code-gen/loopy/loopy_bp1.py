@@ -46,13 +46,8 @@ def generate_masssetupf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
         "ctx": np.int32, "in": fp_format,
         "oOf7": np.int32,"iOf7": np.int32 
         })
-
-    #for os in ["s"]:#["e","f","os0","os1","os2","os3","os4","s"]:
-    #    masssetupf = lp.precompute(masssetupf, os, "d")
-    #    masssetupf = lp.tag_inames(masssetupf, {os + "_d": "unr"})
-    #masssetupf = lp.precompute(masssetupf, "w", "dd")
-    #masssetupf = lp.prioritize_loops(masssetupf, "d,dd,i")
     masssetupf = lp.tag_inames(masssetupf, {"d": "unr", "dd": "unr"})
+
     if arch == "AMD_GPU":
         masssetupf = lp.split_iname(masssetupf, "i", 64, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
     elif arch == "NVIDIA_GPU":
@@ -60,7 +55,6 @@ def generate_masssetupf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
     else:
         masssetupf = lp.split_iname(masssetupf, "i", 128, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
  
-    #masssetupf = lp.split_iname(masssetupf, "i", 8, outer_tag="g.0", inner_tag="l.0")
     return masssetupf
 
 
