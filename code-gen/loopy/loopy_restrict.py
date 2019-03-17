@@ -12,52 +12,65 @@ filterwarnings('error', category=lp.LoopyWarning)
 import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
-#ctx = cl.create_some_context(interactive=False)
-#queue = cl.CommandQueue(ctx)
+def generate_kRestrict0(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    kRestrict0 = lp.make_kernel(
+        "{ [i]: 0<=i<nelem_x_elemsize}",
+        """
+        vv[i] = uu[indices[i]]
+        """,
+        name="kRestrict0",
+        assumptions="nelem_x_elemsize > 0",
+        target=target 
+        )
+
+    if arch == "AMD_GPU":
+        workgroup_size = 64
+    elif arch == "NVIDIA_GPU":
+        workgroup_size = 32
+    else:
+        #This should likely be equivalent to the maximum workgroup size
+        #(or the size needed to activate all cores)
+        workgroup_size = 128
+
+    kRestrict0 = lp.split_iname(kRestrict0, "i", workgroup_size,
+        outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+
+    kRestrict0 = lp.add_and_infer_dtypes(kRestrict0, {"indices": np.int32, "uu": fp_format})
+
+    return kRestrict0
+
+def generate_kRestrict1(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    kRestrict1 = lp.make_kernel(
+        "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
+        """
+        index := indices[e,i]
+        vv[e,d,i] = uu[index + ndof*d]
+        """,
+        name="kRestrict1",
+        target=target,
+        assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
+        )
+
+    kRestrict1 = lp.add_and_infer_dtypes(kRestrict1, 
+            {"indices": np.int32, "uu": fp_format, "ndof": np.int32})
+
+    return kRestrict1
 
 
-#x_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
-#y_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
-#z_vec_dev = cl.clrandom.rand(queue, n, dtype=np.float32)
-#a_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float32)
-#b_mat_dev = cl.clrandom.rand(queue, (n, n), dtype=np.float32)
-#x_mat_dev = cl.array.Array(queue, (n, n), dtype=np.float32)
-#x_mat_host = np.float32(np.random.rand(n,n))
-#a_mat_host = np.float32(np.random.rand(n,n))
-#x_vec_host = np.random.randn(n).astype(np.float32)
-#y_vec_host = np.random.randn(n).astype(np.float32)
-# create
-# ------
+def generate_kRestrict2(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    kRestrict2 = lp.make_kernel(
+        "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
+        """
+        vv[e,d,i] = uu[ncomp*indices[e,i] + d]
+        """,
+        name="kRestrict2",
+        target=target,
+        assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
+        )
 
-kRestrict0 = lp.make_kernel(
-    "{ [i]: 0<=i<nelem_x_elemsize}",
-    """
-    vv[i] = uu[indices[i]]
-    """,
-    name="kRestrict0",
-    assumptions="nelem_x_elemsize > 0",
-    target=lp.OpenCLTarget() #Don't want to hardcode this, but will do for now 
-    )
+    kRestrict2 = lp.add_and_infer_dtypes(kRestrict2, {"indices": np.int32, "uu": fp_format})
 
-kRestrict1 = lp.make_kernel(
-    "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
-    """
-    vv[e,d,i] = uu[indices[e,i] + ndof*d]
-    """,
-    name="kRestrict1",
-    target=lp.OpenCLTarget(),
-    assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
-    )
-
-kRestrict2 = lp.make_kernel(
-    "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
-    """
-    vv[e,d,i] = uu[ncomp*indices[e,i] + d]
-    """,
-    name="kRestrict2",
-    target=lp.OpenCLTarget(),
-    assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
-    )
+    return kRestrict2
 
 kRestrict3b = lp.make_kernel(
     "{ [i,j]: 0<=i<ndof, rng1<=j<rngN }",
@@ -92,37 +105,57 @@ kRestrict5b = lp.make_kernel(
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0"
     )
 
-kRestrict6 = lp.make_kernel(
-    "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
-    """
-    vv[i] = uu[i]
-    """,
-    name="kRestrict6",
-    assumptions="nelem_x_elemsize_x_ncomp > 0",
-    target=lp.OpenCLTarget()
-    )
+def generate_kRestrict6(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    kRestrict6 = lp.make_kernel(
+        "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
+        """
+        vv[i] = uu[i]
+        """,
+        name="kRestrict6",
+        assumptions="nelem_x_elemsize_x_ncomp > 0",
+        target=target
+        )
 
-kRestrict6 = lp.split_iname(kRestrict6, "i", 4, inner_tag="vec", slabs=(0,1))
-kRestrict6 = lp.split_array_axis(kRestrict6, "vv,uu", axis_nr=0, count=4)
-kRestrict6 = lp.tag_array_axes(kRestrict6, "vv,uu", "C,vec")
-# Pull entire cache line
-kRestrict6 = lp.split_iname(kRestrict6, "i_outer", 2, outer_tag="g.0", inner_tag="ilp", slabs=(0,1))
-#print(kRestrict6)
+    if arch == "AMD_GPU":
+        workgroup_size = 64
+    elif arch == "NVIDIA_GPU":
+        workgroup_size = 32
+    else:
+        #This should likely be equivalent to the maximum workgroup size
+        #(or the size needed to activate all cores)
+        workgroup_size = 128
 
-kernelList1 = [kRestrict0, kRestrict2]
-kernelList2 = [kRestrict1, kRestrict3b]
-kernelList3 = [kRestrict4b, kRestrict5b]
-kernelList4 = [kRestrict6]
+    kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
+        outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+
+    kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, {"uu": fp_format})
+    #kRestrict6 = lp.fix_parameters(kRestrict6, nelem_x_elemsize_x_ncomp=1000)
+
+    return kRestrict6
 
 
-for k in kernelList1:
-    k = lp.set_options(k, "write_cl")
-    k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64})
-    code = lp.generate_code_v2(k).device_code()
-    print(code)
-    print()
-    #print(k)
+kRestrict0 = generate_kRestrict0()
+code = lp.generate_code_v2(kRestrict0).device_code()
+print(kRestrict0)
+print()
+print(code)
+
+kRestrict1 = generate_kRestrict1()
+code = lp.generate_code_v2(kRestrict1).device_code()
+print(kRestrict1)
+print()
+print(code)
+
+kRestrict2 = generate_kRestrict2()
+code = lp.generate_code_v2(kRestrict2).device_code()
+print(kRestrict2)
+print()
+print(code)
+
 '''
+kernelList2 = [kRestrict3b]
+kernelList3 = [kRestrict4b, kRestrict5b]
+
 for k in kernelList2:
     k = lp.set_options(k, "write_cl")
     k = lp.add_and_infer_dtypes(k, {"indices": np.int32, "uu": np.float64, "ndof": np.int32})
@@ -137,10 +170,8 @@ for k in kernelList3:
     print(code)
     print()
 '''
-for k in kernelList4:
-    k = lp.set_options(k, "write_cl")
-    k = lp.add_and_infer_dtypes(k, {"uu": np.float64})
-    code = lp.generate_code_v2(k).device_code()
-    print(code)
-    print()
- 
+
+kRestrict6 = generate_kRestrict6()
+print(kRestrict6)
+print()
+print(lp.generate_code_v2(kRestrict6).device_code())
