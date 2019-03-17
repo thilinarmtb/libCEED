@@ -23,8 +23,9 @@ def generate_kRestrict():
         val3 := nelem - e
 
         out0 := e*elemsize*ncomp*blksize + k*ncomp*blksize + d*blksize + j 
-        in0 := e*blksize*ncomp*elemsize + j*ncomp*elemsize + k*ncomp + d
-        in1 := val2*ncomp*elemsize + k*ncomp + d
+        #in0 := e*blksize*ncomp*elemsize + j*ncomp*elemsize + k*ncomp + d
+        #in1 := val2*ncomp*elemsize + k*ncomp + d
+        in0 := if(val1 < val2, val1, val2)*ncomp*elemsize + k*ncomp + d
 
         out1 := e*blksize*elemsize*ncomp + d*blksize*elemsize + k*blksize + j
         in2 := indices[e*blksize*elemsize + j*elemsize + k] + ndof*d
@@ -44,11 +45,12 @@ def generate_kRestrict():
                 for k,d,j
                     if not use_ind
                         # No indices provided, Identity Restriction
-                        if val1 < val2
-                            vv[out0] = uu[in0] {id=case0}
-                        else
-                            vv[out0] = uu[in1] {id=case1}
-                        end
+                        vv[out0] = uu[in0] {id=case1} #j dependence
+                        #if val1 < val2
+                        #    vv[out0] = uu[in0] {id=case0}
+                        #else
+                        #    vv[out0] = uu[in1] {id=case1}
+                        #end
                     else
                         if lmode == CEED_NOTRANSPOSE
                             vv[out1] = uu[in2] {id=case2}
@@ -87,12 +89,12 @@ def generate_kRestrict():
         target=lp.OpenCLTarget()
     )
     #kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case0")
-    #kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case1")
-    #kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case2")
-    #kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case3")
-    #kRestrict = lp.duplicate_inames(kRestrict, "k,d,jj", within="id:case4")
-    #kRestrict = lp.duplicate_inames(kRestrict, "k,d,jj", within="id:case5")
-    #kRestrict = lp.duplicate_inames(kRestrict, "k,d,jj", within="id:case6")
+    kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case1")
+    kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case2")
+    kRestrict = lp.duplicate_inames(kRestrict, "e,k,d,j", within="id:case3")
+    kRestrict = lp.duplicate_inames(kRestrict, "k,d,jj", within="id:case4")
+    kRestrict = lp.duplicate_inames(kRestrict, "k,d,jj", within="id:case5")
+    kRestrict = lp.duplicate_inames(kRestrict, "k,d,jj", within="id:case6")
 
     kRestrict = lp.add_and_infer_dtypes(kRestrict, {
         "uu": np.float64,
