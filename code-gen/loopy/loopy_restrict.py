@@ -139,18 +139,21 @@ code = lp.generate_code_v2(kRestrict0).device_code()
 print(kRestrict0)
 print()
 print(code)
+print()
 
 kRestrict1 = generate_kRestrict1()
 code = lp.generate_code_v2(kRestrict1).device_code()
 print(kRestrict1)
 print()
 print(code)
+print()
 
 kRestrict2 = generate_kRestrict2()
 code = lp.generate_code_v2(kRestrict2).device_code()
 print(kRestrict2)
 print()
 print(code)
+print() 
 
 '''
 kernelList2 = [kRestrict3b]
@@ -175,3 +178,4 @@ kRestrict6 = generate_kRestrict6()
 print(kRestrict6)
 print()
 print(lp.generate_code_v2(kRestrict6).device_code())
+print()
