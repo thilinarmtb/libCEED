@@ -22,7 +22,6 @@
 static inline size_t bytes(const CeedVector vec) {
   CeedInt length;
   CeedVectorGetLength(vec, &length);
-
   return length * sizeof(CeedScalar);
 }
 

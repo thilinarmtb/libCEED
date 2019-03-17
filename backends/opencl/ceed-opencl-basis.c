@@ -16,7 +16,6 @@
 #define CEED_DEBUG_COLOR 249
 #include "ceed-opencl.h"
 #include "ceed-backend.h"
-
 // *****************************************************************************
 // * buildKernel
 // *****************************************************************************
@@ -41,7 +40,7 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
   CeedInt nelem, elemsize;
   ierr = CeedElemRestrictionGetNumElements(er, &nelem); CeedChk(ierr);
   ierr = CeedElemRestrictionGetElementSize(er, &elemsize); CeedChk(ierr);
-
+  // ***************************************************************************
   dbg("[CeedBasis][BK] dim=%d",dim);
   dbg("[CeedBasis][BK] P1d=%d",P1d);
   dbg("[CeedBasis][BK] Q1d=%d",Q1d);
@@ -224,7 +223,6 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
     err |= clSetKernelArg(data->kWeight, 2, sizeof(cl_mem), &d_qw);
     err |= clSetKernelArg(data->kWeight, 3, sizeof(cl_mem), &d_v);
 
-    //occaKernelRun(data->kWeight,occaInt(QnD),occaInt(Q1d),d_qw,d_v);
     clEnqueueNDRangeKernel(ceed_data->queue, data->kWeight, 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
   }
@@ -279,9 +277,11 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
     CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
     //dbg("[CeedBasis][Apply] CEED_EVAL_INTERP");
     CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
+    CeedScalar *interp1d;
+    ierr = CeedBasisGetInterp(basis, &interp1d); CeedChk(ierr);
     for (CeedInt d=0; d<dim; d++) {
       ierr = CeedTensorContract_OpenCL(pre, P, post, Q,
-                                       basis->interp1d,
+                                       interp1d,
                                        tmode, transpose&&(d==dim-1),
                                        d==0?u:tmp[d%2],
                                        d==dim-1?v:tmp[(d+1)%2]);
@@ -289,8 +289,6 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
       pre /= P;
       post *= Q;
     }
-    if (!transpose) v += nqpt;
-    else u += nqpt;
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_GRAD) {
@@ -300,6 +298,9 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
     CeedScalar tmp[2][ncomp*Q*CeedIntPow(P>Q?P:Q, dim-1)];
     for (CeedInt p=0; p<dim; p++) {
       CeedInt pre = ncomp*CeedIntPow(P, dim-1), post = 1;
+      CeedScalar *interp1d, *grad1d;
+      ierr = CeedBasisGetInterp(basis, &interp1d); CeedChk(ierr);
+      ierr = CeedBasisGetGrad(basis, &grad1d); CeedChk(ierr);
       for (CeedInt d=0; d<dim; d++) {
         ierr = CeedTensorContract_OpenCL(pre, P, post, Q,
                                          (p==d)?basis->grad1d:basis->interp1d,
@@ -312,6 +313,9 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
       if (!transpose) v += nqpt;
       else u += nqpt;
     }
+
+    if (!transpose) v -= nqpt*dim;
+    else u -= nqpt*dim;
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_WEIGHT) {
@@ -323,11 +327,13 @@ static int CeedBasisApply_OpenCL(CeedBasis basis, CeedInt nelem,
     CeedInt Q = basis->Q1d;
     for (CeedInt d=0; d<dim; d++) {
       const CeedInt pre = CeedIntPow(Q, dim-d-1), post = CeedIntPow(Q, d);
+      CeedScalar *qweight1d;
+      ierr = CeedBasisGetQWeights(basis, &qweight1d); CeedChk(ierr);
       for (CeedInt i=0; i<pre; i++) {
         for (CeedInt j=0; j<Q; j++) {
           for (CeedInt k=0; k<post; k++) {
             v[(i*Q + j)*post + k] =
-              basis->qweight1d[j] * (d == 0 ? 1 : v[(i*Q + j)*post + k]);
+              qweight1d[j] * (d == 0 ? 1 : v[(i*Q + j)*post + k]);
           }
         }
       }
