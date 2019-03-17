@@ -88,7 +88,7 @@ kRestrict5b = lp.make_kernel(
     #vv[i,d] = sum(j, uu[indices[j]*ncomp, d*elemsize, indices[j]%elemsize])
     """,
     name="kRestrict5b",
-    target=lp.OpenCLTarget(),
+    target=lp.OpenCLTarget,
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0"
     )
 
@@ -101,9 +101,12 @@ kRestrict6 = lp.make_kernel(
     assumptions="nelem_x_elemsize_x_ncomp > 0",
     target=lp.OpenCLTarget()
     )
-kRestrict6 = lp.split_iname(kRestrict6, "i", 4, outer_tag="g.0", inner_tag="vec", slabs=(0,1))
+
+kRestrict6 = lp.split_iname(kRestrict6, "i", 4, inner_tag="vec", slabs=(0,1))
 kRestrict6 = lp.split_array_axis(kRestrict6, "vv,uu", axis_nr=0, count=4)
 kRestrict6 = lp.tag_array_axes(kRestrict6, "vv,uu", "C,vec")
+# Pull entire cache line
+kRestrict6 = lp.split_iname(kRestrict6, "i_outer", 2, outer_tag="g.0", inner_tag="ilp", slabs=(0,1))
 #print(kRestrict6)
 
 kernelList1 = [kRestrict0, kRestrict2]
