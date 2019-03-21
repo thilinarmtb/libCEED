@@ -13,7 +13,7 @@ import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
 # Currently works only for 3D
-def generate_masssetupf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     masssetupf = lp.make_kernel(
         "{ [i,d,dd]: 0<=i<Q and 0<=d,dd<3 }",
         """
@@ -46,6 +46,8 @@ def generate_masssetupf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
         "ctx": np.int32, "in": fp_format,
         "oOf7": np.int32,"iOf7": np.int32 
         })
+    #masssetupf = lp.fix_parameters(masssetupf, constants)
+    
     masssetupf = lp.tag_inames(masssetupf, {"d": "unr", "dd": "unr"})
 
     if arch == "AMD_GPU":
@@ -58,7 +60,7 @@ def generate_masssetupf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
     return masssetupf
 
 
-def generate_massf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     massf = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
         """
@@ -76,6 +78,8 @@ def generate_massf(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarge
         kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
         target=target
         )
+
+    #massf = lp.fix_parameters(massf, constants)
 
     if arch == "AMD_GPU":
         massf = lp.split_iname(massf, "i", 64, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   

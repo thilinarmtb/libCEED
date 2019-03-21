@@ -12,7 +12,7 @@ filterwarnings('error', category=lp.LoopyWarning)
 import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
-def generate_kRestrict0(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kRestrict0(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict0 = lp.make_kernel(
         "{ [i]: 0<=i<nelem_x_elemsize}",
         """
@@ -22,6 +22,8 @@ def generate_kRestrict0(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
         assumptions="nelem_x_elemsize > 0",
         target=target 
         )
+
+    kRestrict0 = lp.fix_parameters(kRestrict0, **constants)
 
     if arch == "AMD_GPU":
         workgroup_size = 64
@@ -39,7 +41,7 @@ def generate_kRestrict0(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
 
     return kRestrict0
 
-def generate_kRestrict1(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict1 = lp.make_kernel(
         "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
         """
@@ -51,13 +53,15 @@ def generate_kRestrict1(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
         assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
         )
 
+    kRestrict1 = lp.fix_parameters(kRestrict1, **constants)
+
     kRestrict1 = lp.add_and_infer_dtypes(kRestrict1, 
             {"indices": np.int32, "uu": fp_format, "ndof": np.int32})
 
     return kRestrict1
 
 
-def generate_kRestrict2(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kRestrict2(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict2 = lp.make_kernel(
         "{ [e,d,i]: 0<=e<nelem and 0<=d<ncomp and 0<=i<elemsize }",
         """
@@ -67,6 +71,8 @@ def generate_kRestrict2(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
         target=target,
         assumptions="nelem > 0 and ncomp > 0 and elemsize > 0"
         )
+
+    kRestrict2 = lp.fix_parameters(kRestrict2, **constants)
 
     kRestrict2 = lp.add_and_infer_dtypes(kRestrict2, {"indices": np.int32, "uu": fp_format})
 
@@ -105,7 +111,7 @@ kRestrict5b = lp.make_kernel(
     assumptions="ndof > 0 and rng1 > 0 and rngN > rng1 and ncomp > 0"
     )
 
-def generate_kRestrict6(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict6 = lp.make_kernel(
         "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
         """
@@ -115,6 +121,8 @@ def generate_kRestrict6(arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCL
         assumptions="nelem_x_elemsize_x_ncomp > 0",
         target=target
         )
+
+    kRestrict6 = lp.fix_parameters(kRestrict6, **constants)
 
     if arch == "AMD_GPU":
         workgroup_size = 64
