@@ -34,11 +34,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         kernel_data=kernel_data,
         target=target
     )
-
-    if constants == {}:
-        kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format, "elemsize": np.int32, "nc": np.int32, "nelem": np.int32, "vsize": np.int32})
-    else:
-        kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format})
+    kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format, "elemsize": np.int32, "nc": np.int32})
 
     kZero = lp.fix_parameters(kZero, **constants)
 
@@ -205,6 +201,102 @@ def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, t
 
     return kInterp3d_T
 
+def generate_kInterp(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "dim", "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+
+    kInterp = lp.make_kernel(
+        ["{ [e,d]: 0<=e<nelem and 0<=d<dim}",
+         "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
+        """
+        u_offset := e*nc*elemsize
+        v_offset := e*QnD*nc*(dim+2)
+        indw := ((a*Q+j)*post + c) 
+        indr := ((a*P+b)*post + c) 
+        rxs := indr + d_v_offset
+        wxs := indw + d_u_offset
+
+        <> P = if(transpose, Q1d, P1d)
+        <> Q = if(transpose, P1d, Q1d)
+        for e
+            <> d_u_offset = if(transpose, v_offset, u_offset)
+            <> d_v_offset = if(transpose, u_offset, v_offset)
+            
+            with {id_prefix=d_loop}
+            for d
+                <> pre = ndof*(P**(dim-1-d))
+                <> post = Q**d 
+
+                for a,b,c,j
+                    <> stride0 = if(transpose, 1, P)
+                    <> stride1 = if(transpose, Q, 1)
+
+                    if d == 0
+                        if d == dim - 1
+                            d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * d_u[rxs] 
+                        else
+                            tmp1[indw] = interp1d[j*stride0 + b*stride1] * d_u[rxs]                 
+                        end
+                    elif d == dim - 1
+                        if d%2 == 0
+                            d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp0[indr]
+                        else    
+                            d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[indr]
+                        end
+                    elif d%2 == 0
+                        tmp1[indw] = interp1d[j*stride0 + b*stride1] * tmp0[indr]
+                    else
+                        tmp0[indw] = interp1d[j*stride0 + b*stride1] * tmp1[indr]
+                    end
+                end
+            end
+            end
+
+            with {dep=d_loop*}
+            if transpose
+                d_u_offset = d_u_offset + nqpt
+            else
+                d_v_offset = d_v_offset + nqpt
+            end
+            end
+        end
+        """,
+        name="kInterp",
+        target=target,
+        assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0",
+        kernel_data=kernel_data
+    )
+
+    kInterp = lp.fix_parameters(kInterp, **constants)
+
+    kInterp = lp.prioritize_loops(kInterp, "e,d,a,j,b,c")
+
+    kInterp = lp.add_and_infer_dtypes(kInterp, {
+        "d_v": fp_format, 
+        "d_u": fp_format, 
+        "tmp0": fp_format, 
+        "tmp1": fp_format,
+        "interp1d": fp_format,
+        "elemsize": np.int32,
+        "ndof": np.int32,
+        "QnD": np.int32,
+        "Q1d": np.int32,
+        "nc": np.int32,
+        "P1d": np.int32,
+        "nqpt": np.int32,
+        "tmpSz": np.int32,
+        "tmode": np.int32,
+        "transpose": np.int32,
+        "dim": np.int32
+        })
+ 
+
+    return kInterp
+ 
 
 def generate_kGrad3d_(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
@@ -388,6 +480,124 @@ def generate_kGrad3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
 
     return kGrad3d_T
 
+def generate_kGrad(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", 
+        "tmp1", "grad1d", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "dim","elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+
+
+ 
+    kGrad = lp.make_kernel(
+        ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<dim and dim=3}",
+         "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
+        """
+        <> P = if(transpose, Q1d, P1d)
+        <> Q = if(transpose, P1d, Q1d)
+        u_offset := e*nc*elemsize
+        v_offset := e*QnD*nc*(dim+2)
+        indw := ((a*Q+j)*post + c) 
+        indr := ((a*P+b)*post + c) 
+        rxs := indr + d_v_offset
+        wxs := indw + d_u_offset
+ 
+        for e
+            <> d_u_offset = if(transpose, v_offset, u_offset)
+            <> d_v_offset = if(transpose, u_offset, v_offset)
+
+            with {id_prefix=d_loop}
+            for p,d
+                <> pre = ndof*(P**(dim-1-d))
+                <> post = Q**d 
+
+                for a,b,c,j
+                    <> tstride0 = if(transpose, 1, P)
+                    <> tstride1 = if(transpose, Q, 1)
+
+                    if p == d
+                        if d == 0
+                            if d == dim - 1
+                                d_v[wxs] = transpose*d_v[wxs] + grad1d[j*stride0 + b*stride1] * d_u[rxs] 
+                            else
+                                tmp1[indw] = grad1d[j*stride0 + b*stride1] * d_u[rxs]                 
+                            end
+                        elif d == dim - 1
+                            if d%2 == 0
+                                d_v[wxs] = transpose*d_v[wxs] + grad1d[j*stride0 + b*stride1] * tmp0[indr]
+                            else    
+                                d_v[wxs] = transpose*d_v[wxs] + grad1d[j*stride0 + b*stride1] * tmp1[indr]
+                            end
+                        elif d%2 == 0
+                            tmp1[indw] = grad1d[j*stride0 + b*stride1] * tmp0[indr]
+                        else
+                            tmp0[indw] = grad1d[j*stride0 + b*stride1] * tmp1[indr]
+                        end                         
+                    else
+                        if d == 0
+                            if d == dim - 1
+                                d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * d_u[rxs] 
+                            else
+                                tmp1[indw] = interp1d[j*stride0 + b*stride1] * d_u[rxs]                 
+                            end
+                        elif d == dim - 1
+                            if d%2 == 0
+                                d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp0[indr]
+                            else    
+                                d_v[wxs] = transpose*d_v[wxs] + interp1d[j*stride0 + b*stride1] * tmp1[indr]
+                            end
+                        elif d%2 == 0
+                            tmp1[indw] = interp1d[j*stride0 + b*stride1] * tmp0[indr]
+                        else
+                            tmp0[indw] = interp1d[j*stride0 + b*stride1] * tmp1[indr]
+                        end
+                    end
+                end
+            end
+            end
+
+            with {dep=d_loop*}
+            if transpose
+                d_u_offset = d_u_offset + nqpt
+            else
+                d_v_offset = d_v_offset + nqpt
+            end
+            end
+        end
+        """,
+        name="kGrad",
+        target=target,
+        assumptions="nelem>0 and dim>0 and pre>0 and post>0 and P>0 and Q>0",
+        kernel_data=kernel_data
+    )
+
+    kGrad = lp.fix_parameters(kGrad, **constants)
+
+    kGrad = lp.add_and_infer_dtypes(kGrad, {
+        "d_v": fp_format, 
+        "d_u": fp_format, 
+        "tmp0": fp_format, 
+        "tmp1": fp_format,
+        "interp1d": fp_format,
+        "grad1d": fp_format,
+        "elemsize": np.int32,
+        "ndof": np.int32,
+        "QnD": np.int32,
+        "Q1d": np.int32,
+        "nc": np.int32,
+        "P1d": np.int32,
+        "nqpt": np.int32,
+        "tmpSz": np.int32,
+        "transpose": np.int32,
+        "tmode": np.int32,
+        "dim": np.int32
+        })
+
+
+
+    return kGrad
 
 # Only works for 3D, if need 2D or 1D add separate cases to handle
 def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
