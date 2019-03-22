@@ -46,7 +46,6 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         "ctx": np.int32, "in": fp_format,
         "oOf7": np.int32,"iOf7": np.int32 
         })
-    #masssetupf = lp.fix_parameters(masssetupf, constants)
     
     masssetupf = lp.tag_inames(masssetupf, {"d": "unr", "dd": "unr"})
 
@@ -57,7 +56,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     else:
         workgroup_size = 128
 
-    massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+    massfsetupf = lp.split_iname(masssetupf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
  
     return masssetupf
 
