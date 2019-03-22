@@ -31,6 +31,13 @@ static cl_kernel createKernelFromPython(char *kernelName, char *arch,
 
   FILE *fp = popen(pythonCmd, "r");
   char *kernelCode;
+  if(fp != NULL) {
+    fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);
+    kernelCode = (char *) malloc(sizeof(char)*length);
+    if(kernelCode != NULL) {
+      fread(kernelCode, sizeof(char), length, fp);
+    }
+  }
   pclose(fp);
 
   cl_int err;
