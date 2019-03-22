@@ -13,18 +13,15 @@
 // the planning and preparation of a capable exascale ecosystem, including
 // software, applications, hardware, advanced system engineering and early
 // testbed platforms, in support of the nation's exascale computing imperative.
-
 #define CEED_DEBUG_COLOR 177
 #include "ceed-opencl.h"
 #include "ceed-backend.h"
-
 #include <math.h>
 // *****************************************************************************
 // * functions for the 'no-operator' case
 // *****************************************************************************
 int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*);
-int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*,
-                                     CeedInt*) ;
+int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*);
 int CeedQFunctionFillNoOp_OpenCL(CeedQFunction, CeedInt, cl_mem,
                                  CeedInt*, CeedInt*, const CeedScalar*const*);
 
@@ -179,9 +176,9 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   int ierr;
   Ceed ceed;
   ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
+  dbg("[CeedQFunction][Apply]");
   Ceed_OpenCL *ceed_data;
   ierr = CeedGetData(ceed, (void*)&ceed_data);
-  dbg("[CeedQFunction][Apply]");
   CeedQFunction_OpenCL *data;
   ierr = CeedQFunctionGetData(qf, (void*)&data); CeedChk(ierr);
   const bool from_operator_apply = data->op;
@@ -326,8 +323,8 @@ static int CeedQFunctionDestroy_OpenCL(CeedQFunction qf) {
       clReleaseMemObject(data->o_indata);
       clReleaseMemObject(data->o_outdata);
     }
-    //occaFree(data->d_u);
-    //occaFree(data->d_v);
+    //clReleaseMemObject(data->d_u);
+    //clReleaseMemObject(data->d_v);
   }
   int ierr = CeedFree(&data); CeedChk(ierr);
   return 0;
@@ -337,34 +334,32 @@ static int CeedQFunctionDestroy_OpenCL(CeedQFunction qf) {
 // * CeedQFunctionCreate_OpenCL
 // *****************************************************************************
 int CeedQFunctionCreate_OpenCL(CeedQFunction qf) {
-  const Ceed ceed = qf->ceed;
+  int ierr;
+  Ceed ceed;
+  ierr = CeedQFunctionGetCeed(qf, &ceed); CeedChk(ierr);
   CeedQFunction_OpenCL *data;
   int ierr = CeedCalloc(1,&data); CeedChk(ierr);
   // Populate the CeedQFunction structure **************************************
-  qf->Apply = CeedQFunctionApply_OpenCL;
-  qf->Destroy = CeedQFunctionDestroy_OpenCL;
-  qf->data = data;
+  ierr = CeedSetBackendFunction(ceed, "QFunction", qf, "Apply",
+                                CeedQFunctionApply_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "QFunction", qf, "Destroy",
+                                CeedQFunctionDestroy_OpenCL); CeedChk(ierr);
   // Fill CeedQFunction_OpenCL struct ********************************************
   data->op = false;
   data->ready = false;
   data->nc = data->dim = 1;
   data->nelem = data->elemsize = 1;
   data->e = 0;
+  ierr = CeedQFunctionSetData(qf, (void *)&data); CeedChk(ierr);
   // Locate last ':' character in qf->focca ************************************
-  dbg("[CeedQFunction][Create] focca: %s",qf->focca);
-  const char *last_colon = strrchr(qf->focca,':');
-  const char *last_dot = strrchr(qf->focca,'.');
+  char *focca;
+  ierr = CeedQFunctionGetFOCCA(qf, &focca); CeedChk(ierr);
+  dbg("[CeedQFunction][Create] focca: %s",focca);
+  const char *last_colon = strrchr(focca,':');
   if (!last_colon)
-    return CeedError(qf->ceed, 1, "Can not find ':' in function name field!");
-  if (!last_dot)
-    return CeedError(qf->ceed, 1, "Can not find '.' in function name field!");
+    return CeedError(ceed, 1, "Can not find ':' in focca field!");
   // get the function name
   data->qFunctionName = last_colon+1;
   dbg("[CeedQFunction][Create] qFunctionName: %s",data->qFunctionName);
-  // extract file base name
-  const char *last_slash_pos = strrchr(qf->focca,'/');
-  // if no slash has been found, revert to focca field
-  const char *last_slash = last_slash_pos?last_slash_pos+1:qf->focca;
-  dbg("[CeedQFunction][Create] last_slash: %s",last_slash);
   return 0;
 }
