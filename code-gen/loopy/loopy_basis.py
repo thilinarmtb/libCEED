@@ -5,6 +5,9 @@ import pyopencl.array
 import pyopencl.clrandom
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
+import sys
+import json
+
 # setup
 # -----
 lp.set_caching_enabled(False)
@@ -31,7 +34,11 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         kernel_data=kernel_data,
         target=target
     )
-    kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format, "elemsize": np.int32, "nc": np.int32})
+
+    if constants == {}:
+        kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format, "elemsize": np.int32, "nc": np.int32, "nelem": np.int32, "vsize": np.int32})
+    else:
+        kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format})
 
     kZero = lp.fix_parameters(kZero, **constants)
 
@@ -456,41 +463,32 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
 
     kWeight = lp.fix_parameters(kWeight, **constants)
 
-    #kWeight = lp.precompute(kWeight, "v_shift")
-    #kWeight = lp.precompute(kWeight, "m")
-    #kWeight = lp.precompute(kWeight, "QQ")
-    #kWeight = lp.precompute(kWeight, "v_offset")
-    #kWeight = lp.precompute(kWeight, "qw_i")
     kWeight = lp.prioritize_loops(kWeight,"e,i,j,k")
-    #kWeight = lp.add_prefetch(kWeight, "qweight1d", "i,j,k")
 
     return kWeight
 
-    #kWeight = lp.duplicate_inames(kWeight,"i,j,k", within="id:d0")
-    #kWeight = lp.duplicate_inames(kWeight,"i,j,k", within="id:d1*")
-    #kWeight = lp.duplicate_inames(kWeight,"i,j,k", within="id:d2*")
-    #kWeight = lp.prioritize_loops(kWeight, "i_0,k_0,j_0")
-    #kWeight = lp.prioritize_loops(kWeight, "i_1,j_1,k_1")
-    #kWeight = lp.prioritize_loops(kWeight, "j_2,i_2,k_2")
-    #kWeight = lp.tag_inames(kWeight, [("e", "g.0")])
-    #kWeight = lp.precompute(kWeight, "xs2(ii,j)")
-    #kWeight = lp.tag_inames(kWeight, [("d", "unr")])
-    #kWeight = lp.precompute(kWeight, "post", "d")
-    #kWeight = lp.precompute(kWeight, "pre", "d")
-    #print(kWeight)
-    
-generators = [generate_kZero, 
-              generate_kInterp3d,
-              generate_kInterp3d_T,
-              generate_kGrad3d,
-              generate_kGrad3d_T,
-              generate_kWeight]
+arg_len = len(sys.argv)
+if arg_len != 4:
+    print("Usage: python loopy_basis.py kernel_name arch '{\"c1\": val1, ... }'")
+    print("Example: python loopy_basis.py kZero '{\"elemsize\": 8, ... }'")
+    sys.exit(1)
 
-for generator in generators:
-    k = generator()
-    #print(k)
-    code = lp.generate_code_v2(k).device_code()
-    print(code)
-    print()
+kernel_name = sys.argv[1]
+arch = sys.argv[2]
+constants = json.loads(sys.argv[3])
 
+if kernel_name == 'kZero':
+    k = generate_kZero(constants, arch)
+elif kerel_name == 'kInterp':
+    k = generate_kInterp(constants, arch)
+elif kerel_name == 'kGrad':
+    k = generate_kGrad(constants, arch)
+elif kerel_name == 'kWeight':
+    k = generate_kWeight(constants, arch)
+else:
+    print("Invalid kernel name: {}".format(kernel_name))
+    sys.exit(1)
 
+code = lp.generate_code_v2(k).device_code()
+print(code)
+print()
