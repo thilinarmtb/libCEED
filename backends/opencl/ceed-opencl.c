@@ -20,7 +20,7 @@
 // * Callback function for OpenCL
 // *****************************************************************************
 void pfn_notify(const char *errinfo, const void *private_info, size_t cb,
-                 void *user_data) {
+                void *user_data) {
   fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, errinfo);
   fflush(stderr);
 }
@@ -149,12 +149,14 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   cl_int err;
   err = clGetPlatformIDs(2, data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,&data->device_id,
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,
+                         &data->device_id,
                          NULL);
     dbg("CPU is selected.");
   } else if(gpu) {
     dbg("GPU is selected.");
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_GPU, 1,&data->device_id,
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_GPU, 1,
+                         &data->device_id,
                          NULL);
   }
 

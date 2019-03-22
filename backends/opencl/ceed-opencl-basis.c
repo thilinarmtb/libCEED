@@ -19,13 +19,15 @@
 // *****************************************************************************
 // * buildKernel
 // *****************************************************************************
-static cl_kernel createKernelFromPython(char *kernelName, char *arch, char *constantDict, char *pythonFile, Ceed ceed) {
+static cl_kernel createKernelFromPython(char *kernelName, char *arch,
+                                        char *constantDict, char *pythonFile, Ceed ceed) {
   CeedInt ierr;
   Ceed_OpenCL *data;
   ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
 
   char pythonCmd[2*BUFSIZ];
-  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch, constantDict);
+  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
+          constantDict);
 
   FILE *fp = popen(pythonCmd, "r");
   char *kernelCode;
@@ -33,7 +35,8 @@ static cl_kernel createKernelFromPython(char *kernelName, char *arch, char *cons
 
   cl_int err;
   cl_program program;
-  program = clCreateProgramWithSource(data->context, 1, (const char **) &kernelCode, NULL, &err);
+  program = clCreateProgramWithSource(data->context, 1,
+                                      (const char **) &kernelCode, NULL, &err);
   clBuildProgram(program, 1, &data->device_id, NULL, NULL, NULL);
   cl_kernel kernel   = clCreateKernel(program, kernelName, &err);
   dbg("err after building %s: %d\n", kernelName, err);
@@ -99,19 +102,23 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
   char *arch = ceed_data->arch;
   char constantDict[BUFSIZ];
   sprintf(constantDict, "{\"elemsize\": %d,"
-                        "\"Q1d\": %d,"
-                        "\"nc\": %d,"
-                        "\"P1d\": %d,"
-                        "\"nqpt\": %d,"
-                        "\"tmpSz\": %d,"
-                        "\"dim\": %d,"
-                        "\"nelem\": %d }",
+          "\"Q1d\": %d,"
+          "\"nc\": %d,"
+          "\"P1d\": %d,"
+          "\"nqpt\": %d,"
+          "\"tmpSz\": %d,"
+          "\"dim\": %d,"
+          "\"nelem\": %d }",
           elemsize, Q1d, ncomp, P1d, nqpt, tmpSz, dim, nelem);
 
-  data->kZero = createKernelFromPython("kZero", arch, constantDict, "loopy_basis.py", ceed_data);
-  data->kInterp = createKernelFromPython("kInterp", arch, constantDict, "loopy_basis.py", ceed_data);
-  data->kGrad = createKernelFromPython("kGrad", arch, constantDict, "loopy_basis.py", ceed_data);
-  data->kWeight = createKernelFromPython("kWeight", arch, constantDict, "loopy_basis.py", ceed_data);
+  data->kZero = createKernelFromPython("kZero", arch, constantDict,
+                                       "loopy_basis.py", ceed_data);
+  data->kInterp = createKernelFromPython("kInterp", arch, constantDict,
+                                         "loopy_basis.py", ceed_data);
+  data->kGrad = createKernelFromPython("kGrad", arch, constantDict,
+                                       "loopy_basis.py", ceed_data);
+  data->kWeight = createKernelFromPython("kWeight", arch, constantDict,
+                                         "loopy_basis.py", ceed_data);
   // free local usage **********************************************************
   return 0;
 }

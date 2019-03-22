@@ -21,7 +21,8 @@
 // * functions for the 'no-operator' case
 // *****************************************************************************
 int CeedQFunctionAllocNoOpIn_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*);
-int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*, CeedInt*);
+int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction, CeedInt, CeedInt*,
+                                     CeedInt*);
 int CeedQFunctionFillNoOp_OpenCL(CeedQFunction, CeedInt, cl_mem,
                                  CeedInt*, CeedInt*, const CeedScalar*const*);
 
@@ -117,12 +118,14 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
     return CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
     break;
   case CL_BUILD_PROGRAM_FAILURE:
-    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG, 0, NULL,
+    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
+                          0, NULL,
                           &log_size);
     // Allocate memory for the log
     log = (char *) malloc(log_size);
     // Get the log
-    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG, log_size,
+    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
+                          log_size,
                           log, NULL);
     // Print the log
     printf("%s\n", log);

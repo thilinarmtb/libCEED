@@ -85,10 +85,10 @@ static int CeedOperatorDestroy_OpenCL(CeedOperator op) {
 // * Setup infields or outfields
 // *****************************************************************************
 static int CeedOperatorSetupFields_OpenCL(CeedQFunction qf, CeedOperator op,
-                                          bool inOrOut,
-                                          CeedVector *fullevecs, CeedVector *evecs,
-                                          CeedVector *qvecs, CeedInt starte,
-                                          CeedInt numfields, CeedInt Q) {
+    bool inOrOut,
+    CeedVector *fullevecs, CeedVector *evecs,
+    CeedVector *qvecs, CeedInt starte,
+    CeedInt numfields, CeedInt Q) {
   CeedInt dim = 1, ierr, ncomp;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);

@@ -65,7 +65,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     CeedInt nelem_x_elemsize_x_ncomp = r->nelem*r->elemsize*r->ncomp;
     globalSize = (size_t) nelem_x_elemsize_x_ncomp;
     err = clSetKernelArg(data->kRestrict[6], 0, sizeof(CeedInt),
-                          (void *)&nelem_x_elemsize_x_ncomp);
+                         (void *)&nelem_x_elemsize_x_ncomp);
     err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&ud);
     err |= clSetKernelArg(data->kRestrict[6], 2, sizeof(cl_mem), (void *)&vd);
 
@@ -180,14 +180,14 @@ static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
   for (int i=0; i<7; i++) {
     err = clReleaseKernel(data->kRestrict[i]);
     switch(err) {
-      case CL_SUCCESS:
-        printf("Successfully released kernel %d\n", i);
-        break;
-      case CL_INVALID_KERNEL:
-        printf("Invalid kernel %d\n", i);
-        break;
-      default:
-        break;
+    case CL_SUCCESS:
+      printf("Successfully released kernel %d\n", i);
+      break;
+    case CL_INVALID_KERNEL:
+      printf("Invalid kernel %d\n", i);
+      break;
+    default:
+      break;
     }
   }
   clReleaseMemObject(data->d_indices);
@@ -273,17 +273,17 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   ierr = CeedMalloc(ndof+1, &toffsets); CeedChk(ierr);
   ierr = CeedMalloc(elemsize*nelem, &tindices); CeedChk(ierr);
   if(indices) {
-  CeedElemRestrictionOffset_OpenCL(r,indices,toffsets,tindices);
-  //occaCopyPtrToMem(data->d_toffsets,toffsets,
-  //                 (1+r->ndof)*sizeof(CeedInt),NO_OFFSET,NO_PROPS);
-  clEnqueueWriteBuffer(ceed_data->queue, data->d_toffsets, CL_TRUE, 0,
-                       (1+ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
-  //occaCopyPtrToMem(data->d_tindices,tindices,bytes(r),NO_OFFSET,NO_PROPS);
-  clEnqueueWriteBuffer(ceed_data->queue, data->d_tindices, CL_TRUE, 0,
-                       bytes(r), tindices, 0, NULL, NULL);
-  //occaCopyPtrToMem(data->d_indices,indices,bytes(r),NO_OFFSET,NO_PROPS);
-  clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
-                       bytes(r), indices, 0, NULL, NULL);
+    CeedElemRestrictionOffset_OpenCL(r,indices,toffsets,tindices);
+    //occaCopyPtrToMem(data->d_toffsets,toffsets,
+    //                 (1+r->ndof)*sizeof(CeedInt),NO_OFFSET,NO_PROPS);
+    clEnqueueWriteBuffer(ceed_data->queue, data->d_toffsets, CL_TRUE, 0,
+                         (1+ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
+    //occaCopyPtrToMem(data->d_tindices,tindices,bytes(r),NO_OFFSET,NO_PROPS);
+    clEnqueueWriteBuffer(ceed_data->queue, data->d_tindices, CL_TRUE, 0,
+                         bytes(r), tindices, 0, NULL, NULL);
+    //occaCopyPtrToMem(data->d_indices,indices,bytes(r),NO_OFFSET,NO_PROPS);
+    clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
+                         bytes(r), indices, 0, NULL, NULL);
   } else {
     data->identity = 1;
   }
