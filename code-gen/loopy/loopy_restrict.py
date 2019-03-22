@@ -113,15 +113,14 @@ kRestrict5b = lp.make_kernel(
 
 def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
+    kernel_data = ["uu", "vv"]
     if constants=={}:
-        kernel_data=["uu", "vv", "nelem_x_elemsize_x_ncomp"]
-    else:
-        kernel_data=["uu", "vv"]
+        kernel_data += ["nelem", "elemsize", "nc"]
 
     kRestrict6 = lp.make_kernel(
-        "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
+        "{ [e,j,k]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
         """
-        vv[i] = uu[i]
+        vv[e,j,k] = uu[e,j,k]
         """,
         name="kRestrict6",
         kernel_data=kernel_data,
