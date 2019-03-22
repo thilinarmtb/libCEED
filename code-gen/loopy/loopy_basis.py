@@ -134,11 +134,12 @@ def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, t
             "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
 
     kInterp3d_T = lp.make_kernel(
-        ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
+        ["{ [e,d]: 0<=e<nelem and 0<=d<3 }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
         """
         <> P = Q1d
         <> Q = P1d
+        dim := 3
         indw := ((a*Q+j)*post + c) 
         indr := ((a*P+b)*post + c) 
         rxs := indr + d_v_offset
@@ -170,7 +171,7 @@ def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, t
         """,
         name = "kInterp3d_T",
         target=target,
-        assumptions="nelem>0 and dim=3 and pre>0 and post>0 and P>0 and Q>0"
+        assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0"
     )
 
     kInterp3d_T = lp.fix_parameters(kInterp3d_T, **constants)
@@ -199,13 +200,22 @@ def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, t
 
 
 def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", 
+        "tmp1", "grad1d", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+
     kGrad3d = lp.make_kernel(
-        ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<dim }",
+        ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<3 }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
         """
         <> P = P1d
         <> Q = Q1d
 
+        dim := 3
         indw := ((a*Q+j)*post + c) 
         indr := ((a*P+b)*post + c) 
         rxs := indr + d_v_offset
@@ -253,7 +263,7 @@ def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, targe
         """,
         name="kGrad3d",
         target=target,
-        assumptions="nelem>0 and dim=3 and pre>0 and post>0 and P>0 and Q>0"
+        assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0"
     )
 
 
@@ -288,12 +298,13 @@ def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, targe
 
 def generate_kGrad3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kGrad3d_T = lp.make_kernel(
-        ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<dim }",
+        ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<3 }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
         """
         <> P = Q1d
         <> Q = P1d
 
+        dim := 3
         indw := ((a*Q+j)*post + c) 
         indr := ((a*P+b)*post + c) 
         rxs := indr + d_v_offset
@@ -341,7 +352,7 @@ def generate_kGrad3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
         """,
         name="kGrad3d_T",
         target=target,
-        assumptions="nelem>0 and dim=3 and pre>0 and post>0 and P>0 and Q>0"
+        assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0"
     )
 
     kGrad3d_T = lp.fix_parameters(kGrad3d_T, **constants)
