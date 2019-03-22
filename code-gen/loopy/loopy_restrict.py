@@ -112,12 +112,19 @@ kRestrict5b = lp.make_kernel(
     )
 
 def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    if constants=={}:
+        kernel_data=["uu", "vv", "nelem_x_elemsize_x_ncomp"]
+    else:
+        kernel_data=["uu", "vv"]
+
     kRestrict6 = lp.make_kernel(
         "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
         """
         vv[i] = uu[i]
         """,
         name="kRestrict6",
+        kernel_data=kernel_data,
         assumptions="nelem_x_elemsize_x_ncomp > 0",
         target=target
         )
@@ -181,8 +188,8 @@ for k in kernelList3:
     print(code)
     print()
 '''
-
-kRestrict6 = generate_kRestrict6()
+constants = { "nelem_x_elemsize_x_ncomp":1000 }
+kRestrict6 = generate_kRestrict6(constants={})
 print(kRestrict6)
 print()
 print(lp.generate_code_v2(kRestrict6).device_code())

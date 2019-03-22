@@ -15,6 +15,11 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 
 # ------
 def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    if constants=={}:
+        kernel_data=["v", "elemsize", "nc", "nelem", "vsize"]
+    else:
+        kernel_data=["v"]        
+
     kZero = lp.make_kernel(
         "{ [e,i]: 0<=e<nelem and 0<=i<vsize }",
         """
@@ -23,6 +28,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         """,
         name="kZero",
         assumptions="nelem > 0 and vsize > 0",
+        kernel_data=kernel_data,
         target=target
     )
     kZero = lp.add_and_infer_dtypes(kZero, {"v": fp_format, "elemsize": np.int32, "nc": np.int32})
@@ -41,10 +47,18 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
 
 
 def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+
     kInterp3d = lp.make_kernel(
-        ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
+        ["{ [e,d]: 0<=e<nelem and 0<=d<3 }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
         """
+        dim := 3
         <> P = P1d
         <> Q = Q1d
         indw := ((a*Q+j)*post + c) 
@@ -57,8 +71,8 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
  
 
         for e
-           <> d_u_offset = u_offset
-           <> d_v_offset = v_offset
+            <> d_u_offset = u_offset
+            <> d_v_offset = v_offset
      
             for d
                 <> pre = ndof*(P**(dim-1-d))
@@ -78,7 +92,8 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
         """,
         name = "kInterp3d",
         target=target,
-        assumptions="nelem>0 and dim=3 and pre>0 and post>0 and P>0 and Q>0"
+        assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0",
+        kernel_data=kernel_data
     )
 
     kZero = lp.fix_parameters(kInterp3d, **constants)
@@ -99,7 +114,11 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
         "Q1d": np.int32,
         "nc": np.int32,
         "P1d": np.int32,
-        "nqpt": np.int32
+        "nqpt": np.int32,
+
+        "tmode": np.int32,
+        "transpose": np.int32,
+        "tmpSz": np.int32
     })
  
         
@@ -107,6 +126,13 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
 
 
 def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+
     kInterp3d_T = lp.make_kernel(
         ["{ [e,d]: 0<=e<nelem and 0<=d<dim }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
