@@ -15,10 +15,35 @@
 // testbed platforms, in support of the nation's exascale computing imperative.
 #define CEED_DEBUG_COLOR 249
 #include "ceed-opencl.h"
-#include "ceed-backend.h"
+
 // *****************************************************************************
 // * buildKernel
 // *****************************************************************************
+static cl_kernel createKernelFromPython(char *kernelName, char *arch,
+                                        char *constantDict, char *pythonFile, Ceed ceed) {
+  CeedInt ierr;
+  Ceed_OpenCL *data;
+  ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
+
+  char pythonCmd[2*BUFSIZ];
+  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
+          constantDict);
+
+  FILE *fp = popen(pythonCmd, "r");
+  char *kernelCode;
+  pclose(fp);
+
+  cl_int err;
+  cl_program program;
+  program = clCreateProgramWithSource(data->context, 1,
+                                      (const char **) &kernelCode, NULL, &err);
+  clBuildProgram(program, 1, &data->device_id, NULL, NULL, NULL);
+  cl_kernel kernel   = clCreateKernel(program, kernelName, &err);
+  dbg("err after building %s: %d\n", kernelName, err);
+
+  return kernel;
+}
+
 static int CeedBasisBuildKernel(CeedBasis basis) {
   int ierr;
   Ceed ceed;
@@ -74,18 +99,26 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
   data->tmp1 = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
                               elems_x_tmpSz*sizeof(CeedScalar),NULL,NULL);
   // ***************************************************************************
-  cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1,
-                  (const char **) &OpenCLKernels, NULL, &err);
-  clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL, NULL);
-  data->kZero   = clCreateKernel(data->program, "kZero", &err);
-  dbg("err after building kZero: %d\n",err);
-  data->kInterp = clCreateKernel(data->program, "kInterp", &err);
-  dbg("err after building kInterp: %d\n",err);
-  data->kGrad   = clCreateKernel(data->program, "kGrad", &err);
-  dbg("err after building kGrrad: %d\n",err);
-  data->kWeight = clCreateKernel(data->program, "kWeight", &err);
-  dbg("err after building kWeight: %d\n",err);
+  char *arch = ceed_data->arch;
+  char constantDict[BUFSIZ];
+  sprintf(constantDict, "{\"elemsize\": %d,"
+          "\"Q1d\": %d,"
+          "\"nc\": %d,"
+          "\"P1d\": %d,"
+          "\"nqpt\": %d,"
+          "\"tmpSz\": %d,"
+          "\"dim\": %d,"
+          "\"nelem\": %d }",
+          elemsize, Q1d, ncomp, P1d, nqpt, tmpSz, dim, nelem);
+
+  data->kZero = createKernelFromPython("kZero", arch, constantDict,
+                                       "loopy_basis.py", ceed_data);
+  data->kInterp = createKernelFromPython("kInterp", arch, constantDict,
+                                         "loopy_basis.py", ceed_data);
+  data->kGrad = createKernelFromPython("kGrad", arch, constantDict,
+                                       "loopy_basis.py", ceed_data);
+  data->kWeight = createKernelFromPython("kWeight", arch, constantDict,
+                                         "loopy_basis.py", ceed_data);
   // free local usage **********************************************************
   return 0;
 }

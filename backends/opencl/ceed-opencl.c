@@ -20,7 +20,7 @@
 // * Callback function for OpenCL
 // *****************************************************************************
 void pfn_notify(const char *errinfo, const void *private_info, size_t cb,
-                 void *user_data) {
+                void *user_data) {
   fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, errinfo);
   fflush(stderr);
 }
@@ -49,8 +49,8 @@ static int CeedDestroy_OpenCL(Ceed ceed) {
 
   clReleaseContext(data->context);
   clReleaseCommandQueue(data->queue);
-
-  ierr = CeedFree(&data->libceed_dir);
+  if(data->arch)
+    free(data->arch);
   ierr = CeedFree(&data); CeedChk(ierr);
   return 0;
 }
@@ -96,12 +96,25 @@ void CeedDebugImpl_OpenCL(const Ceed ceed,
 static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   int ierr;
   Ceed_OpenCL *data;
-  const int nrc = 9; // number of characters in resource
-  const bool cpu = !strncmp(resource,"/cpu/opencl",nrc);
-  const bool gpu = !strncmp(resource,"/gpu/opencl",nrc);
-  //const int rlen = strlen(resource);
-  //const bool slash = (rlen>nrc)?resource[nrc]=='/'?true:false:false;
-  //const int deviceID = slash?(rlen>nrc+1)?atoi(&resource[nrc+1]):0:0;
+  ierr = CeedCalloc(1,&data); CeedChk(ierr);
+
+  int nrc = strlen("/cpu/opencl"); // number of characters in resource
+  const bool cpu = data->cpu = !strncmp(resource, "/cpu/opencl", nrc);
+  nrc = strlen("/gpu/opencl"); // number of characters in resource
+  const bool gpu = data->gpu = !strncmp(resource, "/gpu/opencl", nrc);
+
+  char *opencl = "opencl";
+  char *lastSlash = strrchr(resource,'/');
+  if (!strncmp(lastSlash + 1,"opencl", strlen(opencl))) {
+    data->arch = NULL;
+    dbg("[CeedInit] data->arch = NULL");
+  } else {
+    int archLen = resource + strlen(resource) - lastSlash - strlen(opencl);
+    data->arch = calloc(sizeof(char), archLen);
+    strncpy(data->arch, lastSlash+1, archLen);
+    dbg("[CeedInit] data->arch = %s", data->arch);
+  }
+
   // Warning: "backend cannot use resource" is used to grep in test/tap.sh
   if (!cpu && !gpu)
     return CeedError(ceed, 1, "OpenCL backend cannot use resource: %s", resource);
@@ -125,27 +138,25 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
                                 CeedQFunctionCreate_OpenCL); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "OperatorCreate",
                                 CeedOperatorCreate_OpenCL); CeedChk(ierr);
-  ierr = CeedCalloc(1,&data); CeedChk(ierr);
   ceed->data = data;
 
   // push env variables CEED_DEBUG or DBG to our data
   data->debug=!!getenv("CEED_DEBUG") || !!getenv("DBG");
-  // push ocl to our data, to be able to check it later for the kernels
-  data->libceed_dir = NULL;
-  if (data->debug) {
-  }
+
   // Now that we can dbg, output resource and deviceID
   dbg("[CeedInit] resource: %s", resource);
 
   cl_int err;
   err = clGetPlatformIDs(2, data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,&data->device_id,
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,
+                         &data->device_id,
                          NULL);
     dbg("CPU is selected.");
   } else if(gpu) {
     dbg("GPU is selected.");
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_GPU, 1,&data->device_id,
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_GPU, 1,
+                         &data->device_id,
                          NULL);
   }
 
