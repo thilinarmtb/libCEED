@@ -46,7 +46,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     return kZero
 
 
-def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kInterp3d_(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data = [
         "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
@@ -54,7 +54,7 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
         kernel_data = kernel_data + [
             "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
 
-    kInterp3d = lp.make_kernel(
+    kInterp3d_ = lp.make_kernel(
         ["{ [e,d]: 0<=e<nelem and 0<=d<3 }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
         """
@@ -90,19 +90,19 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
             d_v_offset = d_v_offset + nqpt
         end
         """,
-        name = "kInterp3d",
+        name = "kInterp3d_",
         target=target,
         assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0",
         kernel_data=kernel_data
     )
 
-    kZero = lp.fix_parameters(kInterp3d, **constants)
+    kInterp3d_ = lp.fix_parameters(kInterp3d_, **constants)
    
-    kInterp3d = lp.prioritize_loops(kInterp3d, "e,d,a,j,b,c")
-    kInterp3d = lp.duplicate_inames(kInterp3d,"a,b,c,j", within="id:two")
-    kInterp3d = lp.duplicate_inames(kInterp3d,"a,b,c,j", within="id:three")
+    kInterp3d_ = lp.prioritize_loops(kInterp3d_, "e,d,a,j,b,c")
+    kInterp3d_ = lp.duplicate_inames(kInterp3d_,"a,b,c,j", within="id:two")
+    kInterp3d_ = lp.duplicate_inames(kInterp3d_,"a,b,c,j", within="id:three")
 
-    kInterp3d = lp.add_and_infer_dtypes(kInterp3d, {
+    kInterp3d_ = lp.add_and_infer_dtypes(kInterp3d_, {
         "d_v": fp_format, 
         "d_u": fp_format, 
         "tmp0": fp_format, 
@@ -122,7 +122,7 @@ def generate_kInterp3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, tar
     })
  
         
-    return kInterp3d
+    return kInterp3d_
 
 
 def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
@@ -199,7 +199,7 @@ def generate_kInterp3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, t
     return kInterp3d_T
 
 
-def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kGrad3d_(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data = [
         "QnD", "transpose", "tmode", "tmp0", 
@@ -208,7 +208,7 @@ def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, targe
         kernel_data = kernel_data + [
             "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
 
-    kGrad3d = lp.make_kernel(
+    kGrad3d_ = lp.make_kernel(
         ["{ [e,d,p]: 0<=e<nelem and 0<=d,p<3 }",
          "{ [a,j,c,b]: 0<=a<pre and 0<=j<Q and 0<=c<post and 0<=b<P }"],
         """
@@ -261,22 +261,22 @@ def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, targe
             d_u_offset = d_u_offset + nqpt
         end
         """,
-        name="kGrad3d",
+        name="kGrad3d_",
         target=target,
         assumptions="nelem>0 and pre>0 and post>0 and P>0 and Q>0"
     )
 
 
-    kGrad3d = lp.fix_parameters(kGrad3d, **constants)
+    kGrad3d_ = lp.fix_parameters(kGrad3d_, **constants)
 
-    kGrad3d = lp.prioritize_loops(kGrad3d, "e,p,d,a,j,b,c")
-    kGrad3d = lp.duplicate_inames(kGrad3d,"a,b,c,j", within="id:two")
-    kGrad3d = lp.duplicate_inames(kGrad3d,"a,b,c,j", within="id:three")
-    kGrad3d = lp.duplicate_inames(kGrad3d,"a,b,c,j", within="id:four")
-    kGrad3d = lp.duplicate_inames(kGrad3d,"a,b,c,j", within="id:five")
-    kGrad3d = lp.duplicate_inames(kGrad3d,"a,b,c,j", within="id:six")
+    kGrad3d_ = lp.prioritize_loops(kGrad3d_, "e,p,d,a,j,b,c")
+    kGrad3d_ = lp.duplicate_inames(kGrad3d_,"a,b,c,j", within="id:two")
+    kGrad3d_ = lp.duplicate_inames(kGrad3d_,"a,b,c,j", within="id:three")
+    kGrad3d_ = lp.duplicate_inames(kGrad3d_,"a,b,c,j", within="id:four")
+    kGrad3d_ = lp.duplicate_inames(kGrad3d_,"a,b,c,j", within="id:five")
+    kGrad3d_ = lp.duplicate_inames(kGrad3d_,"a,b,c,j", within="id:six")
 
-    kGrad3d = lp.add_and_infer_dtypes(kGrad3d, {
+    kGrad3d_ = lp.add_and_infer_dtypes(kGrad3d_, {
         "d_v": fp_format, 
         "d_u": fp_format, 
         "tmp0": fp_format, 
@@ -292,8 +292,7 @@ def generate_kGrad3d(constants={}, arch="INTEL_CPU", fp_format=np.float64, targe
         "nqpt": np.int32
         })
  
-
-    return kGrad3d
+    return kGrad3d_
 
 
 def generate_kGrad3d_T(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
@@ -491,9 +490,9 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
     #print(kWeight)
     
 generators = [generate_kZero, 
-              generate_kInterp3d,
+              generate_kInterp3d_,
               generate_kInterp3d_T,
-              generate_kGrad3d,
+              generate_kGrad3d_,
               generate_kGrad3d_T,
               generate_kWeight]
 
