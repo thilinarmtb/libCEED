@@ -51,11 +51,13 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     masssetupf = lp.tag_inames(masssetupf, {"d": "unr", "dd": "unr"})
 
     if arch == "AMD_GPU":
-        masssetupf = lp.split_iname(masssetupf, "i", 64, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+        workgroup_size = 64
     elif arch == "NVIDIA_GPU":
-        masssetupf = lp.split_iname(masssetupf, "i", 32, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+        workgroup_size = 32
     else:
-        masssetupf = lp.split_iname(masssetupf, "i", 128, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+        workgroup_size = 128
+
+    massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
  
     return masssetupf
 
@@ -82,11 +84,13 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     #massf = lp.fix_parameters(massf, constants)
 
     if arch == "AMD_GPU":
-        massf = lp.split_iname(massf, "i", 64, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+        workgroup_size = 64
     elif arch == "NVIDIA_GPU":
-        massf = lp.split_iname(massf, "i", 32, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+        workgroup_size = 32
     else:
-        massf = lp.split_iname(massf, "i", 128, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+        workgroup_size = 128
+
+    massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
     
     massf = lp.add_and_infer_dtypes(massf, {
         "ctx": np.int32,
