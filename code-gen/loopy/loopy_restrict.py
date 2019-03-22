@@ -118,13 +118,13 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         kernel_data += ["nelem", "elemsize", "nc"]
 
     kRestrict6 = lp.make_kernel(
-        "{ [e,j,k]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
+        "{ [e,i,j]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
         """
-        vv[e,j,k] = uu[e,j,k]
+        vv[e,i,j] = uu[e,i,j]
         """,
         name="kRestrict6",
         kernel_data=kernel_data,
-        assumptions="nelem_x_elemsize_x_ncomp > 0",
+        assumptions="nelem > 0 and elemsize >0 and nc > 0",
         target=target
         )
 
