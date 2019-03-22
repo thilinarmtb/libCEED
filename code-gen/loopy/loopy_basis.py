@@ -698,7 +698,7 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
 
     return kWeight
 
-kZero_constants = {"elemsize":100, "vsize":1000, "nelem":100, "nc":3}
+kZero_constants = {"elemsize":100, "nelem":100, "nc":3}
 kInterp_constants= {
             "elemsize": 100,
             "ndof": 8,

@@ -5,7 +5,10 @@
 #include "ceed-opencl-kernels.h"
 
 #include <ceed-impl.h>
+#include <ceed-backend.h>
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -94,11 +97,13 @@ typedef struct {
 typedef struct {
   _Bool debug;
   _Bool ocl;
-  char *libceed_dir;
+  char *arch;
   cl_platform_id cpPlatform[2];     // OpenCL platform
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue
+  bool gpu;
+  bool cpu;
 } Ceed_OpenCL;
 
 // *****************************************************************************
