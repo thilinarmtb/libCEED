@@ -16,7 +16,6 @@
 #define CEED_DEBUG_COLOR 198
 #include "ceed-opencl.h"
 #include "ceed-backend.h"
-
 // *****************************************************************************
 // * Destroy the CeedOperator_OpenCL
 // *****************************************************************************
@@ -51,62 +50,11 @@ static int CeedOperatorDestroy_OpenCL(CeedOperator op) {
   ierr = CeedFree(&impl); CeedChk(ierr);
   return 0;
 }
-// *****************************************************************************
-// * Apply Basis action to an input
-// *****************************************************************************
-/*static int CeedOperatorBasisAction_OpenCL(CeedVector *evec, CeedVector *qvec,
-                                        CeedBasis basis,
-                                        CeedEvalMode emode, CeedInt i, CeedInt Q,
-                                        CeedScalar **qdata, CeedScalar **indata) {
-  CeedInt ierr;
-  const Ceed ceed = basis->ceed;
-  dbg("\t[CeedOperator][BasisAction]");
-
-  switch(emode) {
-  case CEED_EVAL_NONE: // No basis action, evec = qvec
-    dbg("\t[CeedOperator][BasisAction] CEED_EVAL_NONE");
-    ierr = CeedVectorGetArray(*evec, CEED_MEM_HOST, &qdata[i]);
-    CeedChk(ierr);
-    indata[i] = qdata[i];
-    break;
-  case CEED_EVAL_INTERP:
-    dbg("\t[CeedOperator][BasisAction] CEED_EVAL_INTERP");
-    ierr = CeedBasisApplyElems_OpenCL(basis, Q, CEED_NOTRANSPOSE,
-                                    CEED_EVAL_INTERP, *evec, *qvec);
-    CeedChk(ierr);
-    ierr = CeedVectorGetArray(*qvec, CEED_MEM_HOST, &qdata[i]);
-    CeedChk(ierr);
-    indata[i] = qdata[i];
-    break;
-  case CEED_EVAL_GRAD:
-    dbg("\t[CeedOperator][BasisAction] CEED_EVAL_GRAD");
-    ierr = CeedBasisApplyElems_OpenCL(basis, Q, CEED_NOTRANSPOSE,
-                                    CEED_EVAL_GRAD, *evec, *qvec);
-    CeedChk(ierr);
-    ierr = CeedVectorGetArray(*qvec, CEED_MEM_HOST, &qdata[i]);
-    CeedChk(ierr);
-    indata[i] = qdata[i];
-    break;
-  case CEED_EVAL_WEIGHT:
-    dbg("\t[CeedOperator][BasisAction] CEED_EVAL_WEIGHT");
-    ierr = CeedBasisApplyElems_OpenCL(basis, Q, CEED_NOTRANSPOSE,
-                                    CEED_EVAL_WEIGHT, *evec, *qvec);
-    CeedChk(ierr);
-    ierr = CeedVectorGetArray(*qvec, CEED_MEM_HOST, &qdata[i]);
-    CeedChk(ierr);
-    indata[i] = qdata[i];
-    break;
-  case CEED_EVAL_DIV: break; // Not implemented
-  case CEED_EVAL_CURL: break; // Not implemented
-  }
-  dbg("\t[CeedOperator][BasisAction] done");
-  return 0;
-  }*/
 
 // *****************************************************************************
 // * Dump data
 // *****************************************************************************
-static int CeedOperatorDump_OpenCL(CeedOperator op) {
+/*static int CeedOperatorDump_OpenCL(CeedOperator op) {
   int ierr;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);
@@ -131,15 +79,16 @@ static int CeedOperatorDump_OpenCL(CeedOperator op) {
   }
   return 0;
 }
+*/
 
 // *****************************************************************************
 // * Setup infields or outfields
 // *****************************************************************************
 static int CeedOperatorSetupFields_OpenCL(CeedQFunction qf, CeedOperator op,
-    bool inOrOut,
-    CeedVector *fullevecs, CeedVector *evecs,
-    CeedVector *qvecs, CeedInt starte,
-    CeedInt numfields, CeedInt Q) {
+                                          bool inOrOut,
+                                          CeedVector *fullevecs, CeedVector *evecs,
+                                          CeedVector *qvecs, CeedInt starte,
+                                          CeedInt numfields, CeedInt Q) {
   CeedInt dim = 1, ierr, ncomp;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);
@@ -576,92 +525,6 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
   }
   return 0;
 }
-/*
-  // Fill CeedBasis_OpenCL's structure with CeedElemRestriction ******************
-  CeedBasis_OpenCL *basis = op->basis->data;
-  basis->er = op->Erestrict;
-  // Fill CeedQFunction_OpenCL's structure with nc, dim & qdata ******************
-  CeedQFunction_OpenCL *qfd = op->qf->data;
-  qfd->op = true;
-  qfd->nc = nc;
-  qfd->dim = dim;
-  qfd->nelem = nelem;
-  qfd->elemsize = elemsize;
-  qfd->d_q = ((CeedVector_OpenCL *)qdata->data)->d_array;
-  // ***************************************************************************
-  if (!data->etmp) {
-    const int n = nc*nelem*elemsize;
-    const int bn = Q*nc*(dim+2)*nelem;
-    dbg("[CeedOperator][Apply] Setup, n=%d & bn=%d",n,bn);
-    ierr = CeedVectorCreate(op->ceed,n,&data->etmp); CeedChk(ierr);
-    ierr = CeedVectorCreate(op->ceed,bn,&data->BEu); CeedChk(ierr);
-    ierr = CeedVectorCreate(op->ceed,bn,&data->BEv); CeedChk(ierr);
-    // etmp is allocated when CeedVectorGetArray is called below
-  }
-  // Push the memory to the QFunction that will be used
-  qfd->b_u = ((CeedVector_OpenCL *)data->BEu->data)->d_array;
-  qfd->b_v = ((CeedVector_OpenCL *)data->BEv->data)->d_array;
-  etmp = data->etmp;
-  if (op->qf->inmode & ~CEED_EVAL_WEIGHT) {
-    dbg("[CeedOperator][Apply] Apply Restriction");
-    ierr = CeedElemRestrictionApply(op->Erestrict, CEED_NOTRANSPOSE,
-                                    nc, lmode, ustate, etmp,
-                                    CEED_REQUEST_IMMEDIATE); CeedChk(ierr);
-  }
-  // We want to avoid Get/Restore
-  ierr = CeedVectorGetArray(etmp, CEED_MEM_HOST, &Eu); CeedChk(ierr);
-  // Fetching back data from device memory
-  ierr = CeedVectorGetArray(qdata, CEED_MEM_HOST, (CeedScalar**)&qd);
-  CeedChk(ierr);
-  // Local arrays, sizes & pointers ********************************************
-  CeedScalar BEu[Q*nc*(dim+2)], BEv[Q*nc*(dim+2)], *out[5] = {0,0,0,0,0};
-  const CeedScalar *in[5] = {0,0,0,0,0};
-  const size_t qbytes = op->qf->qdatasize;
-  // ***************************************************************************
-  ierr = CeedBasisApplyElems_OpenCL(op->basis,Q,CEED_NOTRANSPOSE,op->qf->inmode,
-                                  data->etmp,data->BEu); CeedChk(ierr);
-  // ***************************************************************************
-  dbg("[CeedOperator][Apply] Q for-loop");
-  for (CeedInt e=0; e<nelem; e++) {
-    for(CeedInt k=0; k<(Q*nc*(dim+2)); k++) BEu[k]=0.0;
-    ierr = CeedBasisApply(op->basis, CEED_NOTRANSPOSE,op->qf->inmode,
-                          &Eu[e*nc*elemsize], BEu); CeedChk(ierr);
-    CeedScalar *u_ptr = BEu, *v_ptr = BEv;
-    if (op->qf->inmode & CEED_EVAL_INTERP) { in[0] = u_ptr; u_ptr += Q*nc; }
-    if (op->qf->inmode & CEED_EVAL_GRAD) { in[1] = u_ptr; u_ptr += Q*nc*dim; }
-    if (op->qf->inmode & CEED_EVAL_WEIGHT) { in[4] = u_ptr; u_ptr += Q; }
-    if (op->qf->outmode & CEED_EVAL_INTERP) { out[0] = v_ptr; v_ptr += Q*nc; }
-    if (op->qf->outmode & CEED_EVAL_GRAD) { out[1] = v_ptr; v_ptr += Q*nc*dim; }
-    qfd->e = e;
-    ierr = CeedQFunctionApply(op->qf, &qd[e*Q*qbytes], Q, in, out); CeedChk(ierr);
-    ierr = CeedBasisApply(op->basis, CEED_TRANSPOSE,op->qf->outmode, BEv,
-                          &Eu[e*nc*elemsize]); CeedChk(ierr);
-  }
-  // ***************************************************************************
-  ierr = CeedBasisApplyElems_OpenCL(op->basis,Q,CEED_TRANSPOSE,op->qf->outmode,
-                                  data->BEv,data->etmp); CeedChk(ierr);
-  // *************************************************************************
-  ierr = CeedVectorRestoreArray(etmp, &Eu); CeedChk(ierr);
-  ierr = CeedVectorRestoreArray(qdata, (CeedScalar**)&qd); CeedChk(ierr);
-  // ***************************************************************************
-  if (residual) {
-    dbg("[CeedOperator][Apply] residual");
-    ierr = CeedElemRestrictionApply(op->Erestrict, CEED_TRANSPOSE,
-                                    nc, lmode, etmp, residual,
-                                    CEED_REQUEST_IMMEDIATE); CeedChk(ierr);
-    // Restore used pointer if one was provided ********************************
-    const CeedVector_OpenCL *data = residual->data;
-    if (data->used_pointer)
-      occaCopyMemToPtr(data->used_pointer,data->d_array,
-                       residual->length*sizeof(CeedScalar),
-                       NO_OFFSET, NO_PROPS);
-  }
-  // ***************************************************************************
-  if (request != CEED_REQUEST_IMMEDIATE && request != CEED_REQUEST_ORDERED)
-    *request = NULL;
-  return 0;
-}
-*/
 
 // *****************************************************************************
 // * Create an operator
