@@ -22,20 +22,21 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     kernel_data=["v"]
     dtypes={"v": fp_format}
     if constants=={}:
-        kernel_data += ["elemsize", "nc", "nelem", "vsize"]
-        dtypes.update({"elemsize": np.int32, "nc": np.int32, "vsize": np.int32})
+        kernel_data += ["elemsize", "nc", "nelem"]
+        dtypes.update({"elemsize": np.int32, "nc": np.int32})
 
     kZero = lp.make_kernel(
-        "{ [e,i]: 0<=e<nelem and 0<=i<vsize }",
+        "{ [e,i]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
         """
-        v[e*nc*elemsize + i] = 0
+        v[e,i,j] = 0
         """,
         name="kZero",
-        assumptions="nelem > 0 and vsize > 0",
+        assumptions="nelem > 0 and nc > 0 and elemsize > 0",
         kernel_data=kernel_data,
         target=target
     )
 
+    '''
     kZero = lp.tag_inames(kZero, {"e":"g.1"}) 
     if arch == "AMD_GPU":
         workgroup_size=64
@@ -44,6 +45,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     else:
         workgroup_size=128
     kZero = lp.split_iname(kZero, "i", workgroup_size, inner_tag="l.0",outer_tag="g.0", slabs=(0,1))
+    '''
 
     kZero = lp.fix_parameters(kZero, **constants)
     kZero = lp.add_and_infer_dtypes(kZero, dtypes)
