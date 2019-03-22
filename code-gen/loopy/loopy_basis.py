@@ -26,7 +26,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         dtypes.update({"elemsize": np.int32, "nc": np.int32})
 
     kZero = lp.make_kernel(
-        "{ [e,i]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
+        "{ [e,i,j]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
         """
         v[e,i,j] = 0
         """,
@@ -710,13 +710,8 @@ kInterp_constants= {
             "dim": 3,
             "nelem": 50
             }
-kWeight_constants = {}#{"dim": 3, "nc": 3, "nelem": 50 }
+kWeight_constants = {"dim": 3, "nc": 3, "nelem": 50 }
 
-k = generate_kZero(constants=kZero_constants)
-k = generate_kInterp(constants=kInterp_constants)
-k = generate_kGrad(constants=kInterp_constants)
-k = generate_kWeight(constants=kWeight_constants)
-'''
 arg_len = len(sys.argv)
 if arg_len != 4:
     print("Usage: python loopy_basis.py kernel_name arch '{\"c1\": val1, ... }'")
@@ -738,7 +733,7 @@ elif kerel_name == 'kWeight':
 else:
     print("Invalid kernel name: {}".format(kernel_name))
     sys.exit(1)
-'''
+
 code = lp.generate_code_v2(k).device_code()
 print(code)
 print()
