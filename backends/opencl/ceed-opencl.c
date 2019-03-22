@@ -81,7 +81,7 @@ void CeedDebugImpl256_OpenCL(const Ceed ceed,
 void CeedDebugImpl_OpenCL(const Ceed ceed,
                           const char *format,...) {
   const Ceed_OpenCL *data;
-  CeedGetData(ceed, (voiid *)&data);
+  CeedGetData(ceed, (void *)&data);
   if (!data->debug) return;
   va_list args;
   va_start(args, format);

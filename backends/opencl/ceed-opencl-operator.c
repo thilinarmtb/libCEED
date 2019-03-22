@@ -433,7 +433,7 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
     }
 
     dbg("\n[CeedOperator][Apply] before Q function debug:");
-    CeedOperatorDump_OpenCL(op);
+    //CeedOperatorDump_OpenCL(op);
 
     // Q function
     dbg("\t[CeedOperator][Apply] Q function apply");

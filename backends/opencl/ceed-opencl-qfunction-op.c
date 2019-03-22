@@ -16,7 +16,6 @@
 #define CEED_DEBUG_COLOR 177
 #include "ceed-opencl.h"
 #include "ceed-backend.h"
-
 // *****************************************************************************
 // * Alloc function for with operator case
 // *****************************************************************************
