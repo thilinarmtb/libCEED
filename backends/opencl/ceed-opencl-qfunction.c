@@ -138,7 +138,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   if (cbytes>0) {
     ierr = CeedQFunctionGetInnerContext(qf, &ctx); CeedChk(ierr);
     clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-                         cbytes, qf->ctx, 0, NULL, NULL);
+                         cbytes, ctx, 0, NULL, NULL);
   }
 
   // ***************************************************************************

@@ -217,7 +217,6 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
     }
   }
   dbg("%s", kernelCode);
-  dbg("Thilina");
   fclose(fp);
 
   cl_int err;
