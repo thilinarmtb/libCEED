@@ -47,7 +47,7 @@ def generate_mass(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=l
     kernel_data = ["ctx", "Q", "iOf7", "oOf7", "in", "out"]
     dtypes={
         "in": fp_format,
-        "ctx": np.float64,
+        "ctx": fp_format,
         "oOf7": np.int32,
         "iOf7": np.int32
     }

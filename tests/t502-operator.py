@@ -5,6 +5,9 @@ import pyopencl.array
 import pyopencl.clrandom
 from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
+import sys
+import json
+
 #----
 lp.set_caching_enabled(False)
 from warnings import filterwarnings, catch_warnings
@@ -25,12 +28,12 @@ def generate_setup(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         "{ [i]: 0<=i<Q }",
         """
         if false
-            <> dummy = ctx[0]
-        end    
-        out[i + oOf7[0]] = in[i + iOf7[0]]
+            <> dummy = ctx[0] # Need to figure out how to remove
+        end
+        out[i + oOf7[0]] = in[i + iOf7[0]] * in[i + iOf7[1]]
         """,
-        name="t400_qfunction_setup",
-        assumptions="Q > 0",
+        name="setup",
+        assumptions="Q >= 0",
         kernel_data=kernel_data,
         target=target
         )
@@ -44,7 +47,7 @@ def generate_mass(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=l
     kernel_data = ["ctx", "Q", "iOf7", "oOf7", "in", "out"]
     dtypes={
         "in": fp_format,
-        "ctx": fp_format,
+        "ctx": np.int32,
         "oOf7": np.int32,
         "iOf7": np.int32
     }
@@ -52,10 +55,14 @@ def generate_mass(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=l
     mass = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    out[i + oOf7[0]] = ctx[4] * in[i + iOf7[0]] * in[i + iOf7[1]]
+    if false
+        <> dummy = ctx[0]
+    end
+    out[i + oOf7[0]] = in[i + iOf7[0]] * in[i + iOf7[1]]
+    out[oOf7[0]+i+Q] = in[i + iOf7[0]] * in[i + Q + iOf7[1]]
     """,
-    name="t400_qfunction_mass",
-    assumptions="Q > 0",
+    name="mass",
+    assumptions="Q >= 0",
     kernel_data=kernel_data,
     target=target
     )
@@ -65,16 +72,22 @@ def generate_mass(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=l
 
     return mass
 
-setup = generate_setup()
-print(setup)
-print()
-code = lp.generate_code_v2(setup).device_code()
-print(code)
-print()
-
-mass = generate_mass()
-print(mass)
-print()
-code = lp.generate_code_v2(mass).device_code()
-print(code)
-print()
+kernel_name = sys.argv[1]
+arch = sys.argv[2]
+constants = json.loads(sys.argv[3])
+ 
+if kernel_name == 'mass':
+    k = generate_mass(constants, arch)
+elif kernel_name == 'setup':
+    k = generate_setup(constants, arch)
+else:
+    print("Invalid kernel name: {}".format(kernel_name))
+    sys.exit(1)
+ 
+code = lp.generate_code_v2(k).device_code()
+try:
+    print(code)
+except IOError:
+    print('An IO error occured.')
+except:
+    print('An unknown error occured.')
