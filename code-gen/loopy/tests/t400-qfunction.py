@@ -12,24 +12,44 @@ filterwarnings('error', category=lp.LoopyWarning)
 import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
-#ctx = lp.ArrayArg("ctx", dtype=np.int32, address_space=lp.auto)
+def generate_setup(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    kernel_data = ["ctx", "Q", "iOf7", "oOf7", "in", "out"]
+    dtypes={
+        "in": fp_format,
+        "ctx": np.int32,
+        "oOf7": np.int32,
+        "iOf7": np.int32
+        }
+ 
+    setup = lp.make_kernel(
+        "{ [i]: 0<=i<Q }",
+        """
+        if false
+            <> dummy = ctx[0] # Need to figure out how to remove
+        end
+        out[i + oOf7[0]] = in[i + iOf7[0]]
+        """,
+        name="t400_qfunction_setup",
+        assumptions="Q >= 0",
+        kernel_data=kernel_data,
+        target=target
+        )
 
-setup = lp.make_kernel(
-    "{ [i]: 0<=i<Q }",
-    """
-    if false
-        <> dummy = ctx[0] # Need to figure out how to remove
-    end
-    out[i + oOf7[0]] = in[i + iOf7[0]]
-    """,
-    name="t400_qfunction_setup",
-    assumptions="Q >= 0",
-    kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
-    target=lp.OpenCLTarget()
-    )
-#print(setup)    
+    setup = lp.fix_parameters(setup, **constants)
+    setup = lp.add_and_infer_dtypes(setup, dtypes)
 
-mass = lp.make_kernel(
+    return setup
+
+def generate_mass(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+    kernel_data = ["ctx", "Q", "iOf7", "oOf7", "in", "out"]
+    dtypes={
+        "in": fp_format,
+        "ctx": np.int32,
+        "oOf7": np.int32,
+        "iOf7": np.int32
+    }
+
+    mass = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
     if false
@@ -39,21 +59,25 @@ mass = lp.make_kernel(
     """,
     name="t400_qfunction_mass",
     assumptions="Q >= 0",
-    kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
-    target=lp.OpenCLTarget()
+    kernel_data=kernel_data,
+    target=target
     )
-#print(mass)
 
-kernelList1 = [setup, mass]
+    mass = lp.fix_parameters(mass, **constants)
+    mass = lp.add_and_infer_dtypes(mass, dtypes)
 
-for k in kernelList1:
-    k = lp.set_options(k, "write_cl")
-    k = lp.add_and_infer_dtypes(k, {
-        "ctx": np.int32,
-        "in": np.float64,
-        "oOf7": np.int32,
-        "iOf7": np.int32
-        })
-    code = lp.generate_code_v2(k).device_code()
-    print(code)
-    print()
+    return mass
+
+setup = generate_setup()
+print(setup)
+print()
+code = lp.generate_code_v2(setup).device_code()
+print(code)
+print()
+
+mass = generate_mass()
+print(mass)
+print()
+code = lp.generate_code_v2(mass).device_code()
+print(code)
+print()
