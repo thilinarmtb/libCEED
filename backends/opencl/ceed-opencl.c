@@ -112,7 +112,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     data->arch = NULL;
     dbg("[CeedInit] data->arch = NULL");
   } else {
-    int archLen = resource + strlen(resource) - lastSlash - strlen(opencl);
+    int archLen = resource + strlen(resource) - lastSlash;
     data->arch = calloc(sizeof(char), archLen);
     strncpy(data->arch, lastSlash+1, archLen);
     dbg("[CeedInit] data->arch = %s", data->arch);
@@ -205,6 +205,7 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   char pythonCmd[2*BUFSIZ];
   sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
           constantDict);
+  dbg("[createKernelFromPython] %s", pythonCmd);
 
   FILE *fp = popen(pythonCmd, "r");
   char *kernelCode;

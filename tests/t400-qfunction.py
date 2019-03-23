@@ -54,7 +54,7 @@ constants = json.loads(sys.argv[3])
 
 if kernel_name == 'mass':
     k = generate_mass(constants, arch)
-elif kerel_name == 'setup':
+elif kernel_name == 'setup':
     k = generate_setup(constants, arch)
 else:
     print("Invalid kernel name: {}".format(kernel_name))

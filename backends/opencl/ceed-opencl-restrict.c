@@ -69,14 +69,10 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&ud);
     err |= clSetKernelArg(data->kRestrict[6], 2, sizeof(cl_mem), (void *)&vd);
 
-    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done");
     localSize = 1;
     clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
-    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done 1");
     clFinish(ceed_data->queue);
-    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done 2");
-    dbg("[CeedElemRestriction][Apply] kRestrict[6] Setup done 3");
   } else if (restriction) {
     // Perform: v = r * u
     if (ncomp == 1) {
