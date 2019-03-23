@@ -62,9 +62,9 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
           "\"epsilon\": %lf}",
           data->nc, data->dim, 1.e-14);
 
-  data->kQFunctionApply = clCreateKernelFromPython(data->qFunctionName, arch,
-                                                   constantDict, data->pythonFile,
-                                                   ceed);
+  data->kQFunctionApply = createKernelFromPython(data->qFunctionName, arch,
+                                                 constantDict, data->pythonFile,
+                                                 ceed);
   // ***************************************************************************
 
   return 0;
@@ -282,9 +282,11 @@ int CeedQFunctionCreate_OpenCL(CeedQFunction qf) {
   data->qFunctionName = (char *) calloc(sizeof(char), size + 1);
   strncpy(data->qFunctionName, last_colon+1, size);
 
-  size = last_colon - focca;
-  data->pythonFile = (char *) calloc(sizeof(char), size + 1);
-  strncpy(data->pythonFile, focca, size);
+  size = last_dot - focca;
+  data->pythonFile = (char *) calloc(sizeof(char), size + 1 + 3);
+  strncpy(data->pythonFile, focca, size + 1);
+  data->pythonFile[size+1] = 'p';
+  data->pythonFile[size+2] = 'y';
 
   dbg("[CeedQFunction][Create] qFunctionName: %s",data->qFunctionName);
   dbg("[CeedQFunction][Create] pythonFile: %s",data->pythonFile);

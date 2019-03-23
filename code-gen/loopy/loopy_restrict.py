@@ -114,20 +114,25 @@ kRestrict5b = lp.make_kernel(
 def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data = ["uu", "vv"]
+    dtypes = {"uu": fp_format}
     if constants=={}:
-        kernel_data += ["nelem", "elemsize", "nc"]
+        kernel_data += ["nelem_x_elemsize_x_ncomp"]
+        #kernel_data += ["nelem", "elemsize", "nc"]
 
     kRestrict6 = lp.make_kernel(
-        "{ [e,i,j]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
+        #"{ [e,i,j]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
+        "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
         """
-        vv[e,i,j] = uu[e,i,j]
+        #vv[e,i,j] = uu[e,i,j]
+        vv[i] = uu[i]
         """,
         name="kRestrict6",
         kernel_data=kernel_data,
-        assumptions="nelem > 0 and elemsize >0 and nc > 0",
+        assumptions="nelem_x_elemsize_x_ncomp > 0",
+        #assumptions="nelem > 0 and elemsize > 0 and nc > 0",
         target=target
-        )
-
+    )
+   
     kRestrict6 = lp.fix_parameters(kRestrict6, **constants)
 
     if arch == "AMD_GPU":
@@ -135,19 +140,22 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     elif arch == "NVIDIA_GPU":
         workgroup_size = 32
     else:
-        #This should likely be equivalent to the maximum workgroup size
-        #(or the size needed to activate all cores)
         workgroup_size = 128
 
     kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
         outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+ 
+    #if constants != {}: 
+    #    kRestrict6 = lp.join_inames(kRestrict6, ("e","i","j"), new_iname="ii")
+        #kRestrict6 = lp.split_iname(kRestrict6, "ii", workgroup_size)#,
+        #    outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+    
+    kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, dtypes)
 
-    kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, {"uu": fp_format})
-    #kRestrict6 = lp.fix_parameters(kRestrict6, nelem_x_elemsize_x_ncomp=1000)
-
+    
     return kRestrict6
 
-
+'''
 kRestrict0 = generate_kRestrict0()
 code = lp.generate_code_v2(kRestrict0).device_code()
 print(kRestrict0)
@@ -168,7 +176,7 @@ print(kRestrict2)
 print()
 print(code)
 print() 
-
+'''
 '''
 kernelList2 = [kRestrict3b]
 kernelList3 = [kRestrict4b, kRestrict5b]
@@ -187,8 +195,9 @@ for k in kernelList3:
     print(code)
     print()
 '''
-constants = { "nelem_x_elemsize_x_ncomp":1000 }
-kRestrict6 = generate_kRestrict6(constants={})
+constants = {"nelem_x_elemsize_x_ncomp": 1024}
+#constants = {"nelem": 32, "elemsize": 32, "nc": 3}#{ "nelem_x_elemsize_x_ncomp":1000 }
+kRestrict6 = generate_kRestrict6(constants=constants)
 print(kRestrict6)
 print()
 print(lp.generate_code_v2(kRestrict6).device_code())

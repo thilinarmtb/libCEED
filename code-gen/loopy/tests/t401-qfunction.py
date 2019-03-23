@@ -15,11 +15,13 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 setup = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    <> dummy = ctx[0]    
+    if false
+        <> dummy = ctx[0]
+    end    
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
     name="t401_qfunction_setup",
-    assumptions="Q >= 0",
+    assumptions="Q > 0",
     kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
     target=lp.OpenCLTarget()
     )

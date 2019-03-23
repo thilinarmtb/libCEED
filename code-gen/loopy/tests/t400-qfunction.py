@@ -17,7 +17,9 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 setup = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    <> dummy = ctx[0] # Need to figure out how to remove
+    if false
+        <> dummy = ctx[0] # Need to figure out how to remove
+    end
     out[i + oOf7[0]] = in[i + iOf7[0]]
     """,
     name="t400_qfunction_setup",
@@ -30,7 +32,9 @@ setup = lp.make_kernel(
 mass = lp.make_kernel(
     "{ [i]: 0<=i<Q }",
     """
-    <> dummy = ctx[0]
+    if false
+        <> dummy = ctx[0]
+    end
     out[i + oOf7[0]] = in[i + iOf7[0]] * in[i + iOf7[1]]
     """,
     name="t400_qfunction_mass",
