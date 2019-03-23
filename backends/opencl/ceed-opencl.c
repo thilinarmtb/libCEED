@@ -99,8 +99,6 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
   ceed->data = data;
 
-  dbg("[CeedInit]");
-
   int nrc = strlen("/cpu/opencl"); // number of characters in resource
   const bool cpu = data->cpu = !strncmp(resource, "/cpu/opencl", nrc);
   nrc = strlen("/gpu/opencl"); // number of characters in resource
@@ -110,12 +108,10 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   char *lastSlash = strrchr(resource,'/');
   if (!strncmp(lastSlash + 1,"opencl", strlen(opencl))) {
     data->arch = NULL;
-    dbg("[CeedInit] data->arch = NULL");
   } else {
     int archLen = resource + strlen(resource) - lastSlash;
     data->arch = calloc(sizeof(char), archLen);
     strncpy(data->arch, lastSlash+1, archLen);
-    dbg("[CeedInit] data->arch = %s", data->arch);
   }
 
   // Warning: "backend cannot use resource" is used to grep in test/tap.sh
@@ -146,7 +142,8 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   data->debug=!!getenv("CEED_DEBUG") || !!getenv("DBG");
 
   // Now that we can dbg, output resource and deviceID
-  dbg("[CeedInit] resource: %s", resource);
+  dbg("[CeedInit][OpenCL] resource: %s", resource);
+  dbg("[CeedInit][OpenCL] data->arch = %s", data->arch);
 
   cl_int err;
   err = clGetPlatformIDs(2, data->cpPlatform, NULL);
@@ -154,9 +151,9 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_CPU, 1,
                          &data->device_id,
                          NULL);
-    dbg("CPU is selected.");
+    dbg("[CeedInit][OpenCL] CPU is selected.");
   } else if(gpu) {
-    dbg("GPU is selected.");
+    dbg("[CeedInit][OpenCL] GPU is selected.");
     err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_GPU, 1,
                          &data->device_id,
                          NULL);
@@ -203,20 +200,25 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
 
   char pythonCmd[2*BUFSIZ];
-  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
+  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFile, kernelName, arch,
           constantDict);
   dbg("[createKernelFromPython] %s", pythonCmd);
 
-  FILE *fp = popen(pythonCmd, "r");
+  system(pythonCmd);
+  FILE *fp = fopen("t.txt", "r");
   char *kernelCode;
   if(fp != NULL) {
     fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);
-    kernelCode = (char *) malloc(sizeof(char)*length);
+    dbg("length=%d", length);
+    kernelCode = (char *) malloc(sizeof(char)*length+1);
     if(kernelCode != NULL) {
       fread(kernelCode, sizeof(char), length, fp);
+      kernelCode[length]='\0';
     }
   }
-  pclose(fp);
+  dbg("%s", kernelCode);
+  dbg("Thilina");
+  fclose(fp);
 
   cl_int err;
   cl_program program;
