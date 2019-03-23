@@ -84,7 +84,8 @@ typedef struct {
   double epsilon;
   cl_mem o_indata, o_outdata;
   cl_mem d_ctx, d_idx, d_odx;
-  const char *qFunctionName;
+  char *qFunctionName;
+  char *pythonFile;
   cl_program program;
   cl_kernel kQFunctionApply;
   char *compleOptions;
@@ -95,8 +96,8 @@ typedef struct {
 // * Ceed_OpenCL struct
 // *****************************************************************************
 typedef struct {
-  _Bool debug;
-  _Bool ocl;
+  bool debug;
+  bool ocl;
   char *arch;
   cl_platform_id cpPlatform[2];     // OpenCL platform
   cl_device_id device_id;           // device ID
@@ -155,4 +156,7 @@ CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
 // *****************************************************************************
 CEED_INTERN int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);
 
+// *****************************************************************************
+CEED_INTERN cl_kernel createKernelFromPython(char *kernelName, char *arch,
+    char *constantDict, char *pythonFile, Ceed ceed);
 #endif

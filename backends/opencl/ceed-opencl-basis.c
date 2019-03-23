@@ -19,38 +19,6 @@
 // *****************************************************************************
 // * buildKernel
 // *****************************************************************************
-static cl_kernel createKernelFromPython(char *kernelName, char *arch,
-                                        char *constantDict, char *pythonFile, Ceed ceed) {
-  CeedInt ierr;
-  Ceed_OpenCL *data;
-  ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
-
-  char pythonCmd[2*BUFSIZ];
-  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
-          constantDict);
-
-  FILE *fp = popen(pythonCmd, "r");
-  char *kernelCode;
-  if(fp != NULL) {
-    fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);
-    kernelCode = (char *) malloc(sizeof(char)*length);
-    if(kernelCode != NULL) {
-      fread(kernelCode, sizeof(char), length, fp);
-    }
-  }
-  pclose(fp);
-
-  cl_int err;
-  cl_program program;
-  program = clCreateProgramWithSource(data->context, 1,
-                                      (const char **) &kernelCode, NULL, &err);
-  clBuildProgram(program, 1, &data->device_id, NULL, NULL, NULL);
-  cl_kernel kernel   = clCreateKernel(program, kernelName, &err);
-  dbg("err after building %s: %d\n", kernelName, err);
-
-  return kernel;
-}
-
 static int CeedBasisBuildKernel(CeedBasis basis) {
   int ierr;
   Ceed ceed;
@@ -119,13 +87,13 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
           elemsize, Q1d, ncomp, P1d, nqpt, tmpSz, dim, nelem);
 
   data->kZero = createKernelFromPython("kZero", arch, constantDict,
-                                       "loopy_basis.py", ceed_data);
+                                       "loopy_basis.py", ceed);
   data->kInterp = createKernelFromPython("kInterp", arch, constantDict,
-                                         "loopy_basis.py", ceed_data);
+                                         "loopy_basis.py", ceed);
   data->kGrad = createKernelFromPython("kGrad", arch, constantDict,
-                                       "loopy_basis.py", ceed_data);
+                                       "loopy_basis.py", ceed);
   data->kWeight = createKernelFromPython("kWeight", arch, constantDict,
-                                         "loopy_basis.py", ceed_data);
+                                         "loopy_basis.py", ceed);
   // free local usage **********************************************************
   return 0;
 }

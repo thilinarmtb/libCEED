@@ -180,9 +180,6 @@ static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
   for (int i=0; i<7; i++) {
     err = clReleaseKernel(data->kRestrict[i]);
     switch(err) {
-    case CL_SUCCESS:
-      printf("Successfully released kernel %d\n", i);
-      break;
     case CL_INVALID_KERNEL:
       printf("Invalid kernel %d\n", i);
       break;

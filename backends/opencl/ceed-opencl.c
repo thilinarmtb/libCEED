@@ -97,6 +97,9 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   int ierr;
   Ceed_OpenCL *data;
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
+  ceed->data = data;
+
+  dbg("[CeedInit]");
 
   int nrc = strlen("/cpu/opencl"); // number of characters in resource
   const bool cpu = data->cpu = !strncmp(resource, "/cpu/opencl", nrc);
@@ -138,7 +141,6 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
                                 CeedQFunctionCreate_OpenCL); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "OperatorCreate",
                                 CeedOperatorCreate_OpenCL); CeedChk(ierr);
-  ceed->data = data;
 
   // push env variables CEED_DEBUG or DBG to our data
   data->debug=!!getenv("CEED_DEBUG") || !!getenv("DBG");
@@ -149,13 +151,13 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   cl_int err;
   err = clGetPlatformIDs(2, data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,
+    err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_CPU, 1,
                          &data->device_id,
                          NULL);
     dbg("CPU is selected.");
   } else if(gpu) {
     dbg("GPU is selected.");
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_GPU, 1,
+    err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_GPU, 1,
                          &data->device_id,
                          NULL);
   }
@@ -189,6 +191,122 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
                 0, &err);
 
   return 0;
+}
+
+// *****************************************************************************
+// * Build from Python
+// *****************************************************************************
+cl_kernel createKernelFromPython(char *kernelName, char *arch,
+                                 char *constantDict, char *pythonFile, Ceed ceed) {
+  CeedInt ierr;
+  Ceed_OpenCL *data;
+  ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
+
+  char pythonCmd[2*BUFSIZ];
+  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
+          constantDict);
+
+  FILE *fp = popen(pythonCmd, "r");
+  char *kernelCode;
+  if(fp != NULL) {
+    fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);
+    kernelCode = (char *) malloc(sizeof(char)*length);
+    if(kernelCode != NULL) {
+      fread(kernelCode, sizeof(char), length, fp);
+    }
+  }
+  pclose(fp);
+
+  cl_int err;
+  cl_program program;
+  program = clCreateProgramWithSource(data->context, 1,
+                                      (const char **) &kernelCode, NULL, &err);
+  switch(err) {
+  case CL_INVALID_CONTEXT:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid context.");
+    break;
+  case CL_INVALID_VALUE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
+
+  err = clBuildProgram(program, 1, &data->device_id, NULL, NULL, NULL);
+  // Determine the size of the log
+  size_t log_size;
+  char *log;
+  switch(err) {
+  case CL_INVALID_PROGRAM:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+    break;
+  case CL_INVALID_VALUE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    break;
+  case CL_INVALID_DEVICE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid device.");
+    break;
+  case CL_INVALID_BINARY:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
+    break;
+  case CL_INVALID_BUILD_OPTIONS:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
+    break;
+  case CL_INVALID_OPERATION:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
+    break;
+  case CL_COMPILER_NOT_AVAILABLE:
+    return CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
+    break;
+  case CL_BUILD_PROGRAM_FAILURE:
+    clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
+                          0, NULL,
+                          &log_size);
+    // Allocate memory for the log
+    log = (char *) malloc(log_size);
+    // Get the log
+    clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
+                          log_size,
+                          log, NULL);
+    // Print the log
+    printf("%s\n", log);
+    return CeedError(ceed, 1, "OpenCL backend: Build program failure.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
+
+  cl_kernel kernel   = clCreateKernel(program, kernelName, &err);
+  switch(err) {
+  case CL_INVALID_PROGRAM:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+    break;
+  case CL_INVALID_PROGRAM_EXECUTABLE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid program executable.");
+    break;
+  case CL_INVALID_KERNEL_NAME:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel name.");
+    break;
+  case CL_INVALID_KERNEL_DEFINITION:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel definition.");
+    break;
+  case CL_INVALID_VALUE:
+    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
+
+  return kernel;
 }
 
 // *****************************************************************************

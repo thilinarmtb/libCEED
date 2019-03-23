@@ -52,116 +52,20 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   dbg("[CeedQFunction][BuildKernel] dim=%d",data->dim);
   dbg("[CeedQFunction][BuildKernel] nelem=%d",data->nelem);
   dbg("[CeedQFunction][BuildKernel] elemsize=%d",data->elemsize);
-
-  char compileOptions[BUFSIZ], tmp[BUFSIZ];
-
-  sprintf(tmp,"-DNC=%d", data->nc);
-  strcpy(compileOptions, tmp);
-  sprintf(tmp,",-DDIM=%d", data->dim);
-  strcat(compileOptions, tmp);
-  sprintf(tmp,",-Depsilon=%lf", data->epsilon);
-  strcat(compileOptions, tmp);
-
-  // OpenCL check for this requirement
-  const CeedInt q_tile_size = (Q>OPENCL_TILE_SIZE)?OPENCL_TILE_SIZE:Q;
-  // OCCA+MacOS implementation need that for now
-  const CeedInt tile_size = ocl?1:q_tile_size;
-  sprintf(tmp, ",-DTILE_SIZE=%d", tile_size);
-  strcat(compileOptions, tmp);
-
-  dbg("[CeedQFunction][BuildKernel] compileOptions=%s", compileOptions);
-  dbg("[CeedQFunction][BuildKernel] occaDeviceBuildKernel");
   dbg("[CeedQFunction][BuildKernel] name=%s",data->qFunctionName);
 
-  cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1,
-                  (const char **) &OpenCLKernels, NULL, &err);
-  switch(err) {
-  case CL_INVALID_CONTEXT:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid context.");
-    break;
-  case CL_INVALID_VALUE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    break;
-  }
+  // ***************************************************************************
+  char *arch = ceed_data->arch;
+  char constantDict[BUFSIZ];
+  sprintf(constantDict, "{\"nc\": %d,"
+          "\"dim\": %d,"
+          "\"epsilon\": %lf}",
+          data->nc, data->dim, 1.e-14);
 
-  err = clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL,
-                       NULL);
-  // Determine the size of the log
-  size_t log_size;
-  char *log;
-  switch(err) {
-  case CL_INVALID_PROGRAM:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
-    break;
-  case CL_INVALID_VALUE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
-    break;
-  case CL_INVALID_DEVICE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid device.");
-    break;
-  case CL_INVALID_BINARY:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
-    break;
-  case CL_INVALID_BUILD_OPTIONS:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
-    break;
-  case CL_INVALID_OPERATION:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
-    break;
-  case CL_COMPILER_NOT_AVAILABLE:
-    return CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
-    break;
-  case CL_BUILD_PROGRAM_FAILURE:
-    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
-                          0, NULL,
-                          &log_size);
-    // Allocate memory for the log
-    log = (char *) malloc(log_size);
-    // Get the log
-    clGetProgramBuildInfo(data->program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
-                          log_size,
-                          log, NULL);
-    // Print the log
-    printf("%s\n", log);
-    return CeedError(ceed, 1, "OpenCL backend: Build program failure.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    break;
-  }
-
-  data->kQFunctionApply = clCreateKernel(data->program, data->qFunctionName,
-                                         &err);
-  switch(err) {
-  case CL_INVALID_PROGRAM:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
-    break;
-  case CL_INVALID_PROGRAM_EXECUTABLE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid program executable.");
-    break;
-  case CL_INVALID_KERNEL_NAME:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel name.");
-    break;
-  case CL_INVALID_KERNEL_DEFINITION:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel definition.");
-    break;
-  case CL_INVALID_VALUE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    break;
-  }
+  data->kQFunctionApply = clCreateKernelFromPython(data->qFunctionName, arch,
+                                                   constantDict, data->pythonFile,
+                                                   ceed);
+  // ***************************************************************************
 
   return 0;
 }
@@ -329,7 +233,14 @@ static int CeedQFunctionDestroy_OpenCL(CeedQFunction qf) {
     //clReleaseMemObject(data->d_u);
     //clReleaseMemObject(data->d_v);
   }
+
+  if(data->qFunctionName)
+    free(data->qFunctionName);
+  if(data->pythonFile)
+    free(data->pythonFile);
+
   int ierr = CeedFree(&data); CeedChk(ierr);
+
   return 0;
 }
 
@@ -354,15 +265,29 @@ int CeedQFunctionCreate_OpenCL(CeedQFunction qf) {
   data->nelem = data->elemsize = 1;
   data->e = 0;
   ierr = CeedQFunctionSetData(qf, (void *)&data); CeedChk(ierr);
-  // Locate last ':' character in qf->focca ************************************
+  // Locate last ':' and '.' character in qf->focca ************************************
   char *focca;
   ierr = CeedQFunctionGetFOCCA(qf, &focca); CeedChk(ierr);
+
   dbg("[CeedQFunction][Create] focca: %s",focca);
   const char *last_colon = strrchr(focca,':');
   if (!last_colon)
     return CeedError(ceed, 1, "Can not find ':' in focca field!");
+  const char *last_dot = strrchr(focca,'.');
+  if (!last_dot)
+    return CeedError(ceed, 1, "Can not find '.' in focca field!");
+
   // get the function name
-  data->qFunctionName = last_colon+1;
+  int size = strlen(focca) - (last_colon - focca + 1);
+  data->qFunctionName = (char *) calloc(sizeof(char), size + 1);
+  strncpy(data->qFunctionName, last_colon+1, size);
+
+  size = last_colon - focca;
+  data->pythonFile = (char *) calloc(sizeof(char), size + 1);
+  strncpy(data->pythonFile, focca, size);
+
   dbg("[CeedQFunction][Create] qFunctionName: %s",data->qFunctionName);
+  dbg("[CeedQFunction][Create] pythonFile: %s",data->pythonFile);
+
   return 0;
 }
