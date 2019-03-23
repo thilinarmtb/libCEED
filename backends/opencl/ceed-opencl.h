@@ -35,7 +35,6 @@ typedef struct {
   cl_mem d_indices;
   cl_mem d_toffsets;
   cl_mem d_tindices;
-  cl_program program;
   cl_kernel kRestrict[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
   cl_kernel kRestrict6;
   char *compleOptions;
@@ -53,7 +52,6 @@ typedef struct {
   cl_mem interp1d;
   cl_mem grad1d;
   cl_mem tmp0,tmp1;
-  cl_program program;
   cl_kernel kZero,kInterp,kGrad,kWeight;
 } CeedBasis_OpenCL;
 
@@ -86,7 +84,6 @@ typedef struct {
   cl_mem d_ctx, d_idx, d_odx;
   char *qFunctionName;
   char *pythonFile;
-  cl_program program;
   cl_kernel kQFunctionApply;
   char *compleOptions;
   CeedOperator op;

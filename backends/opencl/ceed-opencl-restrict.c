@@ -186,7 +186,6 @@ static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
   clReleaseMemObject(data->d_indices);
   clReleaseMemObject(data->d_toffsets);
   clReleaseMemObject(data->d_tindices);
-  clReleaseProgram(data->program);
   ierr = CeedFree(&data); CeedChk(ierr);
   dbg("[CeedElemRestriction][Destroy] Done.");
   return 0;
