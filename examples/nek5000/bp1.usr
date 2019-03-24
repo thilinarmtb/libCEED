@@ -1442,8 +1442,14 @@ C TODO replace this by SyncArray when available
       call ceedvectorsetarray(vec_ap1,ceed_mem_host,ceed_use_pointer,
      $  ap1,err)
 
+      write(6,*) 'Array before A:'
+      call ceedvectorview(vec_p1,err)
+
       call ceedoperatorapply(ceed_op,vec_p1,vec_ap1,
      $  ceed_request_immediate,err)
+
+      write(6,*) 'Array after A:'
+      call ceedvectorview(vec_ap1,err)
 
 C TODO replace this by SyncArray when available
       call ceedvectorgetarrayread(vec_ap1,ceed_mem_host,ap1,offset,err)
