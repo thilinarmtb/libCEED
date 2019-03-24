@@ -698,20 +698,6 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
 
     return kWeight
 
-kZero_constants = {"elemsize":100, "nelem":100, "nc":3}
-kInterp_constants= {
-            "elemsize": 100,
-            "ndof": 8,
-            "Q1d": 10,
-            "nc": 3,
-            "P1d": 10,
-            "nqpt": 100,
-            "tmpSz": 100,
-            "dim": 3,
-            "nelem": 50
-            }
-kWeight_constants = {"dim": 3, "nc": 3, "nelem": 50 }
-
 arg_len = len(sys.argv)
 if arg_len != 4:
     print("Usage: python loopy_basis.py kernel_name arch '{\"c1\": val1, ... }'")
