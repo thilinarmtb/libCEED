@@ -24,7 +24,7 @@ def generate_diffsetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         #    *rho = out + oOf7[0]
         #    *rhs = out + oOf7[1]
 
-        if 0 != 1
+        if 0
             ctx[0] = 0
         end
 
@@ -96,7 +96,7 @@ def generate_diffusionf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         rhog(a) := in[iOf7[1] + i + Q*a]
         oind0(a) := oOf7[0] + i + Q*a
 
-        if 0 != 1
+        if 0
             ctx[0] = 0
         end
 
