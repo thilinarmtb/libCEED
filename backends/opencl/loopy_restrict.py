@@ -56,7 +56,7 @@ def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict1 = lp.fix_parameters(kRestrict1, **constants)
 
     kRestrict1 = lp.add_and_infer_dtypes(kRestrict1, 
-            {"indices": np.int32, "uu": fp_format, "ndof": np.int32})
+            {"indices": np.int32, "uu": fp_format})
 
     return kRestrict1
 

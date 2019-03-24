@@ -285,10 +285,11 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   char constantDict[BUFSIZ];
   sprintf(constantDict, "{\"ndof\": %d,"
           "\"nelem\": %d,"
+          "\"ncomp\": %d,"
           "\"elemsize\": %d,"
           "\"nelem_x_elemsize\": %d,"
           "\"nelem_x_elemsize_x_ncomp\": %d }",
-          ndof, nelem, elemsize, nelem*elemsize,nelem*elemsize*ncomp);
+          ndof, nelem, ncomp, elemsize, nelem*elemsize,nelem*elemsize*ncomp);
 
   data->kRestrict[0] = createKernelFromPython("kRestrict0", arch, constantDict,
                        "loopy_restrict.py", ceed);
