@@ -204,6 +204,16 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
 }
 
 // *****************************************************************************
+// * String concat
+// *****************************************************************************
+void concat(char **result, const char *s1, const char *s2) {
+  *result = (char *) calloc(sizeof(char), strlen(s1) + strlen(s2) + 1);
+  strcpy(*result, s1);
+  strcpy(*result + strlen(s1), s2);
+  printf("[concat] result=%s\n",*result);
+}
+
+// *****************************************************************************
 // * Build from Python
 // *****************************************************************************
 cl_kernel createKernelFromPython(char *kernelName, char *arch,
@@ -213,16 +223,8 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
 
   char pythonCmd[2*BUFSIZ];
-  int totalPathLen = strlen(pythonFile) + strlen(data->openclBackendDir);
-  char *pythonFilePath = (char *) calloc(sizeof(char), totalPathLen+1);
-  strncpy(pythonFilePath, data->openclBackendDir, strlen(data->openclBackendDir));
-  strncpy(pythonFilePath + strlen(data->openclBackendDir), pythonFile,
-          strlen(pythonFile));
-  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFilePath, kernelName,
-          arch,
-          constantDict);
+  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFile, kernelName, arch, constantDict);
   dbg("[createKernelFromPython] %s", pythonCmd);
-  free(pythonFilePath);
 
   system(pythonCmd);
   FILE *fp = fopen("t.txt", "r");

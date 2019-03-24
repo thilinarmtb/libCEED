@@ -86,14 +86,18 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
           "\"nelem\": %d }",
           elemsize, Q1d, ncomp, P1d, nqpt, tmpSz, dim, nelem);
 
+  char *result;
+  const char *pythonFile = "loopy_basis.py";
+  concat(&result, ceed_data->openclBackendDir, pythonFile);
   data->kZero = createKernelFromPython("kZero", arch, constantDict,
-                                       "loopy_basis.py", ceed);
+                                       result, ceed);
   data->kInterp = createKernelFromPython("kInterp", arch, constantDict,
-                                         "loopy_basis.py", ceed);
+                                         result, ceed);
   data->kGrad = createKernelFromPython("kGrad", arch, constantDict,
-                                       "loopy_basis.py", ceed);
+                                       result, ceed);
   data->kWeight = createKernelFromPython("kWeight", arch, constantDict,
-                                         "loopy_basis.py", ceed);
+                                         result, ceed);
+  free(result);
   // free local usage **********************************************************
   return 0;
 }

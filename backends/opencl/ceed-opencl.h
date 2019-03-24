@@ -155,4 +155,6 @@ CEED_INTERN int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);
 // *****************************************************************************
 CEED_INTERN cl_kernel createKernelFromPython(char *kernelName, char *arch,
     char *constantDict, char *pythonFile, Ceed ceed);
+
+CEED_INTERN void concat(char **result, const char *s1, const char *s2);
 #endif

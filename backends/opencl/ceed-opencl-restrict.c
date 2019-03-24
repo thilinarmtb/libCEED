@@ -291,20 +291,24 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
           "\"nelem_x_elemsize_x_ncomp\": %d }",
           ndof, nelem, ncomp, elemsize, nelem*elemsize,nelem*elemsize*ncomp);
 
+  char *result;
+  const char *pythonFile = "loopy_restrict.py";
+  concat(&result, ceed_data->openclBackendDir, pythonFile);
   data->kRestrict[0] = createKernelFromPython("kRestrict0", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
   data->kRestrict[1] = createKernelFromPython("kRestrict1", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
   data->kRestrict[2] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
   data->kRestrict[3] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
   data->kRestrict[4] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
   data->kRestrict[5] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
   data->kRestrict[6] = createKernelFromPython("kRestrict6", arch, constantDict,
-                       "loopy_restrict.py", ceed);
+                       result, ceed);
+  free(result);
 
   // free local usage **********************************************************
   dbg("[CeedElemRestriction][Create] done");
