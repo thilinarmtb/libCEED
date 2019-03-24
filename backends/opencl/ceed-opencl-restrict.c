@@ -281,28 +281,30 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   }
   // ***************************************************************************
   dbg("[CeedElemRestriction][Create] Building kRestrict");
+  char *arch = ceed_data->arch;
+  char constantDict[BUFSIZ];
+  sprintf(constantDict, "{\"ndof\": %d,"
+          "\"nelem\": %d,"
+          "\"elemsize\": %d,"
+          "\"nelem_x_elemsize\": %d,"
+          "\"nelem_x_elemsize_x_ncomp\": %d }",
+          ndof, nelem, elemsize, nelem*elemsize,nelem*elemsize*ncomp);
 
-  dbg("[CeedElemRestriction][Create] Initialize kRestrict");
+  data->kRestrict[0] = createKernelFromPython("kRestrict0", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
+  data->kRestrict[1] = createKernelFromPython("kRestrict1", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
+  data->kRestrict[2] = createKernelFromPython("kRestrict2", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
+  data->kRestrict[3] = createKernelFromPython("kRestrict2", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
+  data->kRestrict[4] = createKernelFromPython("kRestrict2", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
+  data->kRestrict[5] = createKernelFromPython("kRestrict2", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
+  data->kRestrict[6] = createKernelFromPython("kRestrict6", arch, constantDict,
+                                              "loopy_restrict.py", ceed);
 
-  // ***************************************************************************
-  cl_int err;
-  data->program = clCreateProgramWithSource(ceed_data->context, 1,
-                  (const char **) &OpenCLKernels, NULL, &err);
-  clBuildProgram(data->program, 1, &ceed_data->device_id, NULL, NULL, NULL);
-  data->kRestrict[0] = clCreateKernel(data->program, "kRestrict0", &err);
-  dbg("err after building kRestrict0: %d\n",err);
-  data->kRestrict[1] = clCreateKernel(data->program, "kRestrict1", &err);
-  dbg("err after building kRestrict1: %d\n",err);
-  data->kRestrict[2] = clCreateKernel(data->program, "kRestrict2", &err);
-  dbg("err after building kRestrict2: %d\n",err);
-  data->kRestrict[3] = clCreateKernel(data->program, "kRestrict2", &err);
-  dbg("err after building kRestrict3: %d\n",err);
-  data->kRestrict[4] = clCreateKernel(data->program, "kRestrict2", &err);
-  dbg("err after building kRestrict4: %d\n",err);
-  data->kRestrict[5] = clCreateKernel(data->program, "kRestrict2", &err);
-  dbg("err after building kRestrict5: %d\n",err);
-  data->kRestrict[6] = clCreateKernel(data->program, "kRestrict6", &err);
-  dbg("err after building kRestrict6: %d\n",err);
   // free local usage **********************************************************
   dbg("[CeedElemRestriction][Create] done");
   // free indices as needed ****************************************************

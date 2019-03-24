@@ -2,8 +2,6 @@
 #ifndef _ceed_opencl_h
 #define _ceed_opencl_h
 
-#include "ceed-opencl-kernels.h"
-
 #include <ceed-impl.h>
 #include <ceed-backend.h>
 
@@ -96,6 +94,7 @@ typedef struct {
   bool debug;
   bool ocl;
   char *arch;
+  char *openclBackendDir;
   cl_platform_id cpPlatform[2];     // OpenCL platform
   cl_device_id device_id;           // device ID
   cl_context context;               // context
