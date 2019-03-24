@@ -51,6 +51,8 @@ static int CeedDestroy_OpenCL(Ceed ceed) {
   clReleaseCommandQueue(data->queue);
   if(data->arch)
     free(data->arch);
+  if(data->openclBackendDir)
+    free(data->openclBackendDir);
   ierr = CeedFree(&data); CeedChk(ierr);
   return 0;
 }
@@ -145,40 +147,47 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   dbg("[CeedInit][OpenCL] resource: %s", resource);
   dbg("[CeedInit][OpenCL] data->arch = %s", data->arch);
 
+  // Get the libceed directory
+  char *subDir = "/backends/opencl/";
+  const char *LIBCEED_DIR=getenv("LIBCEED_DIR");
+  if (!LIBCEED_DIR) return CeedError(ceed, 1, "Cannot find LIBCEED_DIR env variable.");
+
+  int totalSize = strlen(LIBCEED_DIR) + strlen(subDir);
+  char *openclBackendDir = calloc(sizeof(char), totalSize + 1);
+
+  strncpy(openclBackendDir, LIBCEED_DIR, strlen(LIBCEED_DIR));
+  strncpy(openclBackendDir + strlen(LIBCEED_DIR), subDir, strlen(subDir));
+  data->openclBackendDir = openclBackendDir;
+  dbg("[CeedInit] %s", openclBackendDir);
+
   cl_int err;
   err = clGetPlatformIDs(2, data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_CPU, 1,
-                         &data->device_id,
-                         NULL);
+    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,
+                         &data->device_id, NULL);
     dbg("[CeedInit][OpenCL] CPU is selected.");
   } else if(gpu) {
     dbg("[CeedInit][OpenCL] GPU is selected.");
     err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_GPU, 1,
-                         &data->device_id,
-                         NULL);
+                         &data->device_id, NULL);
   }
 
   if(err != CL_SUCCESS) {
     switch (err) {
     case CL_INVALID_PLATFORM:
-      return CeedError(ceed, 1,
-                       "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Platform");
       break;
     case CL_INVALID_DEVICE_TYPE:
-      return CeedError(ceed, 1,
-                       "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
       break;
     case CL_INVALID_VALUE:
-      return CeedError(ceed, 1,
-                       "OpenCL backend can't initialize the CPUs.: Invalid Value");
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
       break;
     case CL_DEVICE_NOT_FOUND:
-      return CeedError(ceed, 1,
-                       "OpenCL backend can't initialize the CPUs.: Device not found");
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Device not found");
       break;
     default:
-      return CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
       break;
     }
   }
@@ -225,13 +234,13 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
                                       (const char **) &kernelCode, NULL, &err);
   switch(err) {
   case CL_INVALID_CONTEXT:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid context.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid context.");
     break;
   case CL_INVALID_VALUE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid value.");
     break;
   case CL_OUT_OF_HOST_MEMORY:
-    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   default:
     break;
@@ -243,25 +252,25 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   char *log;
   switch(err) {
   case CL_INVALID_PROGRAM:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid program.");
     break;
   case CL_INVALID_VALUE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid value.");
     break;
   case CL_INVALID_DEVICE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid device.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid device.");
     break;
   case CL_INVALID_BINARY:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
     break;
   case CL_INVALID_BUILD_OPTIONS:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
     break;
   case CL_INVALID_OPERATION:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
     break;
   case CL_COMPILER_NOT_AVAILABLE:
-    return CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
+    CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
     break;
   case CL_BUILD_PROGRAM_FAILURE:
     clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
@@ -275,10 +284,10 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
                           log, NULL);
     // Print the log
     printf("%s\n", log);
-    return CeedError(ceed, 1, "OpenCL backend: Build program failure.");
+    CeedError(ceed, 1, "OpenCL backend: Build program failure.");
     break;
   case CL_OUT_OF_HOST_MEMORY:
-    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   default:
     break;
@@ -287,22 +296,22 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   cl_kernel kernel   = clCreateKernel(program, kernelName, &err);
   switch(err) {
   case CL_INVALID_PROGRAM:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid program.");
     break;
   case CL_INVALID_PROGRAM_EXECUTABLE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid program executable.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid program executable.");
     break;
   case CL_INVALID_KERNEL_NAME:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel name.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid kernel name.");
     break;
   case CL_INVALID_KERNEL_DEFINITION:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid kernel definition.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid kernel definition.");
     break;
   case CL_INVALID_VALUE:
-    return CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+    CeedError(ceed, 1, "OpenCL backend: Invalid value.");
     break;
   case CL_OUT_OF_HOST_MEMORY:
-    return CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   default:
     break;
