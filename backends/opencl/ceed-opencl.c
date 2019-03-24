@@ -209,16 +209,20 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
 
   char pythonCmd[2*BUFSIZ];
-  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFile, kernelName, arch,
+  int totalPathLen = strlen(pythonFile) + strlen(data->openclBackendDir);
+  char *pythonFilePath = (char *) calloc(sizeof(char), totalPathLen+1);
+  strncpy(pythonFilePath, data->openclBackendDir, strlen(data->openclBackendDir));
+  strncpy(pythonFilePath + strlen(data->openclBackendDir), pythonFile, strlen(pythonFile));
+  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFilePath, kernelName, arch,
           constantDict);
   dbg("[createKernelFromPython] %s", pythonCmd);
+  free(pythonFilePath);
 
   system(pythonCmd);
   FILE *fp = fopen("t.txt", "r");
   char *kernelCode;
   if(fp != NULL) {
     fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);
-    dbg("length=%d", length);
     kernelCode = (char *) malloc(sizeof(char)*length+1);
     if(kernelCode != NULL) {
       fread(kernelCode, sizeof(char), length, fp);

@@ -166,11 +166,11 @@ constants = json.loads(sys.argv[3])
 
 if kernel_name == 'kRestrict0':
     k = generate_kRestrict0(constants, arch)
-if kernel_name == 'kRestrict1':
+elif kernel_name == 'kRestrict1':
     k = generate_kRestrict1(constants, arch)
-if kernel_name == 'kRestrict2':
+elif kernel_name == 'kRestrict2':
     k = generate_kRestrict2(constants, arch)
-if kernel_name == 'kRestrict6':
+elif kernel_name == 'kRestrict6':
     k = generate_kRestrict6(constants, arch)
 else:
     print("Invalid kernel name: {}".format(kernel_name))
