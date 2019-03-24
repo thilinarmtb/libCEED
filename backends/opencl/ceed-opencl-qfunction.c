@@ -223,7 +223,6 @@ static int CeedQFunctionDestroy_OpenCL(CeedQFunction qf) {
   const bool operator_setup = data->op;
   dbg("[CeedQFunction][Destroy]");
   clReleaseKernel(data->kQFunctionApply);
-  clReleaseProgram(data->program);
   if (data->ready) {
     if (!operator_setup) {
       clReleaseMemObject(data->d_ctx);
