@@ -150,7 +150,8 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   // Get the libceed directory
   char *subDir = "/backends/opencl/";
   const char *LIBCEED_DIR=getenv("LIBCEED_DIR");
-  if (!LIBCEED_DIR) return CeedError(ceed, 1, "Cannot find LIBCEED_DIR env variable.");
+  if (!LIBCEED_DIR) return CeedError(ceed, 1,
+                                       "Cannot find LIBCEED_DIR env variable.");
 
   int totalSize = strlen(LIBCEED_DIR) + strlen(subDir);
   char *openclBackendDir = calloc(sizeof(char), totalSize + 1);
@@ -175,16 +176,19 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   if(err != CL_SUCCESS) {
     switch (err) {
     case CL_INVALID_PLATFORM:
-      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Invalid Platform");
       break;
     case CL_INVALID_DEVICE_TYPE:
-      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
       break;
     case CL_INVALID_VALUE:
       CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
       break;
     case CL_DEVICE_NOT_FOUND:
-      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Device not found");
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Device not found");
       break;
     default:
       CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
@@ -212,8 +216,10 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   int totalPathLen = strlen(pythonFile) + strlen(data->openclBackendDir);
   char *pythonFilePath = (char *) calloc(sizeof(char), totalPathLen+1);
   strncpy(pythonFilePath, data->openclBackendDir, strlen(data->openclBackendDir));
-  strncpy(pythonFilePath + strlen(data->openclBackendDir), pythonFile, strlen(pythonFile));
-  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFilePath, kernelName, arch,
+  strncpy(pythonFilePath + strlen(data->openclBackendDir), pythonFile,
+          strlen(pythonFile));
+  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFilePath, kernelName,
+          arch,
           constantDict);
   dbg("[createKernelFromPython] %s", pythonCmd);
   free(pythonFilePath);
