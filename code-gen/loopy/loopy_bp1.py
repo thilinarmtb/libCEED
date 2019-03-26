@@ -29,8 +29,9 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
                  - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
                  + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
 
-        out[oOf7[1] + i] = det
         sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
+
+        out[oOf7[0] + i] = det
         out[oOf7[1] + i] = det * sqrt(sum) 
         """,
         name="masssetupf",
@@ -53,7 +54,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     else:
         workgroup_size = 128
 
-    massfsetupf = lp.split_iname(masssetupf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+    #massfsetupf = lp.split_iname(masssetupf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
  
     return masssetupf
 
@@ -86,7 +87,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     else:
         workgroup_size = 128
 
-    massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+    #massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
     
     massf = lp.add_and_infer_dtypes(massf, {
         "ctx": np.int32,
