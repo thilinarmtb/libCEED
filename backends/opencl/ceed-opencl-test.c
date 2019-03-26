@@ -1,7 +1,10 @@
-#include "ceed-opencl.h"
-
 #include <stdio.h>
 #include <math.h>
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
 
 // OpenCL kernel. Each work item takes care of one element of c
 const char *kernelSource =                                       "\n" \
@@ -54,8 +57,8 @@ int OpenCL_test_00(void) {
   // Initialize vectors on host
   unsigned int i;
   for( i = 0; i < n; i++ ) {
-    h_a[i] = sinf(i)*sinf(i);
-    h_b[i] = cosf(i)*cosf(i);
+    h_a[i] = sin(i)*sin(i);
+    h_b[i] = cos(i)*cos(i);
   }
 
   size_t globalSize, localSize;
@@ -74,7 +77,7 @@ int OpenCL_test_00(void) {
   err = clGetDeviceIDs(cpPlatform, CL_DEVICE_TYPE_GPU, 1, &device_id, NULL);
 
   // Create a context
-  context = clCreateContext(0, 1, &device_id, NULL, NULL, &err);
+  context = clCreateContext(2, 1, &device_id, NULL, NULL, &err);
 
   // Create a command queue
   queue = clCreateCommandQueueWithProperties(context, device_id, 0, &err);
@@ -138,4 +141,8 @@ int OpenCL_test_00(void) {
   free(h_c);
 
   return 0;
+}
+
+int main() {
+  OpenCL_test_00();
 }

@@ -18,8 +18,8 @@ C     Dimension file to be included
 C
 C     HCUBE array dimensions
 C
-      parameter (lx1=8)
-      parameter (lelg=10000, lelt=1024)
+      parameter (lx1=2)
+      parameter (lelg=10000, lelt=10)
 
       parameter (ldim=3)
       parameter (lp=32)

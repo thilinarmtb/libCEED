@@ -16,6 +16,7 @@
 #define CEED_DEBUG_COLOR 10
 #include "ceed-opencl.h"
 #include "ceed-backend.h"
+#include "unistd.h"
 // *****************************************************************************
 // * Callback function for OpenCL
 // *****************************************************************************
@@ -162,14 +163,14 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   dbg("[CeedInit] %s", openclBackendDir);
 
   cl_int err;
-  err = clGetPlatformIDs(2, data->cpPlatform, NULL);
+  err = clGetPlatformIDs(1, &data->cpPlatform, NULL);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform[1], CL_DEVICE_TYPE_CPU, 1,
+    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,
                          &data->device_id, NULL);
     dbg("[CeedInit][OpenCL] CPU is selected.");
   } else if(gpu) {
     dbg("[CeedInit][OpenCL] GPU is selected.");
-    err = clGetDeviceIDs(data->cpPlatform[0], CL_DEVICE_TYPE_GPU, 1,
+    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,
                          &data->device_id, NULL);
   }
 
@@ -196,7 +197,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     }
   }
 
-  data->context = clCreateContext(0, 1, &data->device_id, pfn_notify, NULL, &err);
+  data->context = clCreateContext(0, 1, &data->device_id, NULL, NULL, &err);
   data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id,
                 0, &err);
 
@@ -222,12 +223,19 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   Ceed_OpenCL *data;
   ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
 
-  char pythonCmd[2*BUFSIZ];
-  sprintf(pythonCmd, "python %s %s %s '%s' > t.txt", pythonFile, kernelName, arch, constantDict);
-  dbg("[createKernelFromPython] %s", pythonCmd);
+  char pythonCmd[2*BUFSIZ], clFile[BUFSIZ];
+  sprintf(clFile, "%s.cl", kernelName);
 
-  system(pythonCmd);
-  FILE *fp = fopen("t.txt", "r");
+  if(access(clFile, F_OK) == -1) {
+    sprintf(pythonCmd, "python %s %s %s '%s' > %s", pythonFile, kernelName, arch,
+        constantDict, clFile);
+    dbg("[createKernelFromPython] generating %s", pythonCmd);
+    system(pythonCmd);
+  } else {
+    dbg("[createKernelFromPython] reading from cache %s", clFile);
+  }
+
+  FILE *fp = fopen(clFile, "r");
   char *kernelCode;
   if(fp != NULL) {
     fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);

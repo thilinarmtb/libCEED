@@ -151,13 +151,14 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   // Number of total work items - localSize must be devisor
   globalSize = ceil(Q/(float)localSize)*localSize;
 
-  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), &d_ctx);
-  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), &Q);
-  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), &d_idx);
-  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), &d_odx);
-  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), &d_indata);
-  err |= clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), &d_outdata);
+  err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), (void*)&d_ctx);
+  err |= clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
+  err |= clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), (void*)&d_idx);
+  err |= clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), (void*)&d_odx);
+  err |= clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), (void*)&d_indata);
+  err |= clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), (void*)&d_outdata);
 
+  dbg("localSize = %zu globalSize=%zu",localSize, globalSize);
   clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL,
                          &globalSize,
                          &localSize, 0, NULL, NULL);
@@ -186,18 +187,27 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
       clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0,
                           Q*ncomp*nelem*bytes,
                           out[i], 0, NULL, NULL);
+      for(int j= 0; j<Q*ncomp*nelem; j++) {
+        printf("%lf\n",out[i][j]);
+      }
       break;
     case CEED_EVAL_INTERP:
       dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
       clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0,
                           Q*ncomp*nelem*bytes,
                           out[i], 0, NULL, NULL);
+      for(int j= 0; j<Q*ncomp*nelem; j++) {
+        printf("%lf\n",out[i][j]);
+      }
       break;
     case CEED_EVAL_GRAD:
       dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
       clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 0,
                           Q*ncomp*dim*nelem*bytes,
                           out[i], 0, NULL, NULL);
+      for(int j= 0; j<Q*ncomp*dim*nelem; j++) {
+        printf("%lf\n",out[i][j]);
+      }
       break;
     case CEED_EVAL_WEIGHT:
       break; // no action

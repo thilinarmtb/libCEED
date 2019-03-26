@@ -1,5 +1,6 @@
 import numpy as np
 import loopy as lp
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 import sys
 import json
@@ -28,9 +29,12 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
                  - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
                  + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
 
-        out[oOf7[1] + i] = det
-        sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
-        out[oOf7[1] + i] = det * sqrt(sum) 
+        #out[oOf7[1] + i] = det
+        #sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
+        #out[oOf7[1] + i] = det * sqrt(sum) 
+        #out[oOf7[1] + i] = 1.0
+        #out[oOf7[0] + i] = 1.0
+        out[i] = 1.0
         """,
         name="masssetupf",
         assumptions="Q > 0",
@@ -39,12 +43,10 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         )
 
     masssetupf = lp.add_and_infer_dtypes(masssetupf, {
-        "ctx": np.int32, "in": fp_format,
+        "ctx": np.int32, "in": fp_format, "out": fp_format,
         "oOf7": np.int32,"iOf7": np.int32 
         })
     
-    masssetupf = lp.tag_inames(masssetupf, {"d": "unr", "dd": "unr"})
-
     if arch == "AMD_GPU":
         workgroup_size = 64
     elif arch == "NVIDIA_GPU":

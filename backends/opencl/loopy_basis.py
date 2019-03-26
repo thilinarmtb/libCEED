@@ -1,5 +1,6 @@
 import numpy as np
 import loopy as lp
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 import sys
 import json

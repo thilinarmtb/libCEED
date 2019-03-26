@@ -1,5 +1,6 @@
 import numpy as np
 import loopy as lp
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 import sys
 import json
@@ -34,8 +35,8 @@ def generate_kRestrict0(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         #(or the size needed to activate all cores)
         workgroup_size = 128
 
-    kRestrict0 = lp.split_iname(kRestrict0, "i", workgroup_size,
-        outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+    #kRestrict0 = lp.split_iname(kRestrict0, "i", workgroup_size,
+    #    outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
 
     kRestrict0 = lp.add_and_infer_dtypes(kRestrict0, {"indices": np.int32, "uu": fp_format})
 
@@ -142,8 +143,8 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     else:
         workgroup_size = 128
 
-    kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
-        outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+    #kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
+    #    outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
  
     kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, dtypes)
 

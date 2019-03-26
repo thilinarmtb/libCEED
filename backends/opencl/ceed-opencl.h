@@ -95,7 +95,7 @@ typedef struct {
   bool ocl;
   char *arch;
   char *openclBackendDir;
-  cl_platform_id cpPlatform[2];     // OpenCL platform
+  cl_platform_id cpPlatform;     // OpenCL platform
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue
