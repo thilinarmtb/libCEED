@@ -15,8 +15,7 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 def generate_diffsetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     diffsetupf = lp.make_kernel(
-        ["{ [i,j,k]: 0<=i<Q and 0<=j,k<3}",
-         "{ [kkk,jjj,lll]: 0<=kkk,lll,jjj<3}" ],
+        ["{ [i,j,k]: 0<=i<Q }"],
         """
         # For reference
         #    *x = in + iOf7[0],
@@ -25,36 +24,47 @@ def generate_diffsetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         #    *rho = out + oOf7[0]
         #    *rhs = out + oOf7[1]
 
+        if 0
+            ctx[0] = 0
+        end
+
         M_PI := 3.14159265358979323846
+        iind0(a) := i + iOf7[0] + a*Q
         iind1 := i + iOf7[1]
-        oind1 := i + oOf7[1]
         iind2 := i + iOf7[2]
-
+        oind1 := i + oOf7[1]
+        oind0(a) := oOf7[0] + i + Q*a
     
-        J(jj,kk) := in[3*Q*jj + Q*kk + iind1]
+        J(jj,kk) := in[3*Q*(kk-1) + Q*(jj-1) + iind1]
+       
+        # Could precompute these, but compilers are
+        # typically good at optimizing common subexpressions 
+        A11 := J(2,2)*J(3,3) - J(2,3)*J(3,2)
+        A12 := J(1,3)*J(3,2) - J(1,2)*J(3,3)
+        A13 := J(1,2)*J(2,3) - J(1,3)*J(2,2)
+        A21 := J(2,3)*J(3,1) - J(2,1)*J(3,3)
+        A22 := J(1,1)*J(3,3) - J(1,3)*J(3,1)
+        A23 := J(1,3)*J(2,1) - J(1,1)*J(2,3)
+        A31 := J(2,1)*J(3,2) - J(2,2)*J(3,1)
+        A32 := J(1,2)*J(3,1) - J(1,1)*J(3,2)
+        A33 := J(1,1)*J(2,2) - J(1,2)*J(2,1)
 
-        for i
-            for j,k
-
-                <> m = (j + 1) % 3
-                <> n = (j + 2) % 3
-                <> o = (k + 1) % 3
-                <> p = (k + 2) % 3
+        s := (J(1,1)*A11 + J(2,1)*A12 + J(3,1)*A13)
+        <> w = in[iind2] / s
  
-                <> A[k,j] = J(n,p)*J(m,o) - J(n,o)*J(m,p)
-            end
-            <> s =  sum(k, J(k,0)*A[0,k])
-            w := in[iind2] / s
-            for jjj,kkk
-                out[3*Q*jjj + Q*kkk + oind1] = w * sum(lll, A[jjj,lll]*A[kkk,lll])
-            end
-            rho := in[iind2] * s
-            out[oind1] = rho * M_PI**2 * (1**2 + 2**2 + 3**2) * \
-                            sin(M_PI*(0 + 1*in[iind1 + 0*Q])) * \
-                            sin(M_PI*(1 + 2*in[iind1 + 1*Q])) * \
-                            sin(M_PI*(2 + 3*in[iind1 + 2*Q])) 
+        out[oind0(0)] = w * (A11*A11 + A12*A12 + A13*A13)
+        out[oind0(1)] = w * (A11*A21 + A12*A22 + A13*A23)
+        out[oind0(2)] = w * (A11*A31 + A12*A32 + A13*A33)
+        out[oind0(3)] = w * (A21*A21 + A22*A22 + A23*A23)
+        out[oind0(4)] = w * (A21*A31 + A22*A32 + A23*A33)
+        out[oind0(5)] = w * (A31*A31 + A32*A32 + A33*A33)
 
-        end 
+        rho := in[iind2] * s
+        out[oind1] = rho * M_PI**2 * (1**2 + 2**2 + 3**2) * \
+                            sin(M_PI*(0 + 1*in[iind0(0)])) * \
+                            sin(M_PI*(1 + 2*in[iind0(1)])) * \
+                            sin(M_PI*(2 + 3*in[iind0(2)])) 
+
         """,
         name="diffsetupf",
         assumptions="Q > 0",
@@ -75,21 +85,24 @@ def generate_diffsetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
 
 def generate_diffusionf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     diffusionf = lp.make_kernel(
-        "{ [i,j]: 0<=i<Q }",
+        "{ [i]: 0<=i<Q }",
         """
         #    For Reference
         #    *u = in  + iOf7[0],
         #    *rho = in  + iOf7[1];
         #    *v = out + oOf7[0];
 
-        ug(ii, jj) := in[iOf7[0] + ii + Q*jj]
-        rhog(ii,jj) := in[iOf7[1] + ii + Q*jj]
+        ug(a) := in[iOf7[0] + i + Q*a]
+        rhog(a) := in[iOf7[1] + i + Q*a]
+        oind0(a) := oOf7[0] + i + Q*a
 
-        for i
-            out[oOf7[0] + i + Q*0] = rhog(i,0)*ug(i,0) + rhog(i,1)*ug(i,1) + rhog(i,2)*ug(i,2)
-            out[oOf7[1] + i + Q*1] = rhog(i,1)*ug(i,0) + rhog(i,3)*ug(i,1) + rhog(i,4)*ug(i,2)  
-            out[oOf7[1] + i + Q*2] = rhog(i,2)*ug(i,0) + rhog(i,4)*ug(i,1) + rhog(i,5)*ug(i,2)
+        if 0
+            ctx[0] = 0
         end
+
+        out[oind0(0)] = rhog(0)*ug(0) + rhog(1)*ug(1) + rhog(2)*ug(2)
+        out[oind0(1)] = rhog(1)*ug(0) + rhog(3)*ug(1) + rhog(4)*ug(2)  
+        out[oind0(2)] = rhog(2)*ug(0) + rhog(4)*ug(1) + rhog(5)*ug(2)
         """,
         name="diffusionf",
         assumptions="Q > 0",

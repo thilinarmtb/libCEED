@@ -16,24 +16,21 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     masssetupf = lp.make_kernel(
         "{ [i,d,dd]: 0<=i<Q and 0<=d,dd<3 }",
         """
-        val := in[dd*Q + iOf7[0]]**2
-        w := sqrt(reduce(sum, dd, val))
-        e := (d + 1) % 3
-        f := (d + 2) % 3
-        os0 := iOf7[1] + (0 + d)*Q 
-        os1 := iOf7[1] + (3 + e)*Q
-        os2 := iOf7[1] + (6 + f)*Q
-        os3 := iOf7[1] + (6 + e)*Q
-        os4 := iOf7[1] + (3 + f)*Q
-        s := -1**d
+        D := 3
+        v(a, b) := in[(a*D + b)*Q + i + iOf7[1]]
 
         if false
-            <> dummy = ctx[0] # Need to figure out how to remove
+            ctx[0] = 0
         end
 
-        <> val1 = in[i + iOf7[2]]*reduce(sum,d, s*in[i+os0] * (in[i+os1]*in[i+os2] - in[i+os3]*in[i+os4]))
-        out[i + oOf7[0]] = val1
-        out[i + oOf7[1]] = val1 * w 
+        det := in[iOf7[2] + i] * (
+                   v(0,0) * (v(1,1)*v(2,2) - v(1,2)*v(2,1))
+                 - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
+                 + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
+
+        out[oOf7[1] + i] = det
+        sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
+        out[oOf7[1] + i] = det * sqrt(sum) 
         """,
         name="masssetupf",
         assumptions="Q > 0",
@@ -55,7 +52,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     else:
         workgroup_size = 128
 
-    massfsetupf = lp.split_iname(masssetupf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+    #massfsetupf = lp.split_iname(masssetupf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
  
     return masssetupf
 
@@ -68,7 +65,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         i_os0 := i + iOf7[0]
         i_os1 := i + iOf7[1]
         if false
-            <> dummy = ctx[0] # Compiler will hopefully remove
+            ctx[0] = 0 # Compiler will hopefully remove
         end
 
         out[o_os] = in[i_os0] + in[i_os1]
@@ -88,7 +85,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     else:
         workgroup_size = 128
 
-    massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
+    #massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
     
     massf = lp.add_and_infer_dtypes(massf, {
         "ctx": np.int32,

@@ -155,7 +155,6 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     
     return kRestrict6
 
-'''
 kRestrict0 = generate_kRestrict0()
 code = lp.generate_code_v2(kRestrict0).device_code()
 print(kRestrict0)
@@ -176,7 +175,7 @@ print(kRestrict2)
 print()
 print(code)
 print() 
-'''
+
 '''
 kernelList2 = [kRestrict3b]
 kernelList3 = [kRestrict4b, kRestrict5b]
