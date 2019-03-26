@@ -617,6 +617,32 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
         dtypes.update({"dim": np.int32, "nc": np.int32, "nelem": np.int32 })
 
     kWeight = lp.make_kernel(
+        [ "{ [e]: 0<=e<nelem}",
+          "{ [d]: 0<=d<dim }",
+          "{ [i,j,k]: 0<=i<pre and 0<=j<Q and 0<=k<post }" ],
+        """
+        v_shift := QnD*nc + QnD*nc*dim
+        v_offset := e*(QnD*nc*(dim+2))+v_shift
+        xs(a, b, c) :=  (a*Q + b)*post + c + v_offset
+ 
+        for e,d
+            <> pre = Q**(dim-d-1)
+            <> post = Q**d
+            for i,j,k
+                d_v[xs(i,j,k)] = if(d==0, qweight1d[j], \
+                    qweight1d[j]*d_v[xs(i,j,k)]) 
+            end
+        end
+        """, 
+        name="kWeight",
+        target=target,
+        assumptions="nelem>0 and dim>0 and Q>0 and post>0 and pre>0",
+        kernel_data=kernel_data
+    )
+
+
+
+    kWeight2 = lp.make_kernel(
         ["{ [e]: 0<=e<nelem}",
          "{ [d]: 0<=d<dim }",
          "{ [i,j,k]: 0<=i,j,k<Q }" ],
@@ -696,15 +722,18 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
     return kWeight
 
 arg_len = len(sys.argv)
-if arg_len != 4:
-    print("Usage: python loopy_basis.py kernel_name arch '{\"c1\": val1, ... }'")
-    print("Example: python loopy_basis.py kZero '{\"elemsize\": 8, ... }'")
-    sys.exit(1)
+#if arg_len != 4:
+#    print("Usage: python loopy_basis.py kernel_name arch '{\"c1\": val1, ... }'")
+#    print("Example: python loopy_basis.py kZero '{\"elemsize\": 8, ... }'")
+#    sys.exit(1)
 
-kernel_name = sys.argv[1]
-arch = sys.argv[2]
-constants = json.loads(sys.argv[3])
+#kernel_name = sys.argv[1]
+#arch = sys.argv[2]
+#constants = json.loads(sys.argv[3])
 
+arch = "INTEL_CPU"
+kernel_name="kWeight"
+constants = {}
 if kernel_name == 'kZero':
     k = generate_kZero(constants, arch)
 elif kernel_name == 'kInterp':
