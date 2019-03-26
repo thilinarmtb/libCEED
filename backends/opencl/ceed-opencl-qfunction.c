@@ -162,6 +162,8 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
                          &globalSize,
                          &localSize, 0, NULL, NULL);
 
+  clFlush(ceed_data->queue);
+  clFinish(ceed_data->queue);
   // ***************************************************************************
   if (cbytes>0) clEnqueueReadBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
                                       cbytes, qf->ctx, 0, NULL, NULL);

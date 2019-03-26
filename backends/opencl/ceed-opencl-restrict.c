@@ -72,6 +72,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     localSize = 1;
     clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
+    clFlush(ceed_data->queue);
     clFinish(ceed_data->queue);
   } else if (restriction) {
     // Perform: v = r * u
@@ -105,6 +106,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[1], 1, NULL,
                                &globalSize, &localSize, 0, NULL, NULL);
+        clFlush(ceed_data->queue);
         clFinish(ceed_data->queue);
       } else {
         // u is (ncomp x ndof), column-major
@@ -119,6 +121,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[1], 1, NULL,
                                &globalSize, &localSize, 0, NULL, NULL);
+        clFlush(ceed_data->queue);
         clFinish(ceed_data->queue);
       }
     }
@@ -135,6 +138,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
       clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
                              &globalSize, &localSize, 0, NULL, NULL);
+      clFlush(ceed_data->queue);
       clFinish(ceed_data->queue);
     } else {
       // u is (elemsize x ncomp x nelem)
@@ -151,6 +155,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
         clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[7], 1, NULL,
                                &globalSize, &localSize, 0, NULL, NULL);
+        clFlush(ceed_data->queue);
         clFinish(ceed_data->queue);
       } else {
         // v is (ncomp x ndof), column-major

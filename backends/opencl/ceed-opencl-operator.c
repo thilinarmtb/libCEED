@@ -89,7 +89,7 @@ static int CeedOperatorSetupFields_OpenCL(CeedQFunction qf, CeedOperator op,
     CeedVector *fullevecs, CeedVector *evecs,
     CeedVector *qvecs, CeedInt starte,
     CeedInt numfields, CeedInt Q) {
-  CeedInt dim = 1, ierr, ncomp;
+  CeedInt dim = 1, ierr, ncomp, P;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);
   CeedQFunction_OpenCL *qf_data;
@@ -138,7 +138,9 @@ static int CeedOperatorSetupFields_OpenCL(CeedQFunction qf, CeedOperator op,
       ierr = CeedQFunctionFieldGetNumComponents(qffields[i], &ncomp);
       CeedChk(ierr);
       ierr = CeedBasisGetDimension(basis, &dim); CeedChk(ierr);
-      ierr = CeedVectorCreate(ceed, Q*ncomp, &evecs[i]); CeedChk(ierr);
+      ierr = CeedElemRestrictionGetElementSize(Erestrict, &P);
+      CeedChk(ierr);
+      ierr = CeedVectorCreate(ceed, P*ncomp, &evecs[i]); CeedChk(ierr);
       ierr = CeedVectorCreate(ceed, Q*ncomp, &qvecs[i]); CeedChk(ierr);
       break;
     case CEED_EVAL_GRAD:
@@ -149,7 +151,9 @@ static int CeedOperatorSetupFields_OpenCL(CeedQFunction qf, CeedOperator op,
       ierr = CeedBasisGetDimension(basis, &dim); CeedChk(ierr);
       ierr = CeedQFunctionFieldGetNumComponents(qffields[i], &ncomp);
       CeedChk(ierr);
-      ierr = CeedVectorCreate(ceed, Q*ncomp, &evecs[i]); CeedChk(ierr);
+      ierr = CeedElemRestrictionGetElementSize(Erestrict, &P);
+      CeedChk(ierr);
+      ierr = CeedVectorCreate(ceed, P*ncomp, &evecs[i]); CeedChk(ierr);
       ierr = CeedVectorCreate(ceed, Q*ncomp*dim, &qvecs[i]); CeedChk(ierr);
       break;
     case CEED_EVAL_WEIGHT: // Only on input fields
