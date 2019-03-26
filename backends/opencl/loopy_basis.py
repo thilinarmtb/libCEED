@@ -707,11 +707,11 @@ constants = json.loads(sys.argv[3])
 
 if kernel_name == 'kZero':
     k = generate_kZero(constants, arch)
-elif kerel_name == 'kInterp':
+elif kernel_name == 'kInterp':
     k = generate_kInterp(constants, arch)
-elif kerel_name == 'kGrad':
+elif kernel_name == 'kGrad':
     k = generate_kGrad(constants, arch)
-elif kerel_name == 'kWeight':
+elif kernel_name == 'kWeight':
     k = generate_kWeight(constants, arch)
 else:
     print("Invalid kernel name: {}".format(kernel_name))
