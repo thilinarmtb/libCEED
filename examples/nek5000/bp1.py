@@ -28,13 +28,10 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
                    v(0,0) * (v(1,1)*v(2,2) - v(1,2)*v(2,1))
                  - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
                  + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
+        sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
 
-        #out[oOf7[1] + i] = det
-        #sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
-        #out[oOf7[1] + i] = det * sqrt(sum) 
-        #out[oOf7[1] + i] = 1.0
-        #out[oOf7[0] + i] = 1.0
-        out[i] = 1.0
+        out[oOf7[0] + i] = det
+        out[oOf7[1] + i] = det * sqrt(sum) 
         """,
         name="masssetupf",
         assumptions="Q > 0",
