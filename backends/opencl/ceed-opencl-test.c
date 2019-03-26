@@ -22,7 +22,7 @@ const char *kernelSource =                                       "\n" \
     "{                                                               \n" \
     "    //Get our global thread ID                                  \n" \
     "    int id = get_global_id(0);                                  \n" \
-    "                                                                \n" \
+    "    //printf(\"%d\", 99999)                                     \n" \
     "    //Make sure we do not go out of bounds                      \n" \
     "    if (id < n)                                                 \n" \
     "        c[id] = a[id] + b[id];                                  \n" \

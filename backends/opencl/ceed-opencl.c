@@ -163,15 +163,27 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   dbg("[CeedInit] %s", openclBackendDir);
 
   cl_int err;
-  err = clGetPlatformIDs(1, &data->cpPlatform, NULL);
+  
+  // Set up the Platform
+  cl_platform_id* platforms = NULL;
+  cl_uint num_platforms;
+  err = clGetPlatformIDs(1, NULL, &num_platforms);
+  platforms = (cl_platform_id *) malloc(sizeof(cl_platform_id)*num_platforms);
+  err = clGetPlatformIDs(num_platforms, platforms, NULL);
+
+  //Get the devices list and choose the device you want to run on
+  cl_device_id *device_list = NULL;
+  cl_uint num_devices;
+  err = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_CPU, 0, NULL, &num_devices);
+  device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
   if(cpu) {
-    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_CPU, 1,
-                         &data->device_id, NULL);
     dbg("[CeedInit][OpenCL] CPU is selected.");
+    err = clGetDeviceIDs(platforms[0],
+      CL_DEVICE_TYPE_CPU, num_devices, device_list, NULL);
   } else if(gpu) {
     dbg("[CeedInit][OpenCL] GPU is selected.");
-    err = clGetDeviceIDs(data->cpPlatform, CL_DEVICE_TYPE_GPU, 1,
-                         &data->device_id, NULL);
+    err = clGetDeviceIDs(platforms[0],
+      CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL);
   }
 
   if(err != CL_SUCCESS) {
@@ -197,9 +209,13 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     }
   }
 
-  data->context = clCreateContext(0, 1, &data->device_id, NULL, NULL, &err);
-  data->queue = clCreateCommandQueueWithProperties(data->context, data->device_id,
-                0, &err);
+  data->device_id = device_list[0];
+  data->cpPlatform = platforms[0];
+
+  data->context = clCreateContext(NULL, num_devices, device_list, 
+    NULL, NULL, &err);
+  data->queue = clCreateCommandQueueWithProperties(data->context, device_list[0],
+    0, &err);
 
   return 0;
 }

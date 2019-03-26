@@ -62,21 +62,29 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
   if (identity) {
     dbg("[CeedElemRestriction][Apply] kRestrict[6]");
-    CeedInt nelem_x_elemsize_x_ncomp = r->nelem*r->elemsize*r->ncomp;
-    globalSize = (size_t) nelem_x_elemsize_x_ncomp;
-    err = clSetKernelArg(data->kRestrict[6], 0, sizeof(CeedInt),
-                         (void *)&nelem_x_elemsize_x_ncomp);
-    err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&ud);
-    err |= clSetKernelArg(data->kRestrict[6], 2, sizeof(cl_mem), (void *)&vd);
+    //CeedInt nelem_x_elemsize_x_ncomp = r->nelem*r->elemsize*r->ncomp;
+    //globalSize = (size_t) nelem_x_elemsize_x_ncomp;
+    //err = clSetKernelArg(data->kRestrict[6], 0, sizeof(CeedInt),
+    //                     (void *)&nelem_x_elemsize_x_ncomp);
+    err |= clSetKernelArg(data->kRestrict[6], 0, sizeof(cl_mem), (void *)&ud);
+    err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&vd);
 
     localSize = 1;
     clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
     clFlush(ceed_data->queue);
     clFinish(ceed_data->queue);
+
+    //Testing code - map to read, then unmap
+    cl_double* pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue, vd, CL_TRUE, CL_MAP_READ, 0, sizeof(cl_double), 0, NULL, NULL, NULL);
+    cl_double result = *pointer;
+    printf("FIRST ELEMENT %g\n", result);
+    err = clEnqueueUnmapMemObject(ceed_data->queue, vd, pointer, NULL, NULL, NULL);
+ 
   } else if (restriction) {
     // Perform: v = r * u
     if (ncomp == 1) {
+      //FIXME: Some of these arguments are constants now.
       dbg("[CeedElemRestriction][Apply] kRestrict[0]");
       err  = clSetKernelArg(data->kRestrict[0], 0, sizeof(cl_mem), (void *)&id);
       size_t nelem_x_elemsize = r->nelem*r->elemsize;
@@ -88,6 +96,7 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
       localSize = 1;
       clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[0], 1, NULL,
                              &nelem_x_elemsize, &localSize, 0, NULL, NULL);
+
       clFlush(ceed_data->queue);
       clFinish(ceed_data->queue);
     } else {

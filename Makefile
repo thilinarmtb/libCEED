@@ -238,7 +238,7 @@ libceed.c += $(blocked.c)
 # AVX Backed
 AVX_STATUS = Disabled
 AVX := $(shell $(CC) $(CFLAGS) -v -E - < /dev/null 2>&1 | grep -c avx)
-ifeq ($(AVX),1)
+ifeq ($(AVX),0)
   AVX_STATUS = Enabled
   libceed.c += $(avx.c)
   BACKENDS += /cpu/self/avx
