@@ -6,6 +6,12 @@
 #include <CL/cl.h>
 #endif
 
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
+
 // OpenCL kernel. Each work item takes care of one element of c
 const char *kernelSource =                                       "\n" \
     "#pragma OPENCL EXTENSION cl_khr_fp64 : enable                    \n" \
