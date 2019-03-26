@@ -166,6 +166,8 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
     err  = clSetKernelArg(data->kZero, 0, sizeof(cl_mem), &d_v);
     clEnqueueNDRangeKernel(ceed_data->queue, data->kZero, 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
+    clFlush(ceed_data->queue);
+    clFinish(ceed_data->queue);
   }
   // ***************************************************************************
   if (emode == CEED_EVAL_NONE) {
@@ -193,6 +195,8 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
 
     clEnqueueNDRangeKernel(ceed_data->queue, data->kInterp, 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
+    clFlush(ceed_data->queue);
+    clFinish(ceed_data->queue);
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_GRAD) {
@@ -218,6 +222,8 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
 
     clEnqueueNDRangeKernel(ceed_data->queue, data->kGrad, 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
+    clFlush(ceed_data->queue);
+    clFinish(ceed_data->queue);
   }
   // ***************************************************************************
   if (emode & CEED_EVAL_WEIGHT) {
@@ -237,6 +243,8 @@ int CeedBasisApplyElems_OpenCL(CeedBasis basis, CeedInt QnD,
 
     clEnqueueNDRangeKernel(ceed_data->queue, data->kWeight, 1, NULL,
                            &globalSize, &localSize, 0, NULL, NULL);
+    clFlush(ceed_data->queue);
+    clFinish(ceed_data->queue);
   }
   return 0;
 }
