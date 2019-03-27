@@ -167,27 +167,27 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   // Set up the Platform
   cl_platform_id* platforms = NULL;
   cl_uint num_platforms;
-  err = clGetPlatformIDs(1, NULL, &num_platforms);
+  err = clGetPlatformIDs(1000, NULL, &num_platforms);
   platforms = (cl_platform_id *) malloc(sizeof(cl_platform_id)*num_platforms);
   err = clGetPlatformIDs(num_platforms, platforms, NULL);
 
   //Get the devices list and choose the device you want to run on
   cl_device_id *device_list = NULL;
   cl_uint num_devices;
-  err = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_CPU, 0, NULL, &num_devices);
+  int platformID = 0;
+  err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_CPU, 0, NULL, &num_devices);
   device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
   if(cpu) {
     dbg("[CeedInit][OpenCL] CPU is selected.");
-    err = clGetDeviceIDs(platforms[0],
-      CL_DEVICE_TYPE_CPU, num_devices, device_list, NULL);
+    err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_CPU, num_devices, device_list, NULL);
   } else if(gpu) {
     dbg("[CeedInit][OpenCL] GPU is selected.");
-    err = clGetDeviceIDs(platforms[0],
-      CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL);
+    err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL);
   }
 
-  if(err != CL_SUCCESS) {
-    switch (err) {
+  switch (err) {
+    case CL_SUCCESS:
+      break;
     case CL_INVALID_PLATFORM:
       CeedError(ceed, 1,
                 "OpenCL backend can't initialize the CPUs.: Invalid Platform");
@@ -206,14 +206,40 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     default:
       CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
       break;
-    }
   }
 
   data->device_id = device_list[0];
-  data->cpPlatform = platforms[0];
+  data->cpPlatform = platforms[platformID];
 
-  data->context = clCreateContext(NULL, num_devices, device_list, 
-    NULL, NULL, &err);
+  cl_context_properties properties[] = { CL_CONTEXT_PLATFORM, platforms[platformID], 0 };
+  data->context = clCreateContext(properties, 1, device_list, NULL, NULL, &err);
+  switch (err) {
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_PLATFORM:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+      break;
+    case CL_INVALID_VALUE:
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+      break;
+    case CL_INVALID_DEVICE:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Invalid Device");
+      break;
+    case CL_DEVICE_NOT_AVAILABLE:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Device not available");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Out of host memory");
+      break;
+    default:
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+      break;
+  }
+
   data->queue = clCreateCommandQueueWithProperties(data->context, device_list[0],
     0, &err);
 
@@ -279,6 +305,7 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
     CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   default:
+    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   }
 
@@ -326,6 +353,7 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
     CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   default:
+    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
     break;
   }
 

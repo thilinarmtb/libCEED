@@ -844,7 +844,6 @@ C     Compute setup data
      $  ceed_request_immediate,err)
       write(6,*) 'After op_setup'
       call ceedvectorview(vec_rhs,err)
-      stop
 
 C     Set up true RHS
       call dssum         (r1,nx1,ny1,nz1)          ! r1

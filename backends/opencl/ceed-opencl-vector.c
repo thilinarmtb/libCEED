@@ -68,9 +68,9 @@ static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
 // * freeing any previously allocated array if applicable
 // *****************************************************************************
 static int CeedVectorSetArray_OpenCL(const CeedVector vec,
-                                     const CeedMemType mtype,
-                                     const CeedCopyMode cmode,
-                                     CeedScalar *array) {
+                                   const CeedMemType mtype,
+                                   const CeedCopyMode cmode,
+                                   CeedScalar *array) {
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
@@ -80,13 +80,13 @@ static int CeedVectorSetArray_OpenCL(const CeedVector vec,
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
   dbg("[CeedVector][Set]");
   if (mtype != CEED_MEM_HOST)
-    return CeedError(vec->ceed, 1, "Only MemType = HOST supported");
+    return CeedError(ceed, 1, "Only MemType = HOST supported");
   ierr = CeedFree(&data->h_array_allocated); CeedChk(ierr);
   switch (cmode) {
   // Implementation will copy the values and not store the passed pointer.
   case CEED_COPY_VALUES:
     dbg("\t[CeedVector][Set] CEED_COPY_VALUES");
-    ierr = CeedMalloc(vec->length, &data->h_array); CeedChk(ierr);
+    ierr = CeedMalloc(length, &data->h_array); CeedChk(ierr);
     data->h_array_allocated = data->h_array;
     if (array) memcpy(data->h_array, array, bytes(vec));
     if (array) CeedWriteBuffer_OpenCL(vec);
@@ -126,7 +126,7 @@ static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
   if (mtype != CEED_MEM_HOST)
-    return CeedError(vec->ceed, 1, "Can only provide to HOST memory");
+    return CeedError(ceed, 1, "Can only provide to HOST memory");
   if (!data->h_array) { // Allocate if array was not allocated yet
     dbg("[CeedVector][Get] Allocating");
     ierr = CeedVectorSetArray(vec, CEED_MEM_HOST, CEED_COPY_VALUES, NULL);
@@ -139,8 +139,8 @@ static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
 }
 // *****************************************************************************
 static int CeedVectorGetArray_OpenCL(const CeedVector vec,
-                                     const CeedMemType mtype,
-                                     CeedScalar **array) {
+                                   const CeedMemType mtype,
+                                   CeedScalar **array) {
   return CeedVectorGetArrayRead_OpenCL(vec,mtype,(const CeedScalar**)array);
 }
 
@@ -155,7 +155,7 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
   dbg("[CeedVector][Restore]");
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
-  assert(data->h_array);
+  assert((data)->h_array);
   assert(*array);
   CeedWriteBuffer_OpenCL(vec); // sync Host to Device
   *array = NULL;
@@ -163,7 +163,7 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
 }
 // *****************************************************************************
 static int CeedVectorRestoreArray_OpenCL(const CeedVector vec,
-    CeedScalar **array) {
+                                       CeedScalar **array) {
   return CeedVectorRestoreArrayRead_OpenCL(vec,(const CeedScalar**)array);
 }
 
@@ -208,9 +208,33 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
                                 CeedVectorDestroy_OpenCL); CeedChk(ierr);
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                 bytes(vec),
-                                 NULL, NULL);
+  cl_int err;
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec),NULL, &err);
+  switch (err) {
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_CONTEXT:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: Invalid Context");
+      break;
+    case CL_INVALID_VALUE:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: Invalid value");
+      break;
+    case CL_INVALID_BUFFER_SIZE:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: Invalid buffer size");
+      break;
+    case CL_INVALID_HOST_PTR:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: Invalid host pointer");
+      break;
+    case CL_MEM_OBJECT_ALLOCATION_FAILURE:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: Mem alloc failure");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: out of host memory");
+      break;
+    default:
+      CeedError(ceed, 1, "OpenCL backend can't create vector: Invalid value");
+      break;
+  }
   ierr = CeedVectorSetData(vec, (void *)&data); CeedChk(ierr);
   return 0;
 }
