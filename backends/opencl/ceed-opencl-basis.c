@@ -69,10 +69,14 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
   const CeedInt elems_x_tmpSz = nelem*tmpSz;
   dbg("[CeedBasis][BK] elems_x_tmpSz=%d",elems_x_tmpSz);
 
+  //data->tmp0 = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //                            elems_x_tmpSz*sizeof(CeedScalar),NULL,NULL);
   data->tmp0 = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                              elems_x_tmpSz*sizeof(CeedScalar),NULL,NULL);
+                              5000,NULL,NULL);
+  //data->tmp1 = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //                            elems_x_tmpSz*sizeof(CeedScalar),NULL,NULL);
   data->tmp1 = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                              elems_x_tmpSz*sizeof(CeedScalar),NULL,NULL);
+                              5000,NULL,NULL);
   // ***************************************************************************
   char *arch = ceed_data->arch;
   char constantDict[BUFSIZ];
@@ -408,26 +412,34 @@ int CeedBasisCreateTensorH1_OpenCL(CeedInt dim, CeedInt P1d, CeedInt Q1d,
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
   // ***************************************************************************
   assert(qref1d);
+  //data->qref1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //                              Q1d*sizeof(CeedScalar), NULL, NULL);
   data->qref1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                Q1d*sizeof(CeedScalar), NULL, NULL);
+                                5000, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->qref1d, CL_TRUE, 0,
                        Q1d*sizeof(CeedScalar), qref1d, 0, NULL, NULL);
   // ***************************************************************************
   assert(qweight1d);
+  //data->qweight1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //                                 Q1d*sizeof(CeedScalar), NULL, NULL);
   data->qweight1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                   Q1d*sizeof(CeedScalar), NULL, NULL);
+                                   5000, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->qweight1d, CL_TRUE, 0,
                        Q1d*sizeof(CeedScalar), qweight1d, 0, NULL, NULL);
   // ***************************************************************************
   assert(interp1d);
+  //data->interp1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //                                P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
   data->interp1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                  P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
+                                  5000, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->interp1d, CL_TRUE, 0,
                        P1d*Q1d*sizeof(CeedScalar), interp1d, 0, NULL, NULL);
   // ***************************************************************************
   assert(grad1d);
+  //data->grad1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //                              P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
   data->grad1d = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                P1d*Q1d*sizeof(CeedScalar), NULL, NULL);
+                                5000, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->grad1d, CL_TRUE, 0,
                        P1d*Q1d*sizeof(CeedScalar), grad1d, 0, NULL, NULL);
   ierr = CeedBasisSetData(basis, (void *)&data); CeedChk(ierr);

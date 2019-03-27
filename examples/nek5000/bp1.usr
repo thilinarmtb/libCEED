@@ -1630,6 +1630,7 @@ C     Input:                        Output: spec
       spec = '/cpu/self'
       if(iargc().ge.1) then
         call getarg(1,spec)
+        write(6,*) spec
       endif
 
       return

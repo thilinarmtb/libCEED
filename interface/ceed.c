@@ -317,6 +317,7 @@ int CeedInit(const char *resource, Ceed *ceed) {
   for (size_t i=0; i<num_backends; i++) {
     size_t n;
     const char *prefix = backends[i].prefix;
+    printf("%s\n", prefix);
     for (n = 0; prefix[n] && prefix[n] == resource[n]; n++) {}
     priority = backends[i].priority;
     if (n > matchlen || (n == matchlen && matchpriority > priority)) {
