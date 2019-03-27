@@ -174,13 +174,15 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   //Get the devices list and choose the device you want to run on
   cl_device_id *device_list = NULL;
   cl_uint num_devices;
-  int platformID = 0;
-  err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_CPU, 0, NULL, &num_devices);
-  device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
+  int platformID = 1;
   if(cpu) {
+    err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_CPU, 0, NULL, &num_devices);
+    device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
     dbg("[CeedInit][OpenCL] CPU is selected.");
     err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_CPU, num_devices, device_list, NULL);
   } else if(gpu) {
+    err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_GPU, 0, NULL, &num_devices);
+    device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
     dbg("[CeedInit][OpenCL] GPU is selected.");
     err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_GPU, num_devices, device_list, NULL);
   }
@@ -213,6 +215,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
 
   cl_context_properties properties[] = { CL_CONTEXT_PLATFORM, platforms[platformID], 0 };
   data->context = clCreateContext(properties, 1, device_list, NULL, NULL, &err);
+  //data->context = clCreateContext(NULL, 1, device_list, NULL, NULL, &err);
   switch (err) {
     case CL_SUCCESS:
       break;
@@ -239,6 +242,29 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
       CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
       break;
   }
+
+  cl_uint value;
+  err = clGetContextInfo(data->context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &value, NULL);
+  switch (err) {
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_CONTEXT:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Invalid Context");
+      break;
+    case CL_INVALID_VALUE:
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Out of host memory");
+      break;
+    case CL_OUT_OF_RESOURCES:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Out of resources");
+      break;
+  }
+  printf("Num devices: %u\n", value);
 
   data->queue = clCreateCommandQueueWithProperties(data->context, device_list[0],
     0, &err);
