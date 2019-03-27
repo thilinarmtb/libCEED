@@ -67,7 +67,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
             ctx[0] = 0 # Compiler will hopefully remove
         end
 
-        out[o_os] = in[i_os0] + in[i_os1]
+        out[o_os] = in[i_os0] * in[i_os1]
         """,
         name="massf",
         assumptions="Q > 0",
