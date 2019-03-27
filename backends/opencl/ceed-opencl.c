@@ -295,18 +295,20 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   program = clCreateProgramWithSource(data->context, 1,
                                       (const char **) &kernelCode, NULL, &err);
   switch(err) {
-  case CL_INVALID_CONTEXT:
-    CeedError(ceed, 1, "OpenCL backend: Invalid context.");
-    break;
-  case CL_INVALID_VALUE:
-    CeedError(ceed, 1, "OpenCL backend: Invalid value.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_CONTEXT:
+      CeedError(ceed, 1, "OpenCL backend: Invalid context.");
+      break;
+    case CL_INVALID_VALUE:
+      CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+      break;
+    default:
+      CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+      break;
   }
 
   err = clBuildProgram(program, 1, &data->device_id, NULL, NULL, NULL);
@@ -314,47 +316,49 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   size_t log_size;
   char *log;
   switch(err) {
-  case CL_INVALID_PROGRAM:
-    CeedError(ceed, 1, "OpenCL backend: Invalid program.");
-    break;
-  case CL_INVALID_VALUE:
-    CeedError(ceed, 1, "OpenCL backend: Invalid value.");
-    break;
-  case CL_INVALID_DEVICE:
-    CeedError(ceed, 1, "OpenCL backend: Invalid device.");
-    break;
-  case CL_INVALID_BINARY:
-    CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
-    break;
-  case CL_INVALID_BUILD_OPTIONS:
-    CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
-    break;
-  case CL_INVALID_OPERATION:
-    CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
-    break;
-  case CL_COMPILER_NOT_AVAILABLE:
-    CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
-    break;
-  case CL_BUILD_PROGRAM_FAILURE:
-    clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
-                          0, NULL,
-                          &log_size);
-    // Allocate memory for the log
-    log = (char *) malloc(log_size);
-    // Get the log
-    clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
-                          log_size,
-                          log, NULL);
-    // Print the log
-    printf("%s\n", log);
-    CeedError(ceed, 1, "OpenCL backend: Build program failure.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
-    break;
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_PROGRAM:
+      CeedError(ceed, 1, "OpenCL backend: Invalid program.");
+      break;
+    case CL_INVALID_VALUE:
+      CeedError(ceed, 1, "OpenCL backend: Invalid value.");
+      break;
+    case CL_INVALID_DEVICE:
+      CeedError(ceed, 1, "OpenCL backend: Invalid device.");
+      break;
+    case CL_INVALID_BINARY:
+      CeedError(ceed, 1, "OpenCL backend: Invalid binary.");
+      break;
+    case CL_INVALID_BUILD_OPTIONS:
+      CeedError(ceed, 1, "OpenCL backend: Invalid build options.");
+      break;
+    case CL_INVALID_OPERATION:
+      CeedError(ceed, 1, "OpenCL backend: Invalid operation.");
+      break;
+    case CL_COMPILER_NOT_AVAILABLE:
+      CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
+      break;
+    case CL_BUILD_PROGRAM_FAILURE:
+      clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
+                            0, NULL,
+                            &log_size);
+      // Allocate memory for the log
+      log = (char *) malloc(log_size);
+      // Get the log
+      clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
+                            log_size,
+                            log, NULL);
+      // Print the log
+      printf("%s\n", log);
+      CeedError(ceed, 1, "OpenCL backend: Build program failure.");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+      break;
+    default:
+      CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
+      break;
   }
 
   cl_kernel kernel   = clCreateKernel(program, kernelName, &err);
