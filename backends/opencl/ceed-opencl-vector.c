@@ -23,7 +23,7 @@
 static inline size_t bytes(const CeedVector vec) {
   CeedInt length;
   CeedVectorGetLength(vec, &length);
-  return length * sizeof(CeedScalar);
+  return (size_t) length * sizeof(CeedScalar);
 }
 
 // *****************************************************************************
@@ -47,18 +47,15 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
   Ceed ceed;
   CeedVectorGetCeed(vec, &ceed);
-  dbg("[CeedReadBuffer] Init.");
+  dbg("[CeedReadBuffer]");
   Ceed_OpenCL *ceed_data;
   CeedGetData(ceed, (void*)&ceed_data);
   CeedVector_OpenCL *data;
   CeedVectorGetData(vec, (void*)&data);
-  dbg("[CeedReadBuffer] Got data.");
   assert(ceed);
   assert(ceed_data);
-  dbg("[CeedReadBuffer] Got data 1.");
   assert(data);
   assert(data->h_array);
-  dbg("[CeedReadBuffer] Got data 2.");
   clEnqueueReadBuffer(ceed_data->queue, data->d_array, CL_TRUE,
                       0, bytes(vec), data->h_array, 0, NULL, NULL);
   dbg("[CeedReadBuffer] Done.");
@@ -209,7 +206,30 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
   // ***************************************************************************
   ierr = CeedCalloc(1,&data); CeedChk(ierr);
   cl_int err;
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec),NULL, &err);
+
+  cl_uint value;
+  err = clGetContextInfo(ceed_data->context, CL_CONTEXT_NUM_DEVICES, sizeof(cl_uint), &value, NULL);
+  switch (err) {
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_CONTEXT:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Invalid Context");
+      break;
+    case CL_INVALID_VALUE:
+      CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Out of host memory");
+      break;
+    case CL_OUT_OF_RESOURCES:
+      CeedError(ceed, 1,
+                "OpenCL backend can't initialize the CPUs.: Out of resources");
+      break;
+  }
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec), NULL, NULL);
+  //data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, 5000, NULL, NULL);
   switch (err) {
     case CL_SUCCESS:
       break;
