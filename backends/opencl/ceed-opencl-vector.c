@@ -20,7 +20,7 @@
 // *****************************************************************************
 // * Bytes used
 // *****************************************************************************
-static inline size_t bytes(const CeedVector vec) {
+static size_t bytes(const CeedVector vec) {
   CeedInt length;
   CeedVectorGetLength(vec, &length);
   return (size_t) length * sizeof(CeedScalar);
@@ -228,8 +228,9 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
                 "OpenCL backend can't initialize the CPUs.: Out of resources");
       break;
   }
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, bytes(vec), NULL, NULL);
-  //data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, 5000, NULL, NULL);
+  size_t b = (size_t) bytes(vec);
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, 50000, NULL, NULL);
+  //data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, , NULL, NULL);
   switch (err) {
     case CL_SUCCESS:
       break;
