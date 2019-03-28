@@ -49,8 +49,9 @@ typedef double CeedScalar;
     //                        Sqr(in[iOf7[0]+2*Q+i]));
     //out[oOf7[0]+i] = in[iOf7[0]+i];
     //out[oOf7[1]+i] = in[iOf7[1]+i];
-    out[oOf7[0]+i] = in[iOf7[0]+i];
-    out[oOf7[1]+i] = in[iOf7[1]+i];
+    //out[oOf7[0]+i] = in[iOf7[0]+i];
+    //out[oOf7[1]+i] = in[iOf7[1]+i];
+    out[i] = i
   }
 }
 

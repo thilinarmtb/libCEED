@@ -15,25 +15,30 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 # Currently works only for 3D
 def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     masssetupf = lp.make_kernel(
-        "{ [i,d,dd]: 0<=i<Q and 0<=d,dd<3 }",
+        "{ [i]: 0<=i<Q }",
         """
-        #D := 3
-        #v(a, b) := in[(a*D + b)*Q + i + iOf7[1]]
+        D := 3
+        v(a, b) := in[(a*D + b)*Q + i + iOf7[1]]
 
-        #if false
-        #    ctx[0] = 0
-        #end
+        if false
+            oOf7[0] = 0
+            iOf7[1] = 0
+            ctx[0] = 0
+        end
 
-        #det := in[iOf7[2] + i] * (
-        #           v(0,0) * (v(1,1)*v(2,2) - v(1,2)*v(2,1))
-        #         - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
-        #         + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
-        #sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
+        det := in[iOf7[2] + i] * (
+                   v(0,0) * (v(1,1)*v(2,2) - v(1,2)*v(2,1))
+                 - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
+                 + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
+        sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
 
-        #out[oOf7[0] + i] = det
-        #out[oOf7[1] + i] = det * sqrt(sum) 
-        out[oOf7[0] + i] = in[iOf7[0]+i]
-        out[oOf7[1] + i] = in[iOf7[1]+i] 
+        out[oOf7[0] + i] = det
+        out[oOf7[1] + i] = det * sqrt(sum) 
+
+        #out[oOf7[0] + i] = in[iOf7[0]+i]
+        #out[oOf7[1] + i] = in[iOf7[1]+i]    
+        #in[i] = 111
+        #out[i] = 999.0
         """,
         name="masssetupf",
         assumptions="Q > 0",
@@ -42,7 +47,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         )
 
     masssetupf = lp.add_and_infer_dtypes(masssetupf, {
-        "ctx": np.int32, "in": fp_format, "out": fp_format,
+        "ctx": fp_format, "in": fp_format, "out": fp_format,
         "oOf7": np.int32,"iOf7": np.int32 
         })
     
@@ -89,7 +94,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     #massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
     
     massf = lp.add_and_infer_dtypes(massf, {
-        "ctx": np.int32,
+        "ctx": fp_format,
         "in": fp_format,
         "oOf7": np.int32,
         "iOf7": np.int32 
