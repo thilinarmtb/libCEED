@@ -151,6 +151,13 @@ static int CeedQFunctionApply_Occa(CeedQFunction qf, CeedInt Q,
     occaCopyMemToPtr(ctx,d_ctx,cbytes,0,NO_PROPS);
   }
 
+  //double *pointer3 = (double *) calloc(sizeof(double), 2*Q);
+  //occaCopyMemToPtr(pointer3,d_outdata,Q*2*sizeof(double),0,NO_PROPS);
+  //for(int i=0; i<2*Q; i++) {
+  //  printf("outdata_from_device[%d]=%g\n",i,pointer3[i]);
+  //}
+
+  //exit(0);
   // ***************************************************************************
   CeedQFunctionField *outputfields;
   ierr = CeedQFunctionGetFields(qf, NULL, &outputfields); CeedChk(ierr);
@@ -202,7 +209,7 @@ static int CeedQFunctionApply_Occa(CeedQFunction qf, CeedInt Q,
   for (int i = 0; i < nOut; i++) {
     ierr = CeedVectorRestoreArray(Out[i], &out[i]); CeedChk(ierr);
   }
-  exit(0);
+  //exit(0);
   return 0;
 }
 

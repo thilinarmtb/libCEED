@@ -134,8 +134,8 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   }
 
   cl_double* pointer;
-  cl_double* pointer1;
-  cl_double* pointer2;
+  cl_int* pointer1;
+  cl_int* pointer2;
   /*
   // CHECK INPUT DATA
   cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
@@ -179,20 +179,13 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   globalSize = ceil(Q/(float)localSize)*localSize;
 
   
-  printf("STATUS Init: %d\n", err);
   printf("Q=%d\n",Q);
   err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), (void*)&d_ctx);
-  printf("STATUS 0: %d\n", err);
   err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
-  printf("STATUS 1: %d\n", err);
   err = clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), (void*)&d_idx);
-  printf("STATUS 2: %d\n", err);
   err = clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), (void*)&d_odx);
-  printf("STATUS 3: %d\n", err);
   err = clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), (void*)&d_indata);
-  printf("STATUS 4: %d\n", err);
   err = clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), (void*)&d_outdata);
-  printf("STATUS 5: %d\n", err);
 
   dbg("localSize = %zu globalSize=%zu",localSize, globalSize);
   err = clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL,
@@ -212,35 +205,35 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
     printf("indata_from_device[%d]=%lf\n",i,pointer[i]);
   }
   pointer1 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
-      d_idx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(int), 0, NULL, NULL, err);
+      d_idx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(cl_int), 0, NULL, NULL, &err);
   printf("STATUS: %d\n", err);
+  assert(pointer1[1] > 0);
   for(int i=0; i<3; i++) {
-    printf("idx_from_device[%d]=%d\n",i,pointer1[i]);
+    printf("idx_from_device[%d]=%ld\n",i,pointer1[i]);
   }
   pointer2 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
-      d_odx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(int), 0, NULL, NULL, err);
+      d_odx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(cl_int), 0, NULL, NULL, &err);
   printf("STATUS: %d\n", err);
   for(int i=0; i<3; i++) {
     printf("odx_from_device[%d]=%d\n",i,pointer2[i]);
   }
 
   // CHECK OUTPUT DATA
- double* pointer3 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
-      d_outdata, CL_TRUE, CL_MAP_READ, 0, Q*sizeof(double), 0, NULL, NULL, &err);
-  printf("STATUS: %d\n", err);
-  for(int i=0; i<Q; i++) {
-    printf("outdata_from_device[%d]=%g\n",i,pointer3[i]);
-  }
+  //double* pointer3 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
+  //    d_outdata, CL_TRUE, CL_MAP_READ, 0, Q*sizeof(double), 0, NULL, NULL, &err);
+  //printf("STATUS: %d\n", err);
+  //for(int i=0; i<2*Q; i++) {
+  //  printf("outdata_from_device[%d]=%g\n",i,pointer3[i]);
+  //}
 
+  //exit(0);
 
-  clEnqueueUnmapMemObject(ceed_data->queue, d_indata, pointer, NULL, NULL, NULL);
-  clEnqueueUnmapMemObject(ceed_data->queue, d_idx, pointer1, NULL, NULL, NULL);
-  clEnqueueUnmapMemObject(ceed_data->queue, d_odx, pointer2, NULL, NULL, NULL);
-  clEnqueueUnmapMemObject(ceed_data->queue, d_outdata, pointer3, NULL, NULL, NULL);
+  //clEnqueueUnmapMemObject(ceed_data->queue, d_indata, pointer, NULL, NULL, NULL);
+  //clEnqueueUnmapMemObject(ceed_data->queue, d_idx, pointer1, NULL, NULL, NULL);
+  //clEnqueueUnmapMemObject(ceed_data->queue, d_odx, pointer2, NULL, NULL, NULL);
+  //clEnqueueUnmapMemObject(ceed_data->queue, d_outdata, pointer3, NULL, NULL, NULL);
   // END CHECK INPUT DATA 
   
-
-  exit(0);
   // ***************************************************************************
   if (cbytes>0) clEnqueueReadBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
                                       cbytes, qf->ctx, 0, NULL, NULL);

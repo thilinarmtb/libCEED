@@ -6,7 +6,7 @@
 
 __kernel void __attribute__ ((reqd_work_group_size(1, 1, 1))) kRestrict6(__global double const *__restrict__ uu, __global double *__restrict__ vv)
 {
-  for (int i = 0; i <= 47; ++i)
+  for (int i = 0; i <= 23; ++i)
     vv[i] = uu[i];
 }
 

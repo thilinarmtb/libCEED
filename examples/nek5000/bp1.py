@@ -18,7 +18,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         "{ [i]: 0<=i<Q }",
         """
         D := 3
-        v(a, b) := in[(a*D + b)*Q + i + iOf7[1]]
+        v(a, b, c) := in[(a*D + b)*Q + i + iOf7[c]]
 
         if false
             oOf7[0] = 0
@@ -27,18 +27,13 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         end
 
         det := in[iOf7[2] + i] * (
-                   v(0,0) * (v(1,1)*v(2,2) - v(1,2)*v(2,1))
-                 - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
-                 + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
-        sum := v(0,0)**2 + v(0,1)**2 + v(0,2)**2
+                   v(0,0,1) * (v(1,1,1)*v(2,2,1) - v(1,2,1)*v(2,1,1))
+                 - v(0,1,1) * (v(1,0,1)*v(2,2,1) - v(1,2,1)*v(2,0,1))
+                 + v(0,2,1) * (v(1,0,1)*v(2,1,1) - v(1,1,1)*v(2,0,1)))
+        sum := v(0,0,0)**2 + v(0,1,0)**2 + v(0,2,0)**2
 
         out[oOf7[0] + i] = det
         out[oOf7[1] + i] = det * sqrt(sum) 
-
-        #out[oOf7[0] + i] = in[iOf7[0]+i]
-        #out[oOf7[1] + i] = in[iOf7[1]+i]    
-        #in[i] = 111
-        #out[i] = 999.0
         """,
         name="masssetupf",
         assumptions="Q > 0",

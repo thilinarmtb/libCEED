@@ -174,7 +174,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   //Get the devices list and choose the device you want to run on
   cl_device_id *device_list = NULL;
   cl_uint num_devices;
-  int platformID = 0;
+  int platformID = 1;
   if(cpu) {
     err = clGetDeviceIDs(platforms[platformID], CL_DEVICE_TYPE_CPU, 0, NULL, &num_devices);
     device_list = (cl_device_id *) malloc(sizeof(cl_device_id)*num_devices);
