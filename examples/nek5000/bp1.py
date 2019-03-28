@@ -66,6 +66,8 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         i_os0 := i + iOf7[0]
         i_os1 := i + iOf7[1]
         if false
+            oOf7[0]=0
+            iOf7[0]=0
             ctx[0] = 0 # Compiler will hopefully remove
         end
 
@@ -91,6 +93,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     massf = lp.add_and_infer_dtypes(massf, {
         "ctx": fp_format,
         "in": fp_format,
+        "out": fp_format,
         "oOf7": np.int32,
         "iOf7": np.int32 
     })

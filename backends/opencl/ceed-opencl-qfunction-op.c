@@ -98,11 +98,11 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   //qf_data->o_indata = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                   ilen*bytes, NULL, NULL);
   qf_data->o_indata = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                     5000, NULL, NULL);
+                                     MAX_BUF, NULL, NULL);
   //qf_data->d_idx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                idx*sizeof(int), NULL, NULL);
   qf_data->d_idx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                  5000, NULL, NULL);
+                                  MAX_BUF, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, qf_data->d_idx, CL_TRUE, 0,
                        idx*sizeof(int),
                        iOf7, 0, NULL, NULL);
@@ -113,7 +113,7 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   //qf_data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                cbytes>0?cbytes:32, NULL, NULL);
   qf_data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                  5000, NULL, NULL);
+                                  MAX_BUF, NULL, NULL);
   return 0;
 }
 
@@ -193,11 +193,11 @@ int CeedQFunctionAllocOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
   //data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                 olen*bytes, NULL, NULL);
   data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                   5000, NULL, NULL);
+                                   MAX_BUF, NULL, NULL);
   //data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                             odx*sizeof(int), NULL, NULL);
   data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                               5000, NULL, NULL);
+                               MAX_BUF, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_odx, CL_TRUE, 0, odx*sizeof(int),
                        oOf7, 0, NULL, NULL);
   for(int i = 0; i<odx; i++) {
@@ -242,6 +242,9 @@ int CeedQFunctionFillOp_OpenCL(CeedQFunction qf, CeedInt Q,
       assert(length>0);
       clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
                            length*bytes, in[i], 0, NULL, NULL);
+      for(int j = 0; j < length; j++) {
+        printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
+      }
       break;
     }
     case CEED_EVAL_INTERP: {
@@ -251,8 +254,8 @@ int CeedQFunctionFillOp_OpenCL(CeedQFunction qf, CeedInt Q,
       dbg("[CeedQFunction][FillOp] INTERP length=%d", length);
       dbg("[CeedQFunction][FillOp] INTERP offset=%d", iOf7[i]);
       assert(length>0);
-      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, (size_t) iOf7[i]*bytes,
-                           (size_t)length*bytes, (void*)in[i], 0, NULL, NULL);
+      clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
+                           length*bytes, in[i], 0, NULL, NULL);
       for(int j = 0; j < length; j++) {
         printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
       }

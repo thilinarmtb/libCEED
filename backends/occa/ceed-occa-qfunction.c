@@ -180,7 +180,7 @@ static int CeedQFunctionApply_Occa(CeedQFunction qf, CeedInt Q,
       }
       break;
     case CEED_EVAL_INTERP:
-      dbg("[CeedQFunction][Apply] out \"%s\" INTERP",name);
+      dbg("[CeedQFunction][Apply] out \"%s\" INTERP %d",name,Q);
       occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
                        NO_PROPS);
       for(int j= 0; j<Q*ncomp*nelem; j++) {

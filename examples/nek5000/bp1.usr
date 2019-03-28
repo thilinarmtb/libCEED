@@ -844,6 +844,7 @@ C     Compute setup data
      $  ceed_request_immediate,err)
       write(6,*) 'After op_setup'
       call ceedvectorview(vec_rhs,err)
+      call ceedvectorview(vec_qdata,err)
 
 C     Set up true RHS
       call dssum         (r1,nx1,ny1,nz1)          ! r1
@@ -1450,6 +1451,7 @@ C TODO replace this by SyncArray when available
 C TODO replace this by SyncArray when available
       call ceedvectorgetarrayread(vec_ap1,ceed_mem_host,ap1,offset,err)
       call ceedvectorrestorearrayread(vec_ap1,ap1,offset,err)
+      stop
 
       pap(1)=0.
 

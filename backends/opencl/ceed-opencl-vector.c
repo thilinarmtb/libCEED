@@ -229,7 +229,7 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
       break;
   }
   size_t b = (size_t) bytes(vec);
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, 50000, NULL, NULL);
+  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, MAX_BUF, NULL, NULL);
   //data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, , NULL, NULL);
   switch (err) {
     case CL_SUCCESS:

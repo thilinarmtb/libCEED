@@ -212,15 +212,15 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   //data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                  bytes(r), NULL, NULL);
   data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                    5000, NULL, NULL);
+                                    MAX_BUF, NULL, NULL);
   //data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                  (1+ndof)*sizeof(CeedInt), NULL, NULL);
   data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                    5000, NULL, NULL);
+                                    MAX_BUF, NULL, NULL);
   //data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                  bytes(r), NULL, NULL);
   data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
-                                    5000, NULL, NULL);
+                                    MAX_BUF, NULL, NULL);
   // ***************************************************************************
   ierr = CeedMalloc(ndof+1, &toffsets); CeedChk(ierr);
   ierr = CeedMalloc(elemsize*nelem, &tindices); CeedChk(ierr);
