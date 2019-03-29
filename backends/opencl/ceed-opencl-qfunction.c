@@ -293,10 +293,6 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   }
   for (int i = 0; i < nOut; i++) {
     ierr = CeedVectorRestoreArray(Out[i], &out[i]); CeedChk(ierr);
-    printf("Restore Array = %d\n", i);
-    for(int j= 0; j<27; j++) {
-      printf("%lf\n",out[i][j]);
-    }
   }
   return 0;
 }
