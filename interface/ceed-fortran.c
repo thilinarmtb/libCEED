@@ -148,7 +148,7 @@ void fCeedVectorRestoreArrayRead(int *vec, const CeedScalar *array,
 
 #define fCeedVectorView FORTRAN_NAME(ceedvectorview,CEEDVECTORVIEW)
 void fCeedVectorView(int *vec, int *err) {
-  *err = CeedVectorView(CeedVector_dict[*vec], "%12.8f", stdout);
+  *err = CeedVectorView(CeedVector_dict[*vec], "%12.8lf", stdout);
 }
 
 #define fCeedVectorDestroy FORTRAN_NAME(ceedvectordestroy,CEEDVECTORDESTROY)

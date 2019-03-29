@@ -214,6 +214,7 @@ int CeedElemRestrictionCreate_Occa(const CeedMemType mtype,
                     occaInt(nelem*elemsize));
   occaPropertiesSet(pKR, "defines/nelem_x_elemsize_x_ncomp",
                     occaInt(nelem*elemsize*ncomp));
+  dbg("OCCA nelem: %d\n", nelem*elemsize*ncomp);
   // OpenCL check for this requirement
   const CeedInt nelem_tile_size = (nelem>TILE_SIZE)?TILE_SIZE:nelem;
   // OCCA+MacOS implementation need that for now (if DeviceID targets a CPU)

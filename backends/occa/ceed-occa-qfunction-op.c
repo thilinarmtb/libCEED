@@ -62,25 +62,25 @@ int CeedQFunctionAllocOpIn_Occa(CeedQFunction qf, CeedInt Q,
     switch(emode) {
     case CEED_EVAL_INTERP:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > INTERP (%d)", name,Q*ncomp);
-      printf("INTERP: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
+      //printf("INTERP: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
       iOf7[idx+1]=iOf7[idx]+Q*ncomp;
       idx+=1;
       break;
     case CEED_EVAL_GRAD:
-      printf("GRAD: %d %d %d %d %d\n",idx,iOf7[idx],Q,ncomp,dim);
+      //printf("GRAD: %d %d %d %d %d\n",idx,iOf7[idx],Q,ncomp,dim);
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > GRAD (%d)",name,Q*ncomp*dim);
       iOf7[idx+1]=iOf7[idx]+Q*ncomp*dim;;
       idx+=1;
       break;
     case CEED_EVAL_NONE:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > NONE",name);
-      printf("NONE: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
+      //printf("NONE: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
       iOf7[idx+1]=iOf7[idx]+Q*ncomp;
       idx+=1;
       break;
     case CEED_EVAL_WEIGHT:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > WEIGHT (%d)",name,Q);
-      printf("WEIGHT: %d %d %d\n",idx,iOf7[idx],Q);
+      //printf("WEIGHT: %d %d %d\n",idx,iOf7[idx],Q);
       iOf7[idx+1]=iOf7[idx]+Q;
       idx+=1;
       break;
@@ -227,9 +227,9 @@ int CeedQFunctionFillOp_Occa(CeedQFunction qf, CeedInt Q,
       dbg("[CeedQFunction][FillOp] INTERP offset=%d", iOf7[i]);
       assert(length>0);
       occaCopyPtrToMem(d_indata,in[i],length*bytes,iOf7[i]*bytes,NO_PROPS);
-      for(int j = 0; j < length; j++) {
-        printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
-      }
+      //for(int j = 0; j < length; j++) {
+      //  //printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
+      //}
       break;
     }
     case CEED_EVAL_GRAD: {

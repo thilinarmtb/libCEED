@@ -443,6 +443,10 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
     dbg("\t[CeedOperator][Apply] Q function apply");
     ierr = CeedQFunctionApply(qf, Q, data->qvecsin, data->qvecsout); CeedChk(ierr);
 
+    //for (CeedInt i=0; i<numoutputfields; i++) {
+    //    ierr = CeedVectorView(data->qvecsout[i], "ghjk %lf", stdout);
+    //}
+
     // Output basis apply if needed
     dbg("\t[CeedOperator][Apply] Output basis apply if needed");
     for (CeedInt i=0; i<numoutputfields; i++) {
@@ -494,6 +498,10 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
     ierr = CeedVectorSetValue(vec, 0.0); CeedChk(ierr);
   }
 
+  //for (CeedInt i=0; i<numoutputfields; i++) {
+  //    ierr = CeedVectorView(data->qvecsout[i], "uiop %lf", stdout);
+  //}
+
   // Output restriction
   for (CeedInt i=0; i<numoutputfields; i++) {
     // Restore evec
@@ -513,7 +521,14 @@ static int CeedOperatorApply_OpenCL(CeedOperator op,
                                     lmode, data->Evecs[i+data->numein], vec,
                                     request); CeedChk(ierr);
     ierr = SyncToHostPointer(vec); CeedChk(ierr);
+    //ierr = CeedVectorView(vec, "vbnm %lf", stdout);
   }
+
+  //for (CeedInt i=0; i<numoutputfields; i++) {
+  //  // Get elemsize, emode, ncomp
+  //  ierr = CeedVectorView(data->evecsout[i], "qwer %lf", stdout);
+  //}
+
 
   // Restore input arrays
   for (CeedInt i=0; i<numinputfields; i++) {

@@ -61,25 +61,25 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
     switch(emode) {
     case CEED_EVAL_INTERP:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > INTERP (%d)", name,Q*ncomp);
-      printf("INTERP: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
+      //printf("INTERP: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
       iOf7[idx+1]=iOf7[idx]+Q*ncomp;
       idx+=1;
       break;
     case CEED_EVAL_GRAD:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > GRAD (%d)",name,Q*ncomp*dim);
-      printf("GRAD: %d %d %d %d %d\n",idx,iOf7[idx],Q,ncomp,dim);
+      //printf("GRAD: %d %d %d %d %d\n",idx,iOf7[idx],Q,ncomp,dim);
       iOf7[idx+1]=iOf7[idx]+Q*ncomp*dim;;
       idx+=1;
       break;
     case CEED_EVAL_NONE:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > NONE",name);
-      printf("NONE: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
+      //printf("NONE: %d %d %d %d\n",idx,iOf7[idx],Q,ncomp);
       iOf7[idx+1]=iOf7[idx]+Q*ncomp;
       idx+=1;
       break;
     case CEED_EVAL_WEIGHT:
       dbg("\t[CeedQFunction][AllocOpIn] \"%s\" > WEIGHT (%d)",name,Q);
-      printf("WEIGHT: %d %d %d\n",idx,iOf7[idx],Q);
+      //printf("WEIGHT: %d %d %d\n",idx,iOf7[idx],Q);
       iOf7[idx+1]=iOf7[idx]+Q;
       idx+=1;
       break;
@@ -106,9 +106,9 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   clEnqueueWriteBuffer(ceed_data->queue, qf_data->d_idx, CL_TRUE, 0,
                        idx*sizeof(int),
                        iOf7, 0, NULL, NULL);
-  for(int i = 0; i<idx; i++) {
-    printf("d_idx[%d]=%d\n",i,iOf7[i]);
-  }
+  //for(int i = 0; i<idx; i++) {
+  //  printf("d_idx[%d]=%d\n",i,iOf7[i]);
+  //}
   // CTX alloc *****************************************************************
   //qf_data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
   //                                cbytes>0?cbytes:32, NULL, NULL);
@@ -200,9 +200,9 @@ int CeedQFunctionAllocOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
                                MAX_BUF, NULL, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_odx, CL_TRUE, 0, odx*sizeof(int),
                        oOf7, 0, NULL, NULL);
-  for(int i = 0; i<odx; i++) {
-    printf("d_odx[%d]=%d\n",i,oOf7[i]);
-  }
+  //for(int i = 0; i<odx; i++) {
+  //  printf("d_odx[%d]=%d\n",i,oOf7[i]);
+  //}
   return 0;
 }
 
@@ -242,9 +242,9 @@ int CeedQFunctionFillOp_OpenCL(CeedQFunction qf, CeedInt Q,
       assert(length>0);
       clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
                            length*bytes, in[i], 0, NULL, NULL);
-      for(int j = 0; j < length; j++) {
-        printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
-      }
+      //for(int j = 0; j < length; j++) {
+      //  printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
+      //}
       break;
     }
     case CEED_EVAL_INTERP: {
@@ -256,9 +256,9 @@ int CeedQFunctionFillOp_OpenCL(CeedQFunction qf, CeedInt Q,
       assert(length>0);
       clEnqueueWriteBuffer(ceed_data->queue, d_indata, CL_TRUE, iOf7[i]*bytes,
                            length*bytes, in[i], 0, NULL, NULL);
-      for(int j = 0; j < length; j++) {
-        printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
-      }
+      //for(int j = 0; j < length; j++) {
+      //  printf("d_indata[%d][%d]=%lf\n",i,j,in[i][j]);
+      //}
 
       break;
     }

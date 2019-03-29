@@ -20,10 +20,10 @@
 // *****************************************************************************
 // * Bytes used
 // *****************************************************************************
-static size_t bytes(const CeedVector vec) {
+static inline size_t bytes(const CeedVector vec) {
   CeedInt length;
   CeedVectorGetLength(vec, &length);
-  return (size_t) length * sizeof(CeedScalar);
+  return length * sizeof(CeedScalar);
 }
 
 // *****************************************************************************
@@ -36,12 +36,18 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
   CeedGetData(ceed, (void*)&ceed_data);
   CeedVector_OpenCL *data;
   CeedVectorGetData(vec, (void*)&data);
-  assert(ceed);
-  assert(ceed_data);
   assert(data);
   assert(data->h_array);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_array, CL_TRUE,
                        0, bytes(vec), data->h_array, 0, NULL, NULL);
+
+  //printf("bytes(vec)=%zu, p=%p\n",bytes(vec), data->h_array);
+  //cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+  //    data->d_array, CL_TRUE, CL_MAP_READ, 0, bytes(vec), 0, NULL, NULL, NULL);
+  //for(int i=0; i<27; i++) {
+  //  printf("right_after_the_write[%d]=%lf\n",i,pointer[i]);
+  //}
+  //fflush(stdout);
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
@@ -114,8 +120,8 @@ static int CeedVectorSetArray_OpenCL(const CeedVector vec,
 // * this will perform a copy (possibly cached).
 // *****************************************************************************
 static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
-    const CeedMemType mtype,
-    const CeedScalar **array) {
+    					const CeedMemType mtype,
+    					const CeedScalar **array) {
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
@@ -130,8 +136,14 @@ static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
     CeedChk(ierr);
   }
   dbg("[CeedVector][Get] CeedSyncD2H_OpenCL");
+  //for(int i = 0; i<27; i++) {
+  //  printf("host-array-before[%i]=%lf\n",i,data->h_array[i]);
+  //}
   CeedReadBuffer_OpenCL(vec);
   *array = data->h_array;
+  //for(int i = 0; i<27; i++) {
+  //  printf("host-array-after[%i]=%lf\n",i,data->h_array[i]);
+  //}
   return 0;
 }
 // *****************************************************************************
@@ -149,13 +161,25 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
-  dbg("[CeedVector][Restore]");
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void*)&data); CeedChk(ierr);
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed, (void*)&ceed_data);
+  dbg("[CeedVector][Restore]");
   assert((data)->h_array);
   assert(*array);
+
   CeedWriteBuffer_OpenCL(vec); // sync Host to Device
-  *array = NULL;
+  //for(int i = 0; i<27; i++) {
+  //  printf("restore[%d]=%lf %lf\n",i,(*array)[i], data->h_array[i]);
+  //}
+  //printf("bytes(vec)=%zu, p=%p\n",bytes(vec), data->h_array);
+  //cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+  //    data->d_array, CL_TRUE, CL_MAP_READ, 0, bytes(vec), 0, NULL, NULL, NULL);
+  //for(int i=0; i<27; i++) {
+  //  printf("after_the_write[%d]=%lf\n",i,pointer[i]);
+  //}
+  //*array = NULL;
   return 0;
 }
 // *****************************************************************************

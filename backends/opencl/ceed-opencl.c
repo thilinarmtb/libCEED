@@ -294,14 +294,14 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   char pythonCmd[2*BUFSIZ], clFile[BUFSIZ];
   sprintf(clFile, "%s.cl", kernelName);
 
-  if(access(clFile, F_OK) == -1) {
+  //if(access(clFile, F_OK) == -1) {
     sprintf(pythonCmd, "python %s %s %s '%s' > %s", pythonFile, kernelName, arch,
         constantDict, clFile);
     dbg("[createKernelFromPython] generating %s", pythonCmd);
     system(pythonCmd);
-  } else {
-    dbg("[createKernelFromPython] reading from cache %s", clFile);
-  }
+  //} else {
+  //  dbg("[createKernelFromPython] reading from cache %s", clFile);
+  //}
 
   FILE *fp = fopen(clFile, "r");
   char *kernelCode;

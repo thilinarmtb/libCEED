@@ -103,9 +103,9 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   CeedScalar *out[16];
   for (int i = 0; i < nIn; i++) {
     ierr = CeedVectorGetArrayRead(In[i], CEED_MEM_HOST, &in[i]); CeedChk(ierr);
-    for(int j = 0; j<54; j++) {
-      printf("in[%d][%d] = %lf\n",i,j,in[i][j]);
-    }
+    //for(int j = 0; j<27; j++) {
+    //  printf("in[%d][%d] = %lf\n",i,j,in[i][j]);
+    //}
   }
   for (int i = 0; i < nOut; i++) {
     ierr = CeedVectorGetArray(Out[i], CEED_MEM_HOST, &out[i]); CeedChk(ierr);
@@ -197,32 +197,32 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
 
    // CHECK INPUT DATA
   
-  pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
-      d_indata, CL_TRUE, CL_MAP_READ, 0, 2*Q*sizeof(double), 0, NULL, NULL, &err);
-  printf("STATUS: %d\n", err);
-  for(int i=0; i<2*Q; i++) { 
-    printf("indata_from_device[%d]=%lf\n",i,pointer[i]);
-  }
-  pointer1 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
-      d_idx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(cl_int), 0, NULL, NULL, &err);
-  printf("STATUS: %d\n", err);
-  assert(pointer1[1] > 0);
-  for(int i=0; i<3; i++) {
-    printf("idx_from_device[%d]=%d\n",i,pointer1[i]);
-  }
-  pointer2 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
-      d_odx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(cl_int), 0, NULL, NULL, &err);
-  printf("STATUS: %d\n", err);
-  for(int i=0; i<3; i++) {
-    printf("odx_from_device[%d]=%d\n",i,pointer2[i]);
-  }
+  //pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+  //    d_indata, CL_TRUE, CL_MAP_READ, 0, 2*Q*sizeof(double), 0, NULL, NULL, &err);
+  //printf("STATUS: %d\n", err);
+  //for(int i=0; i<2*Q; i++) { 
+  //  printf("indata_from_device[%d]=%lf\n",i,pointer[i]);
+  //}
+  //pointer1 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
+  //    d_idx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(cl_int), 0, NULL, NULL, &err);
+  //printf("STATUS: %d\n", err);
+  //assert(pointer1[1] > 0);
+  //for(int i=0; i<3; i++) {
+  //  printf("idx_from_device[%d]=%d\n",i,pointer1[i]);
+  //}
+  //pointer2 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
+  //    d_odx, CL_TRUE, CL_MAP_READ, 0, 3*sizeof(cl_int), 0, NULL, NULL, &err);
+  //printf("STATUS: %d\n", err);
+  //for(int i=0; i<3; i++) {
+  //  printf("odx_from_device[%d]=%d\n",i,pointer2[i]);
+  //}
 
-  pointer3 = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
-      d_outdata, CL_TRUE, CL_MAP_READ, 0, 2*Q*sizeof(double), 0, NULL, NULL, &err);
-  printf("STATUS: %d\n", err);
-  for(int i=0; i<2*Q; i++) {
-    printf("outdata_from_device[%d]=%g\n",i,pointer3[i]);
-  }
+  //pointer3 = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+  //    d_outdata, CL_TRUE, CL_MAP_READ, 0, 2*Q*sizeof(double), 0, NULL, NULL, &err);
+  //printf("STATUS: %d\n", err);
+  //for(int i=0; i<2*Q; i++) {
+  //  printf("outdata_from_device[%d]=%g\n",i,pointer3[i]);
+  //}
 
    //CHECK OUTPUT DATA
   //exit(0);
@@ -253,32 +253,32 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
     case CEED_EVAL_NONE:
       dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
 
-      printf("err from Readbuffer = %d\n", err);
+      //printf("err from Readbuffer = %d\n", err);
       clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 
         data->oOf7[i]*bytes,Q*ncomp*nelem*bytes, out[i], 0, NULL, NULL);
 
-      for(int j= 0; j<Q*ncomp*nelem; j++) {
-        printf("%s %lf\n",name, out[i][j]);
-      }
+      //for(int j= 0; j<Q*ncomp*nelem; j++) {
+      //  printf("%s %lf\n",name, out[i][j]);
+      //}
       break;
     case CEED_EVAL_INTERP:
       dbg("[CeedQFunction][Apply] out \"%s\" INTERP %d",name, Q);
 
       err = clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE,
         data->oOf7[i]*bytes, Q*ncomp*nelem*bytes, out[i], 0, NULL, NULL);
-      printf("err from Readbuffer = %d\n", err);
+      //printf("err from Readbuffer = %d\n", err);
 
-      for(int j= 0; j<Q*ncomp*nelem; j++) {
-        printf("%s %g\n",name, out[i][j]);
-      }
+      //for(int j= 0; j<Q*ncomp*nelem; j++) {
+      //  printf("%s %g\n",name, out[i][j]);
+      //}
       break;
     case CEED_EVAL_GRAD:
       dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
       clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, data->oOf7[i]*bytes,
           Q*ncomp*dim*nelem*bytes, out[i], 0, NULL, NULL);
-      for(int j= 0; j<Q*ncomp*dim*nelem; j++) {
-        printf("%s %lf\n",name, out[i][j]);
-      }
+      //for(int j= 0; j<Q*ncomp*dim*nelem; j++) {
+      //  printf("%s %lf\n",name, out[i][j]);
+      //}
       break;
     case CEED_EVAL_WEIGHT:
       break; // no action
@@ -288,6 +288,14 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
       break; // Not implimented
     }
   }
+
+
+  //for (int i = 0; i < nOut; i++) {
+  //  printf("pointer-out[%d]=%p\n",i,out[i]);
+  //    for(int j= 0; j<27; j++) {
+  //      printf("out[%d][%d] %lf\n",i,j, out[i][j]);
+  //    }
+  //}
   for (int i = 0; i < nIn; i++) {
     ierr = CeedVectorRestoreArrayRead(In[i], &in[i]); CeedChk(ierr);
   }

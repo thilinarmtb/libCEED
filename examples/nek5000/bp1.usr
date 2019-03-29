@@ -1451,7 +1451,6 @@ C TODO replace this by SyncArray when available
 C TODO replace this by SyncArray when available
       call ceedvectorgetarrayread(vec_ap1,ceed_mem_host,ap1,offset,err)
       call ceedvectorrestorearrayread(vec_ap1,ap1,offset,err)
-      stop
 
       pap(1)=0.
 

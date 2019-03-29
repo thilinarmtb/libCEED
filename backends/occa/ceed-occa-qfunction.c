@@ -140,7 +140,7 @@ static int CeedQFunctionApply_Occa(CeedQFunction qf, CeedInt Q,
 
   // ***************************************************************************
   dbg("[CeedQFunction][Apply] occaKernelRun");
-  printf("Q=%d\n",Q);
+  //printf("Q=%d\n",Q);
   occaKernelRun(data->kQFunctionApply,
                 d_ctx, occaInt(Q),
                 d_idx, d_odx,
@@ -175,25 +175,25 @@ static int CeedQFunctionApply_Occa(CeedQFunction qf, CeedInt Q,
       dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
       occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
                        NO_PROPS);
-      for(int j= 0; j<Q*ncomp*nelem; j++) {
-        printf("%s %lf\n",name, out[i][j]);
-      }
+      //for(int j= 0; j<Q*ncomp*nelem; j++) {
+      //  printf("%s %lf\n",name, out[i][j]);
+      //}
       break;
     case CEED_EVAL_INTERP:
       dbg("[CeedQFunction][Apply] out \"%s\" INTERP %d",name,Q);
       occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*nelem*bytes,data->oOf7[i]*bytes,
                        NO_PROPS);
-      for(int j= 0; j<Q*ncomp*nelem; j++) {
-        printf("%s %lf\n",name, out[i][j]);
-      }
+      //for(int j= 0; j<Q*ncomp*nelem; j++) {
+      //  printf("%s %lf\n",name, out[i][j]);
+      //}
       break;
     case CEED_EVAL_GRAD:
       dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
       occaCopyMemToPtr(out[i],d_outdata,Q*ncomp*dim*nelem*bytes,data->oOf7[i]*bytes,
                        NO_PROPS);
-      for(int j= 0; j<Q*ncomp*dim*nelem; j++) {
-        printf("%s %lf\n",name, out[i][j]);
-      }
+      //for(int j= 0; j<Q*ncomp*dim*nelem; j++) {
+      //  printf("%s %lf\n",name, out[i][j]);
+      //}
       break;
     case CEED_EVAL_WEIGHT:
       break; // no action
