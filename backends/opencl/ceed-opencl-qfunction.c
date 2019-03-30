@@ -57,10 +57,11 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   // ***************************************************************************
   char *arch = ceed_data->arch;
   char constantDict[BUFSIZ];
-  sprintf(constantDict, "{\"nc\": %d,"
-          "\"dim\": %d,"
-          "\"epsilon\": %lf}",
-          data->nc, data->dim, 1.e-14);
+  //sprintf(constantDict, "{\"nc\": %d,"
+  //        "\"dim\": %d,"
+  //        "\"epsilon\": %lf}",
+  //        data->nc, data->dim, 1.e-14);
+  sprintf(constantDict, "{}");
 
   data->kQFunctionApply = createKernelFromPython(data->qFunctionName,
                           data->pythonFile,

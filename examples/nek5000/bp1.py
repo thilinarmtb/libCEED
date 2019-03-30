@@ -181,7 +181,7 @@ constants = json.loads(sys.argv[3])
 
 if kernel_name == 'masssetupf':
     k = generate_masssetupf(constants, arch)
-if kernel_name == 'massf':
+elif kernel_name == 'massf':
     k = generate_massf(constants, arch)
 else:
     print("Invalid kernel name: {}".format(kernel_name))
