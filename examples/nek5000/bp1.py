@@ -25,7 +25,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
 
     kernel_data = ["ctx","iOf7", "oOf7", "in", "out"]
     if constants == {}:
-        kernel_data += ["ctx", "Q","iOf7", "oOf7", "in", "out"]
+        kernel_data = ["ctx", "Q", "iOf7", "oOf7", "in", "out"]
 
     k = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
@@ -99,7 +99,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     
     kernel_data = ["ctx","iOf7", "oOf7", "in", "out"]
     if constants == {}:
-        kernel_data += ["ctx", "Q","iOf7", "oOf7", "in", "out"]
+        kernel_data = ["ctx", "Q","iOf7", "oOf7", "in", "out"]
 
     k = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
@@ -178,7 +178,7 @@ except:
     print('An unknown error occured.')
 '''
 
-#code = generate_masssetupf(constants={"Q": 277})["kernel"]
+#code = generate_masssetupf(constants={})["kernel"]
 #print(code)
 #print()
 
