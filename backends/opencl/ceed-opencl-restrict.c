@@ -246,24 +246,24 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   char *result;
   const char *pythonFile = "loopy_kernel_output.py";
   concat(&result, ceed_data->openclBackendDir, pythonFile);
-  data->kRestrict[0] = createKernelFromPython("kRestrict0", result, arch,
-                       constantDict,
-                       ceed_data, &data->work[0]);
-  data->kRestrict[1] = createKernelFromPython("kRestrict1", result, arch,
-                       constantDict,
-                       ceed_data, &data->work[1]);
-  data->kRestrict[2] = createKernelFromPython("kRestrict2", result, arch,
-                       constantDict,
-                       ceed_data, &data->work[2]);
-  data->kRestrict[3] = createKernelFromPython("kRestrict2", result, arch,
-                       constantDict,
-                       ceed_data, &data->work[3]);
-  data->kRestrict[4] = createKernelFromPython("kRestrict2", result, arch,
-                       constantDict,
-                       ceed_data, &data->work[4]);
-  data->kRestrict[5] = createKernelFromPython("kRestrict2", result, arch,
-                       constantDict,
-                       ceed_data, &data->work[5]);
+  //data->kRestrict[0] = createKernelFromPython("kRestrict0", result, arch,
+  //                     constantDict,
+  //                     ceed_data, &data->work[0]);
+  //data->kRestrict[1] = createKernelFromPython("kRestrict1", result, arch,
+  //                     constantDict,
+  //                     ceed_data, &data->work[1]);
+  //data->kRestrict[2] = createKernelFromPython("kRestrict2", result, arch,
+  //                     constantDict,
+  //                     ceed_data, &data->work[2]);
+  //data->kRestrict[3] = createKernelFromPython("kRestrict2", result, arch,
+  //                     constantDict,
+  //                     ceed_data, &data->work[3]);
+  //data->kRestrict[4] = createKernelFromPython("kRestrict2", result, arch,
+  //                     constantDict,
+  //                     ceed_data, &data->work[4]);
+  //data->kRestrict[5] = createKernelFromPython("kRestrict2", result, arch,
+  //                     constantDict,
+  //                     ceed_data, &data->work[5]);
   data->kRestrict[6] = createKernelFromPython("kRestrict6", result, arch,
                        constantDict,
                        ceed_data, &data->work[6]);

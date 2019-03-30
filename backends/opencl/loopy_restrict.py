@@ -175,7 +175,3 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
        outDict.update({"global_work_size": [global_size, 1, 1]}),
     
     return outDict
-
-#kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 99})
-#kRestrict6 = generate_kRestrict6(constants={})
-#print(kRestrict6["kernel"])

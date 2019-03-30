@@ -17,18 +17,18 @@ from loopy_basis import generate_kZero, generate_kInterp, generate_kWeight, \
         generate_kGrad
 
 def write_kernel(data):
-    kernel = data["kernel"]
-    workDim = data["work_dim"]
-    globalWorkSize = data["global_work_size"]
-    localWorkSize = data["local_work_size"]
+    kernel = data['kernel']
+    workDim = data['work_dim']
+    globalWorkSize = data['global_work_size']
+    localWorkSize = data['local_work_size']
 
     kernelLength = len(kernel)
 
-    print("[kernel_length]\n{}\n".format(kernelLenght))
+    print("[kernel_length]\n{}\n".format(kernelLength))
     print("[kernel]\n{}\n".format(kernel))
     print("[work_dim]\n{}\n".format(workDim))
-    print("[global_work_size]\n{}\n".format(globalWorkSize))
-    print("[local_work_size]\n{}\n".format(localWorkSize))
+    print("[global_work_size]\n{}\n".format('\n'.join(map(str, globalWorkSize))))
+    print("[local_work_size]\n{}\n".format('\n'.join(map(str, localWorkSize))))
 
 arg_len = len(sys.argv)
 if arg_len != 4:

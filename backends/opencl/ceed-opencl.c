@@ -284,7 +284,7 @@ void concat(char **result, const char *s1, const char *s2) {
   *result = (char *) calloc(sizeof(char), strlen(s1) + strlen(s2) + 1);
   strcpy(*result, s1);
   strcpy(*result + strlen(s1), s2);
-  printf("[concat] result=%s\n",*result);
+  printf("result = %s\n", *result);
 }
 
 void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
@@ -295,47 +295,58 @@ void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
   sprintf(dictName, "%s.dict", kernelName);
   FILE *fp = fopen(dictName, "r");
 
-  do {
+  if (fp != NULL) {
+    do {
+      fgets(buf, BUFSIZ, fp);
+    } while(!strstr(buf, "\[work_dim\]"));
     fgets(buf, BUFSIZ, fp);
-  } while(!strstr(buf, "[work_dim]"));
-  fgets(buf, BUFSIZ, fp);
-  sscanf(buf,"%u",&work->work_dim);
+    sscanf(buf,"%u",&work->work_dim);
+    printf("work_dim: %u\n",work->work_dim);
 
-  work->global_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
-  work->local_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
+    work->global_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
+    work->local_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
 
-  fseek(fp, 0, SEEK_SET);
-  do {
+    fseek(fp, 0, SEEK_SET);
+    do {
+      fgets(buf, BUFSIZ, fp);
+    } while(!strstr(buf, "\[global_work_size\]"));
+
     fgets(buf, BUFSIZ, fp);
-  } while(!strstr(buf, "[global_work_size]"));
+    for(int i = 0; i < work->work_dim; i++) {
+      sscanf(buf,"%zd\n", work->global_work_size + i);
+      printf("global_work_dim[%d]: %zd\n",i,work->global_work_size[i]);
+    }
 
-  for(int i = 0; i < work->work_dim; i++) {
-    sscanf(buf,"%z\n", work->global_work_size + i);
+    fseek(fp, 0, SEEK_SET);
+    do {
+      fgets(buf, BUFSIZ, fp);
+    } while(!strstr(buf, "\[local_work_size\]"));
+
+    fgets(buf, BUFSIZ, fp);
+    for(int i = 0; i < work->work_dim; i++) {
+      sscanf(buf,"%zd\n", work->local_work_size + i);
+      printf("local_work_dim[%d]: %zd\n",i,work->local_work_size[i]);
+    }
+
+    fseek(fp, 0, SEEK_SET);
+    do {
+      fgets(buf, BUFSIZ, fp);
+    } while(!strstr(buf, "\[kernel_length\]"));
+    fgets(buf, BUFSIZ, fp);
+    sscanf(buf,"%d",&kernel_length);
+    printf("kernel_length=%d\n", kernel_length);
+
+    *kernel = calloc(sizeof(char), kernel_length + 1);
+
+    fseek(fp, 0, SEEK_SET);
+    do {
+      fgets(buf, BUFSIZ, fp);
+    } while(!strstr(buf, "\[kernel\]"));
+    fread(*kernel, sizeof(char), kernel_length, fp);
+    printf("kernel=%s\n", *kernel);
+  } else {
+    fprintf(stderr, "Can't open the dict file\n");
   }
-
-  fseek(fp, 0, SEEK_SET);
-  do {
-    fgets(buf, BUFSIZ, fp);
-  } while(!strstr(buf, "[local_work_size]"));
-
-  for(int i = 0; i < work->work_dim; i++) {
-    sscanf(buf,"%z\n", work->local_work_size + i);
-  }
-
-  fseek(fp, 0, SEEK_SET);
-  do {
-    fgets(buf, BUFSIZ, fp);
-  } while(!strstr(buf, "[kernel_length]"));
-  fgets(buf, BUFSIZ, fp);
-  sscanf(buf,"%u",&kernel_length);
-
-  *kernel = calloc(sizeof(char), kernel_length + 1);
-
-  fseek(fp, 0, SEEK_SET);
-  do {
-    fgets(buf, BUFSIZ, fp);
-  } while(!strstr(buf, "[kernel]"));
-  fread(*kernel, sizeof(char), kernel_length, fp);
 
   fclose(fp);
 }
@@ -347,9 +358,9 @@ cl_kernel createKernelFromPython(char *kernelName, char *pythonFile, char *arch,
                                  char *constantDict, Ceed_OpenCL *ceed_data,
                                  CeedWork_OpenCL **data) {
   char pythonCmd[2*BUFSIZ];
-  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch,
-          constantDict);
-  printf("[createKernelFromPython] generating %s", pythonCmd);
+  sprintf(pythonCmd, "python %s %s %s '%s' > %s.dict", pythonFile, kernelName, arch,
+          constantDict, kernelName);
+  printf("[createKernelFromPython] generating %s\n", pythonCmd);
   system(pythonCmd);
 
   char *kernelCode;

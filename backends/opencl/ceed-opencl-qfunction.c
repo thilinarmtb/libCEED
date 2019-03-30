@@ -63,7 +63,7 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
           data->nc, data->dim, 1.e-14);
 
   data->kQFunctionApply = createKernelFromPython(data->qFunctionName,
-                          "loopy_kernel_output.py",
+                          data->pythonFile,
                           arch, constantDict, ceed_data, &data->work);
   // ***************************************************************************
 
