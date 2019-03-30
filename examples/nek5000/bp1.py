@@ -33,7 +33,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         # even if they are not used or commented out
         if false
             <> dummy = oOf7[0]
-            dummy = iOf7[1]
+            dummy = iOf7[0]
             dummy = ctx[0]
         end
 
