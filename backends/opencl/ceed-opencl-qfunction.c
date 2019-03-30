@@ -62,9 +62,8 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
           "\"epsilon\": %lf}",
           data->nc, data->dim, 1.e-14);
 
-  data->kQFunctionApply = createKernelFromPython(data->qFunctionName, arch,
-                          constantDict, data->pythonFile,
-                          ceed);
+  data->kQFunctionApply = createKernelFromPython(data->qFunctionName, "loopy_kernel_output.py",
+      arch, constantDict, ceed_data, &data->work,);
   // ***************************************************************************
 
   return 0;
@@ -175,12 +174,6 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   dbg("[CeedQFunction][Apply] OpenCLKernelRun");
 
   cl_int err;
-  size_t globalSize, localSize;
-  // Number of work items in each local work group
-  localSize = 1;
-  // Number of total work items - localSize must be devisor
-  globalSize = ceil(Q/(float)localSize)*localSize;
-
   err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), (void*)&d_ctx);
   err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
   err = clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), (void*)&d_idx);
@@ -188,9 +181,8 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   err = clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), (void*)&d_indata);
   err = clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), (void*)&d_outdata);
 
-  err = clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, 1, NULL,
-                         &globalSize,
-                         &localSize, 0, NULL, NULL);
+  CeedOpenCL *work = data->work;
+  err = clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, work->work_dim, NULL, work->global_work_size, work->local_work_size, 0, NULL, NULL);
 
   clFlush(ceed_data->queue);
   clFinish(ceed_data->queue);
@@ -329,6 +321,7 @@ static int CeedQFunctionDestroy_OpenCL(CeedQFunction qf) {
   if(data->pythonFile)
     free(data->pythonFile);
 
+  free(data->work);
   int ierr = CeedFree(&data); CeedChk(ierr);
 
   return 0;

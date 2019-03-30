@@ -93,14 +93,10 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
   char *result;
   const char *pythonFile = "loopy_kernel_output.py";
   concat(&result, ceed_data->openclBackendDir, pythonFile);
-  data->kZero = createKernelFromPython("kZero", arch, constantDict,
-                                       result, ceed);
-  data->kInterp = createKernelFromPython("kInterp", arch, constantDict,
-                                         result, ceed);
-  data->kGrad = createKernelFromPython("kGrad", arch, constantDict,
-                                       result, ceed);
-  data->kWeight = createKernelFromPython("kWeight", arch, constantDict,
-                                         result, ceed);
+  data->kZero = createKernelFromPython("kZero", result, arch, constantDict, ceed_data, &kZ);
+  data->kInterp = createKernelFromPython("kInterp", arch, constantDict, ceed_data, &kI);
+  data->kGrad = createKernelFromPython("kGrad", arch, constantDict, ceed_data, &kG);
+  data->kWeight = createKernelFromPython("kWeight", arch, constantDict, ceed_data, &kW);
   free(result);
   // free local usage **********************************************************
   return 0;
@@ -388,6 +384,7 @@ static int CeedBasisDestroy_OpenCL(CeedBasis basis) {
   clReleaseMemObject(data->qweight1d);
   clReleaseMemObject(data->interp1d);
   clReleaseMemObject(data->grad1d);
+  free(data->work);
   ierr = CeedFree(&data); CeedChk(ierr);
   return 0;
 }

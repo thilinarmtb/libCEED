@@ -279,18 +279,13 @@ void concat(char **result, const char *s1, const char *s2) {
   *result = (char *) calloc(sizeof(char), strlen(s1) + strlen(s2) + 1);
   strcpy(*result, s1);
   strcpy(*result + strlen(s1), s2);
-  printf("[concat] result=%s\n",*result);
+  dbg("[concat] result=%s\n",*result);
 }
 
-void readPythonDict(char *kernelName) {
+void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
   char buf[BUFSIZ];
   char dictName[BUFSIZ];
-
-  cl_uint work_dim;
   int kernel_length;
-  size_t *global_work_size;
-  size_t *local_work_size;
-  char *kernel;
   
   sprintf(dictName, "%s.dict", kernelName);
   FILE *fp = fopen(dictName, "r");
@@ -299,18 +294,18 @@ void readPythonDict(char *kernelName) {
     fgets(buf, BUFSIZ, fp);
   } while(!strstr(buf, "[work_dim]"));
   fgets(buf, BUFSIZ, fp);
-  sscanf(buf,"%u",&work_dim);
+  sscanf(buf,"%u",&work->work_dim);
 
-  global_work_size = (size_t *) calloc(sizeof(size_t), work_dim);
-  local_work_size = (size_t *) calloc(sizeof(size_t), work_dim);
+  work->global_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
+  work->local_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
 
   fseek(fp, 0, SEEK_SET);
   do {
     fgets(buf, BUFSIZ, fp);
   } while(!strstr(buf, "[global_work_size]"));
 
-  for(int i = 0; i < work_dim; i++) {
-    sscanf(buf,"%z\n", &global_work_size[i]);
+  for(int i = 0; i < work->work_dim; i++) {
+    sscanf(buf,"%z\n", work->global_work_size + i);
   }
 
   fseek(fp, 0, SEEK_SET);
@@ -318,8 +313,8 @@ void readPythonDict(char *kernelName) {
     fgets(buf, BUFSIZ, fp);
   } while(!strstr(buf, "[local_work_size]"));
 
-  for(int i = 0; i < work_dim; i++) {
-    sscanf(buf,"%z\n", &local_work_size[i]);
+  for(int i = 0; i < work->work_dim; i++) {
+    sscanf(buf,"%z\n", work->local_work_size + i);
   }
 
   fseek(fp, 0, SEEK_SET);
@@ -329,13 +324,13 @@ void readPythonDict(char *kernelName) {
   fgets(buf, BUFSIZ, fp);
   sscanf(buf,"%u",&kernel_length);
 
-  kernel = calloc(sizeof(char), kernel_length + 1);
+  *kernel = calloc(sizeof(char), kernel_length + 1);
 
   fseek(fp, 0, SEEK_SET);
   do {
     fgets(buf, BUFSIZ, fp);
   } while(!strstr(buf, "[kernel]"));
-  fread(kernel, sizeof(char), kernel_length, fp);
+  fread(*kernel, sizeof(char), kernel_length, fp);
 
   fclose(fp);
 }
@@ -343,39 +338,22 @@ void readPythonDict(char *kernelName) {
 // *****************************************************************************
 // * Build from Python
 // *****************************************************************************
-cl_kernel createKernelFromPython(char *kernelName, char *arch,
-                                 char *constantDict, char *pythonFile, Ceed ceed) {
-  CeedInt ierr;
-  Ceed_OpenCL *data;
-  ierr = CeedGetData(ceed, (void*)&data); CeedChk(ierr);
+cl_kernel createKernelFromPython(char *kernelName, char *pythonFile, char *arch,
+                                 char *constantDict, Ceed_OpenCL *ceed_data,
+                                 CeedWork_OpenCL **data) {
+  char pythonCmd[2*BUFSIZ]
 
-  char pythonCmd[2*BUFSIZ], clFile[BUFSIZ];
-  sprintf(clFile, "%s.cl", kernelName);
-
-  sprintf(pythonCmd, "python %s %s %s '%s' > %s", pythonFile, kernelName, arch,
-      constantDict, clFile);
   dbg("[createKernelFromPython] generating %s", pythonCmd);
+  sprintf(pythonCmd, "python %s %s %s '%s'", pythonFile, kernelName, arch, constantDict);
   system(pythonCmd);
 
-  FILE *fp = fopen(clFile, "r");
   char *kernelCode;
-  if(fp != NULL) {
-    fseek(fp, 0, SEEK_END); long int length = ftell(fp); fseek(fp, 0, SEEK_SET);
-    kernelCode = (char *) malloc(sizeof(char)*length+1);
-    if(kernelCode != NULL) {
-      fread(kernelCode, sizeof(char), length, fp);
-      kernelCode[length]='\0';
-    }
-  } else {
-    printf("Can't opent kernel file %s.\n", clFile);
-    exit(1);
-  }
-
-  fclose(fp);
+  *data = (CeedWork_OpenCL*) calloc(sizeof(CeedWork_OpenCL), 1);
+  readPythonDict(kernelName, *data, &kernelCode);
 
   cl_int err;
   cl_program program;
-  program = clCreateProgramWithSource(data->context, 1,
+  program = clCreateProgramWithSource(ceed_data->context, 1,
                                       (const char **) &kernelCode, NULL, &err);
   switch(err) {
     case CL_SUCCESS:
@@ -393,8 +371,9 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
       CeedError(ceed, 1, "OpenCL backend: Out of host memory.");
       break;
   }
+  free(kernelCode);
 
-  err = clBuildProgram(program, 1, &data->device_id, NULL, NULL, NULL);
+  err = clBuildProgram(program, 1, &ceed_data->device_id, NULL, NULL, NULL);
   // Determine the size of the log
   size_t log_size;
   char *log;
@@ -423,7 +402,7 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
       CeedError(ceed, 1, "OpenCL backend: Compiler not available.");
       break;
     case CL_BUILD_PROGRAM_FAILURE:
-      clGetProgramBuildInfo(program, data->device_id, CL_PROGRAM_BUILD_LOG,
+      clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
                             0, NULL,
                             &log_size);
       // Allocate memory for the log

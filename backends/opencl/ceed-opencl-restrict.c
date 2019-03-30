@@ -58,7 +58,6 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   const bool identity = data->identity;
   // ***************************************************************************
   cl_int err;
-  size_t globalSize, localSize = 1;
   Ceed_OpenCL *ceed_data = ceed->data;
 
   if (identity) {
@@ -66,21 +65,15 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     CeedInt nelem, elemsize;
     ierr = CeedElemRestrictionGetNumElements(r, &nelem); CeedChk(ierr);
     ierr = CeedElemRestrictionGetElementSize(r, &elemsize); CeedChk(ierr);
-    globalSize = (size_t) nelem*elemsize*ncomp;
     err |= clSetKernelArg(data->kRestrict[6], 0, sizeof(cl_mem), (void *)&ud);
     err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&vd);
 
     localSize = 1;
-    clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], 1, NULL,
-                           &globalSize, &localSize, 0, NULL, NULL);
+    CeedOpenCL *work = data->work[6];
+    clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], work->work_dim, NULL,
+                           work->globa_work_size, work->local_work_size, 0, NULL, NULL);
     clFlush(ceed_data->queue);
     clFinish(ceed_data->queue);
-
-    //Testing code - map to read, then unmap
-    //cl_double* pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue, vd, CL_TRUE, CL_MAP_READ, 0, sizeof(cl_double), 0, NULL, NULL, NULL);
-    //cl_double result = *pointer;
-    //dbg("FIRST ELEMENT %g\n", result);
-    //err = clEnqueueUnmapMemObject(ceed_data->queue, vd, pointer, NULL, NULL, NULL);
  
   } else if (restriction) {
     // Perform: v = r * u
@@ -129,6 +122,7 @@ static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
   cl_int err;
   for (int i=0; i<7; i++) {
     err = clReleaseKernel(data->kRestrict[i]);
+    free(data->work[i]);
     switch(err) {
     case CL_INVALID_KERNEL:
       printf("Invalid kernel %d\n", i);
@@ -252,20 +246,20 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   char *result;
   const char *pythonFile = "loopy_kernel_output.py";
   concat(&result, ceed_data->openclBackendDir, pythonFile);
-  data->kRestrict[0] = createKernelFromPython("kRestrict0", arch, constantDict,
-                       result, ceed);
-  data->kRestrict[1] = createKernelFromPython("kRestrict1", arch, constantDict,
-                       result, ceed);
-  data->kRestrict[2] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       result, ceed);
-  data->kRestrict[3] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       result, ceed);
-  data->kRestrict[4] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       result, ceed);
-  data->kRestrict[5] = createKernelFromPython("kRestrict2", arch, constantDict,
-                       result, ceed);
-  data->kRestrict[6] = createKernelFromPython("kRestrict6", arch, constantDict,
-                       result, ceed);
+  data->kRestrict[0] = createKernelFromPython("kRestrict0", result, arch, constantDict,
+                       ceed_data, &data->work[0]);
+  data->kRestrict[1] = createKernelFromPython("kRestrict1", result, arch, constantDict,
+                       ceed_data, &data->work[1]);
+  data->kRestrict[2] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+                       ceed_data, &data->work[2]);
+  data->kRestrict[3] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+                       ceed_data, &data->work[3]);
+  data->kRestrict[4] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+                       ceed_data, &data->work[4]);
+  data->kRestrict[5] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+                       ceed_data, &data->work[5]);
+  data->kRestrict[6] = createKernelFromPython("kRestrict6", result, arch, constantDict,
+                       ceed_data, &data->work[6]);
   free(result);
 
   // free local usage **********************************************************

@@ -60,5 +60,4 @@ else:
     print("Invalid kernel name: {}".format(kernel_name))
     sys.exit(1)
 
-code = lp.generate_code_v2(k).device_code()
-print(code)
+write_kernel(k)
