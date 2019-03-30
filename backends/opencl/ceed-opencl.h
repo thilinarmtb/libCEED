@@ -18,6 +18,15 @@
 #define MAX_BUF 100000
 
 // *****************************************************************************
+// * CeedWork_OpenCL struct
+typedef struct {
+  cl_uint work_dim;
+  size_t *global_work_size;
+  size_t *local_work_size;
+} CeedWork_OpenCL;
+
+// *****************************************************************************
+// *****************************************************************************
 // * CeedVector_OpenCL struct
 // *****************************************************************************
 typedef struct {
@@ -34,9 +43,10 @@ typedef struct {
   cl_mem d_indices;
   cl_mem d_toffsets;
   cl_mem d_tindices;
+
   cl_kernel kRestrict[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
-  cl_kernel kRestrict6;
-  char *compleOptions;
+  CeedWork_OpenCL *work[CEED_OPENCL_NUM_RESTRICTION_KERNEL];
+
   bool identity;
 } CeedElemRestriction_OpenCL;
 
@@ -52,6 +62,7 @@ typedef struct {
   cl_mem grad1d;
   cl_mem tmp0,tmp1;
   cl_kernel kZero,kInterp,kGrad,kWeight;
+  CeedWork_OpenCL *kZ, *kI, *kG, *kW;
 } CeedBasis_OpenCL;
 
 // *****************************************************************************
@@ -77,14 +88,18 @@ typedef struct {
   CeedInt idx,odx;
   CeedInt iOf7[N_MAX_IDX];
   CeedInt oOf7[N_MAX_IDX];
+
   int nc, dim, nelem, elemsize, e;
   double epsilon;
+
   cl_mem o_indata, o_outdata;
   cl_mem d_ctx, d_idx, d_odx;
+  cl_kernel kQFunctionApply;
+
   char *qFunctionName;
   char *pythonFile;
-  cl_kernel kQFunctionApply;
-  char *compleOptions;
+  CeedWork_OpenCL *work;
+
   CeedOperator op;
 } CeedQFunction_OpenCL;
 
@@ -154,8 +169,8 @@ CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
 CEED_INTERN int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);
 
 // *****************************************************************************
-CEED_INTERN cl_kernel createKernelFromPython(char *kernelName, char *arch,
-    char *constantDict, char *pythonFile, Ceed ceed);
+CEED_INTERN cl_kernel createKernelFromPython(char *kernelName, char *pythonFile, char *arch,
+    char *constantDict, Ceed_OpenCL *ceed, CeedWork_OpenCL **data);
 
 CEED_INTERN void concat(char **result, const char *s1, const char *s2);
 #endif
