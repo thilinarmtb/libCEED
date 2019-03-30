@@ -24,7 +24,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
 
     kernel_data = ["ctx","iOf7", "oOf7", "in", "out"]
     if constants == {}:
-        kernel_data += ["ctx", "Q","iOf7", "oOf7", "in", "out"]
+        kernel_data = ["ctx", "Q", "iOf7", "oOf7", "in", "out"]
 
     k = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
@@ -98,7 +98,7 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     
     kernel_data = ["ctx","iOf7", "oOf7", "in", "out"]
     if constants == {}:
-        kernel_data += ["ctx", "Q","iOf7", "oOf7", "in", "out"]
+        kernel_data = ["ctx", "Q","iOf7", "oOf7", "in", "out"]
 
     k = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
