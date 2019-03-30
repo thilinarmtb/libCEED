@@ -170,11 +170,14 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     outDict = {
         "kernel": kRestrict6,
         "work_dim": 1,
-        "global_work_size": (global_size, 1, 1),
         "local_work_size": (workgroup_size, 1, 1) 
     }
+    if global_size > 0:
+       outDict.update({"global_work_size": (global_size, 1, 1)}),
     
     return outDict
 
-#kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
+kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
+kRestrict6 = generate_kRestrict6(constants={})
+print(kRestrict6)
 #print(lp.generate_code_v2(kRestrict6["kernel"]).device_code())
