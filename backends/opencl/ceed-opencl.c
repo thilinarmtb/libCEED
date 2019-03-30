@@ -282,6 +282,64 @@ void concat(char **result, const char *s1, const char *s2) {
   printf("[concat] result=%s\n",*result);
 }
 
+void readPythonDict(char *kernelName) {
+  char buf[BUFSIZ];
+  char dictName[BUFSIZ];
+
+  cl_uint work_dim;
+  int kernel_length;
+  size_t *global_work_size;
+  size_t *local_work_size;
+  char *kernel;
+  
+  sprintf(dictName, "%s.dict", kernelName);
+  FILE *fp = fopen(dictName, "r");
+
+  do {
+    fgets(buf, BUFSIZ, fp);
+  } while(!strstr(buf, "[work_dim]"));
+  fgets(buf, BUFSIZ, fp);
+  sscanf(buf,"%u",&work_dim);
+
+  global_work_size = (size_t *) calloc(sizeof(size_t), work_dim);
+  local_work_size = (size_t *) calloc(sizeof(size_t), work_dim);
+
+  fseek(fp, 0, SEEK_SET);
+  do {
+    fgets(buf, BUFSIZ, fp);
+  } while(!strstr(buf, "[global_work_size]"));
+
+  for(int i = 0; i < work_dim; i++) {
+    sscanf(buf,"%z\n", &global_work_size[i]);
+  }
+
+  fseek(fp, 0, SEEK_SET);
+  do {
+    fgets(buf, BUFSIZ, fp);
+  } while(!strstr(buf, "[local_work_size]"));
+
+  for(int i = 0; i < work_dim; i++) {
+    sscanf(buf,"%z\n", &local_work_size[i]);
+  }
+
+  fseek(fp, 0, SEEK_SET);
+  do {
+    fgets(buf, BUFSIZ, fp);
+  } while(!strstr(buf, "[kernel_length]"));
+  fgets(buf, BUFSIZ, fp);
+  sscanf(buf,"%u",&kernel_length);
+
+  kernel = calloc(sizeof(char), kernel_length + 1);
+
+  fseek(fp, 0, SEEK_SET);
+  do {
+    fgets(buf, BUFSIZ, fp);
+  } while(!strstr(buf, "[kernel]"));
+  fread(kernel, sizeof(char), kernel_length, fp);
+
+  fclose(fp);
+}
+  
 // *****************************************************************************
 // * Build from Python
 // *****************************************************************************
@@ -294,14 +352,10 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
   char pythonCmd[2*BUFSIZ], clFile[BUFSIZ];
   sprintf(clFile, "%s.cl", kernelName);
 
-  //if(access(clFile, F_OK) == -1) {
-    sprintf(pythonCmd, "python %s %s %s '%s' > %s", pythonFile, kernelName, arch,
-        constantDict, clFile);
-    dbg("[createKernelFromPython] generating %s", pythonCmd);
-    system(pythonCmd);
-  //} else {
-  //  dbg("[createKernelFromPython] reading from cache %s", clFile);
-  //}
+  sprintf(pythonCmd, "python %s %s %s '%s' > %s", pythonFile, kernelName, arch,
+      constantDict, clFile);
+  dbg("[createKernelFromPython] generating %s", pythonCmd);
+  system(pythonCmd);
 
   FILE *fp = fopen(clFile, "r");
   char *kernelCode;
@@ -312,8 +366,11 @@ cl_kernel createKernelFromPython(char *kernelName, char *arch,
       fread(kernelCode, sizeof(char), length, fp);
       kernelCode[length]='\0';
     }
+  } else {
+    printf("Can't opent kernel file %s.\n", clFile);
+    exit(1);
   }
-  dbg("%s", kernelCode);
+
   fclose(fp);
 
   cl_int err;

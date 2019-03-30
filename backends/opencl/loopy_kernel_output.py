@@ -22,7 +22,7 @@ def write_kernel(data):
     globalWorkSize = data["global_work_size"]
     localWorkSize = data["local_work_size"]
 
-    kernelLength = kernel.count('\n')
+    kernelLength = len(kernel)
 
     print("[kernel_length]\n{}\n".format(kernelLenght))
     print("[kernel]\n{}\n".format(kernel))
