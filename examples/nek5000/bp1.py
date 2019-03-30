@@ -34,7 +34,7 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         # even if they are not used or commented out
         if false
             <> dummy = oOf7[0]
-            dummy = iOf7[1]
+            dummy = iOf7[0]
             dummy = ctx[0]
         end
 
@@ -178,7 +178,7 @@ except:
     print('An unknown error occured.')
 '''
 
-#code = generate_masssetupf(constants={})["kernel"]
+#code = generate_masssetupf(constants={"Q": 322})["kernel"]
 #print(code)
 #print()
 
