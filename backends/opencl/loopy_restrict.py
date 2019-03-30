@@ -40,7 +40,11 @@ def generate_kRestrict0(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
 
     kRestrict0 = lp.add_and_infer_dtypes(kRestrict0, {"indices": np.int32, "uu": fp_format})
 
-    return kRestrict0
+    outDict = {
+        "kernel": kRestrict0
+    }
+
+    return outDict
 
 def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict1 = lp.make_kernel(
@@ -59,8 +63,11 @@ def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict1 = lp.add_and_infer_dtypes(kRestrict1, 
             {"indices": np.int32, "uu": fp_format})
 
-    return kRestrict1
+    outDict = {
+        "kernel": kRestrict1
+    }
 
+    return outDict
 
 def generate_kRestrict2(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict2 = lp.make_kernel(
@@ -76,6 +83,10 @@ def generate_kRestrict2(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict2 = lp.fix_parameters(kRestrict2, **constants)
 
     kRestrict2 = lp.add_and_infer_dtypes(kRestrict2, {"indices": np.int32, "uu": fp_format})
+
+    outDict = {
+        "kernel": kRestrict2
+    }
 
     return kRestrict2
 
@@ -115,7 +126,7 @@ kRestrict5b = lp.make_kernel(
 def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data = ["uu", "vv"]
-    dtypes = {"uu": fp_format}
+    dtypes = {"uu": fp_format, "vv": fp_format}
     if constants=={}:
         kernel_data += ["nelem_x_elemsize_x_ncomp"]
         #kernel_data += ["nelem", "elemsize", "nc"]
@@ -133,8 +144,9 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         #assumptions="nelem > 0 and elemsize > 0 and nc > 0",
         target=target
     )
-   
+
     kRestrict6 = lp.fix_parameters(kRestrict6, **constants)
+    kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, dtypes)
 
     if arch == "AMD_GPU":
         workgroup_size = 64
@@ -143,10 +155,29 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     else:
         workgroup_size = 128
 
-    #kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
-    #    outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
- 
-    kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, dtypes)
+    global_size = -1
+    if "nelem_x_elemsize_x_ncomp" in constants:
+        global_size = constants["nelem_x_elemsize_x_ncomp"]
+        workgroup_size = min(workgroup_size, global_size)
 
+    if global_size % workgroup_size == 0:
+        kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
+            outer_tag="g.0", inner_tag="l.0")
+    else:
+        kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
+            outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+  
+    outDict = {
+        "kernel": kRestrict6,
+        "work_dim": 1,
+        "local_work_size": (workgroup_size, 1, 1) 
+    }
+    if global_size > 0:
+       outDict.update({"global_work_size": (global_size, 1, 1)}),
     
-    return kRestrict6
+    return outDict
+
+kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
+kRestrict6 = generate_kRestrict6(constants={})
+print(kRestrict6)
+#print(lp.generate_code_v2(kRestrict6["kernel"]).device_code())
