@@ -68,11 +68,10 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
     err |= clSetKernelArg(data->kRestrict[6], 0, sizeof(cl_mem), (void *)&ud);
     err |= clSetKernelArg(data->kRestrict[6], 1, sizeof(cl_mem), (void *)&vd);
 
-    localSize = 1;
-    CeedOpenCL *work = data->work[6];
+    CeedWork_OpenCL *work = data->work[6];
     clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], work->work_dim,
                            NULL,
-                           work->globa_work_size, work->local_work_size, 0, NULL, NULL);
+                           work->global_work_size, work->local_work_size, 0, NULL, NULL);
     clFlush(ceed_data->queue);
     clFinish(ceed_data->queue);
 

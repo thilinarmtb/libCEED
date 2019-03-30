@@ -64,7 +64,7 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
 
   data->kQFunctionApply = createKernelFromPython(data->qFunctionName,
                           "loopy_kernel_output.py",
-                          arch, constantDict, ceed_data, &data->work,);
+                          arch, constantDict, ceed_data, &data->work);
   // ***************************************************************************
 
   return 0;
@@ -184,7 +184,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   err = clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem),
                        (void*)&d_outdata);
 
-  CeedOpenCL *work = data->work;
+  CeedWork_OpenCL *work = data->work;
   err = clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply,
                                work->work_dim, NULL, work->global_work_size, work->local_work_size, 0, NULL,
                                NULL);
