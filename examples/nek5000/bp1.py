@@ -5,7 +5,6 @@ from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 import sys
 import json
 
-#----
 lp.set_caching_enabled(False)
 from warnings import filterwarnings, catch_warnings
 filterwarnings('error', category=lp.LoopyWarning)
@@ -156,29 +155,36 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
 
     return outDict
 
-'''
+def write_kernel(data):
+    kernel = data['kernel']
+    workDim = data['work_dim']
+    globalWorkSize = data['global_work_size']
+    localWorkSize = data['local_work_size']
+
+    kernelLength = len(kernel)
+
+    print("[kernel_length]\n{}\n".format(kernelLength))
+    print("[kernel]\n{}\n".format(kernel))
+    print("[work_dim]\n{}\n".format(workDim))
+    print("[global_work_size]\n{}\n".format('\n'.join(map(str, globalWorkSize))))
+    print("[local_work_size]\n{}\n".format('\n'.join(map(str, localWorkSize))))
+
+arg_len = len(sys.argv)
+if arg_len != 4:
+    print("Usage: python loopy_kernel_output.py kernel_name arch '{\"c1\": val1, ... }'")
+    print("Example: python loopy_kernel_output.py kRestrict0 '{\"elemsize\": 8, ... }'")
+    sys.exit(1)
+
 kernel_name = sys.argv[1]
 arch = sys.argv[2]
 constants = json.loads(sys.argv[3])
- 
+
+if kernel_name == 'masssetupf':
+    k = generate_masssetupf(constants, arch)
 if kernel_name == 'massf':
     k = generate_massf(constants, arch)
-elif kernel_name == 'masssetupf':
-    k = generate_masssetupf(constants, arch)
 else:
     print("Invalid kernel name: {}".format(kernel_name))
     sys.exit(1)
- 
-code = lp.generate_code_v2(k).device_code()
-try:
-    print(code)
-except IOError:
-    print('An IO error occured.')
-except:
-    print('An unknown error occured.')
-'''
 
-#code = generate_masssetupf(constants={"Q": 277})["kernel"]
-#print(code)
-#print()
-
+write_kernel(k)
