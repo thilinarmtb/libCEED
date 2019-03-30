@@ -169,9 +169,9 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     outDict = {
         "kernel": code,
         "work_dim": 1,
-        "local_work_size": [workgroup_size, 1, 1] 
+        "local_work_size": [workgroup_size] 
     }
     if global_size > 0:
-       outDict.update({"global_work_size": [global_size, 1, 1]}),
+       outDict.update({"global_work_size": [global_size]}),
     
     return outDict

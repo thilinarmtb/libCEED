@@ -14,17 +14,32 @@ loopy.options.ALLOW_TERMINAL_COLORS = False
 
 # Currently works only for 3D
 def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
-    masssetupf = lp.make_kernel(
+
+    dtypes = {
+        "ctx": fp_format, 
+        "in": fp_format, 
+        "out": fp_format,
+        "oOf7": np.int32,
+        "iOf7": np.int32 
+    }
+
+    kernel_data = ["ctx","iOf7", "oOf7", "in", "out"]
+    if constants == {}:
+        kernel_data += ["ctx", "Q","iOf7", "oOf7", "in", "out"]
+
+    k = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
         """
+        # Force loopy to make these variables pointers
+        # even if they are not used or commented out
+        if false
+            <> dummy = oOf7[0]
+            dummy = iOf7[1]
+            dummy = ctx[0]
+        end
+
         D := 3
         v(a, b, c) := in[(a*D + b)*Q + i + iOf7[c]]
-
-        if false
-            oOf7[0] = 0
-            iOf7[1] = 0
-            ctx[0] = 0
-        end
 
         det := in[iOf7[2] + i] * (
                    v(0,0,1) * (v(1,1,1)*v(2,2,1) - v(1,2,1)*v(2,1,1))
@@ -37,14 +52,12 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         """,
         name="masssetupf",
         assumptions="Q > 0",
-        kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
+        kernel_data=kernel_data,
         target=target
-        )
+    )
 
-    masssetupf = lp.add_and_infer_dtypes(masssetupf, {
-        "ctx": fp_format, "in": fp_format, "out": fp_format,
-        "oOf7": np.int32,"iOf7": np.int32 
-        })
+    k = lp.fix_parameters(k, **constants)
+    k = lp.add_and_infer_dtypes(k, dtypes)
     
     if arch == "AMD_GPU":
         workgroup_size = 64
@@ -53,34 +66,67 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     else:
         workgroup_size = 128
 
-    #massfsetupf = lp.split_iname(masssetupf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
- 
-    return masssetupf
+    global_size = -1
+    if "Q" in constants:
+        global_size = constants["Q"]
+        workgroup_size = min(workgroup_size, global_size)
 
+    slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
+    k = lp.split_iname(k, "i", workgroup_size,
+            outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+ 
+    code = lp.generate_code_v2(k).device_code()
+ 
+    outDict = {
+        "kernel": code,
+        "work_dim": 1,
+        "local_work_size": [workgroup_size]
+    }
+    if global_size > 0:
+       outDict.update({"global_work_size": [global_size]}),
+
+    return outDict
 
 def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
-    massf = lp.make_kernel(
+
+    dtypes = {
+        "ctx": fp_format, 
+        "in": fp_format, 
+        "out": fp_format,
+        "oOf7": np.int32,
+        "iOf7": np.int32 
+    }
+    
+    kernel_data = ["ctx","iOf7", "oOf7", "in", "out"]
+    if constants == {}:
+        kernel_data += ["ctx", "Q","iOf7", "oOf7", "in", "out"]
+
+    k = lp.make_kernel(
         "{ [i]: 0<=i<Q }",
         """
-        o_os := i + oOf7[0]
+        o_os  := i + oOf7[0]
         i_os0 := i + iOf7[0]
         i_os1 := i + iOf7[1]
+
+        # Force loopy to make these variables pointers
+        # even if they are not used or commented out
         if false
-            oOf7[0]=0
-            iOf7[0]=0
-            ctx[0] = 0 # Compiler will hopefully remove
+            <> dummy = oOf7[0]
+            dummy = iOf7[0]
+            dummy = ctx[0]
         end
 
         out[o_os] = in[i_os0] * in[i_os1]
         """,
         name="massf",
         assumptions="Q > 0",
-        kernel_data=["ctx", "Q", "iOf7", "oOf7", "in", "out"],
+        kernel_data=kernel_data,
         target=target
         )
 
-    #massf = lp.fix_parameters(massf, constants)
-
+    k = lp.fix_parameters(k, **constants)
+    k = lp.add_and_infer_dtypes(k, dtypes)
+    
     if arch == "AMD_GPU":
         workgroup_size = 64
     elif arch == "NVIDIA_GPU":
@@ -88,18 +134,29 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     else:
         workgroup_size = 128
 
-    #massf = lp.split_iname(massf, "i", workgroup_size, outer_tag="g.0", inner_tag="l.0", slabs=(0,1))   
-    
-    massf = lp.add_and_infer_dtypes(massf, {
-        "ctx": fp_format,
-        "in": fp_format,
-        "out": fp_format,
-        "oOf7": np.int32,
-        "iOf7": np.int32 
-    })
+    global_size = -1
+    if "Q" in constants:
+        global_size = constants["Q"]
+        workgroup_size = min(workgroup_size, global_size)
 
-    return massf
+    slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
+    k = lp.split_iname(k, "i", workgroup_size,
+            outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+   
+    code = lp.generate_code_v2(k).device_code()
+    print(k)
+ 
+    outDict = {
+        "kernel": code,
+        "work_dim": 1,
+        "local_work_size": [workgroup_size]
+    }
+    if global_size > 0:
+       outDict.update({"global_work_size": [global_size]}),
 
+    return outDict
+
+'''
 kernel_name = sys.argv[1]
 arch = sys.argv[2]
 constants = json.loads(sys.argv[3])
@@ -119,3 +176,9 @@ except IOError:
     print('An IO error occured.')
 except:
     print('An unknown error occured.')
+'''
+
+#code = generate_masssetupf(constants={"Q": 277})["kernel"]
+#print(code)
+#print()
+
