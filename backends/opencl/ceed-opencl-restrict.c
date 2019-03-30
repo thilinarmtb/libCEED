@@ -250,7 +250,7 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   ierr = CeedElemRestrictionSetData(r, (void*)&data); CeedChk(ierr);
 
   char *result;
-  const char *pythonFile = "loopy_restrict.py";
+  const char *pythonFile = "loopy_kernel_output.py";
   concat(&result, ceed_data->openclBackendDir, pythonFile);
   data->kRestrict[0] = createKernelFromPython("kRestrict0", arch, constantDict,
                        result, ceed);

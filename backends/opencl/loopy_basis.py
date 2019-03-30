@@ -5,15 +5,6 @@ from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 import sys
 import json
 
-# setup
-# -----
-lp.set_caching_enabled(False)
-from warnings import filterwarnings, catch_warnings
-filterwarnings('error', category=lp.LoopyWarning)
-import loopy.options
-loopy.options.ALLOW_TERMINAL_COLORS = False
-
-# ------
 def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data=["v"]
@@ -720,32 +711,3 @@ def generate_kWeight(constants={},arch="INTEL_CPU", fp_format=np.float64, target
 
 
     return kWeight
-
-arg_len = len(sys.argv)
-#if arg_len != 4:
-#    print("Usage: python loopy_basis.py kernel_name arch '{\"c1\": val1, ... }'")
-#    print("Example: python loopy_basis.py kZero '{\"elemsize\": 8, ... }'")
-#    sys.exit(1)
-
-#kernel_name = sys.argv[1]
-#arch = sys.argv[2]
-#constants = json.loads(sys.argv[3])
-
-arch = "INTEL_CPU"
-kernel_name="kWeight"
-constants = {}
-if kernel_name == 'kZero':
-    k = generate_kZero(constants, arch)
-elif kernel_name == 'kInterp':
-    k = generate_kInterp(constants, arch)
-elif kernel_name == 'kGrad':
-    k = generate_kGrad(constants, arch)
-elif kernel_name == 'kWeight':
-    k = generate_kWeight(constants, arch)
-else:
-    print("Invalid kernel name: {}".format(kernel_name))
-    sys.exit(1)
-
-code = lp.generate_code_v2(k).device_code()
-print(code)
-print()

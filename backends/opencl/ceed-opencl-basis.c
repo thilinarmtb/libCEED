@@ -91,7 +91,7 @@ static int CeedBasisBuildKernel(CeedBasis basis) {
           elemsize, Q1d, ncomp, P1d, nqpt, tmpSz, dim, nelem);
 
   char *result;
-  const char *pythonFile = "loopy_basis.py";
+  const char *pythonFile = "loopy_kernel_output.py";
   concat(&result, ceed_data->openclBackendDir, pythonFile);
   data->kZero = createKernelFromPython("kZero", arch, constantDict,
                                        result, ceed);

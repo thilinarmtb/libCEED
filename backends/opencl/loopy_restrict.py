@@ -162,29 +162,3 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     }
     
     return kRestrict6
-
-arg_len = len(sys.argv)
-if arg_len != 4:
-    print("Usage: python loopy_restrict.py kernel_name arch '{\"c1\": val1, ... }'")
-    print("Example: python loopy_restrict.py kRestrict0 '{\"elemsize\": 8, ... }'")
-    sys.exit(1)
-
-kernel_name = sys.argv[1]
-arch = sys.argv[2]
-constants = json.loads(sys.argv[3])
-
-if kernel_name == 'kRestrict0':
-    k = generate_kRestrict0(constants, arch)
-elif kernel_name == 'kRestrict1':
-    k = generate_kRestrict1(constants, arch)
-elif kernel_name == 'kRestrict2':
-    k = generate_kRestrict2(constants, arch)
-elif kernel_name == 'kRestrict6':
-    k = generate_kRestrict6(constants, arch)
-else:
-    print("Invalid kernel name: {}".format(kernel_name))
-    sys.exit(1)
-
-code = lp.generate_code_v2(k).device_code()
-print(code)
-print()
