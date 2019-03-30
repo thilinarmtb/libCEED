@@ -40,7 +40,11 @@ def generate_kRestrict0(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
 
     kRestrict0 = lp.add_and_infer_dtypes(kRestrict0, {"indices": np.int32, "uu": fp_format})
 
-    return kRestrict0
+    outDict = {
+        "kernel": kRestrict0
+    }
+
+    return outDict
 
 def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict1 = lp.make_kernel(
@@ -59,8 +63,11 @@ def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict1 = lp.add_and_infer_dtypes(kRestrict1, 
             {"indices": np.int32, "uu": fp_format})
 
-    return kRestrict1
+    outDict = {
+        "kernel": kRestrict1
+    }
 
+    return outDict
 
 def generate_kRestrict2(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
     kRestrict2 = lp.make_kernel(
@@ -76,6 +83,10 @@ def generate_kRestrict2(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict2 = lp.fix_parameters(kRestrict2, **constants)
 
     kRestrict2 = lp.add_and_infer_dtypes(kRestrict2, {"indices": np.int32, "uu": fp_format})
+
+    outDict = {
+        "kernel": kRestrict2
+    }
 
     return kRestrict2
 
@@ -158,7 +169,12 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
   
     outDict = {
         "kernel": kRestrict6,
-        "global_work_size": 
+        "work_dim": 1,
+        "global_work_size": (global_size, 1, 1),
+        "local_work_size": (workgroup_size, 1, 1) 
     }
     
-    return kRestrict6
+    return outDict
+
+#kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
+#print(lp.generate_code_v2(kRestrict6["kernel"]).device_code())
