@@ -57,6 +57,7 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   // ***************************************************************************
   char *arch = ceed_data->arch;
   char constantDict[BUFSIZ];
+  //TODO: We need to fix bp1 kernel.
   //sprintf(constantDict, "{\"nc\": %d,"
   //        "\"dim\": %d,"
   //        "\"epsilon\": %lf}",
