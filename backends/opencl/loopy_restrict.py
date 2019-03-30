@@ -162,7 +162,7 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
 
     slabs = (0,0) if global_size % workgroup_size == 0 else (0,1)
     k = lp.split_iname(k, "i", workgroup_size,
-            outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
+            outer_tag="g.0", inner_tag="l.0", slabs=slabs)
 
     code = lp.generate_code_v2(k).device_code()  
 
@@ -176,7 +176,6 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     
     return outDict
 
-#kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
+#kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 99})
 #kRestrict6 = generate_kRestrict6(constants={})
-#print(kRestrict6)
-#print(lp.generate_code_v2(kRestrict6["kernel"]).device_code())
+#print(kRestrict6["kernel"])
