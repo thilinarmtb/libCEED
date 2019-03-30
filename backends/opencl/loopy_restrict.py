@@ -41,7 +41,7 @@ def generate_kRestrict0(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict0 = lp.add_and_infer_dtypes(kRestrict0, {"indices": np.int32, "uu": fp_format})
 
     outDict = {
-        "kernel": kRestrict0
+        "kernel": lp.generate_code(kRestrict0).device_code()
     }
 
     return outDict
@@ -64,7 +64,7 @@ def generate_kRestrict1(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
             {"indices": np.int32, "uu": fp_format})
 
     outDict = {
-        "kernel": kRestrict1
+        "kernel": lp.generate_code(kRestrict1).device_code()
     }
 
     return outDict
@@ -85,7 +85,7 @@ def generate_kRestrict2(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     kRestrict2 = lp.add_and_infer_dtypes(kRestrict2, {"indices": np.int32, "uu": fp_format})
 
     outDict = {
-        "kernel": kRestrict2
+        "kernel": lp.generate_code(kRestrict2).device_code()
     }
 
     return kRestrict2
@@ -131,7 +131,7 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         kernel_data += ["nelem_x_elemsize_x_ncomp"]
         #kernel_data += ["nelem", "elemsize", "nc"]
 
-    kRestrict6 = lp.make_kernel(
+    k = lp.make_kernel(
         #"{ [e,i,j]: 0<=e<nelem and 0<=i<elemsize and 0<=j<nc }",
         "{ [i]: 0<=i<nelem_x_elemsize_x_ncomp }",
         """
@@ -145,8 +145,8 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         target=target
     )
 
-    kRestrict6 = lp.fix_parameters(kRestrict6, **constants)
-    kRestrict6 = lp.add_and_infer_dtypes(kRestrict6, dtypes)
+    k = lp.fix_parameters(k, **constants)
+    k = lp.add_and_infer_dtypes(k, dtypes)
 
     if arch == "AMD_GPU":
         workgroup_size = 64
@@ -160,24 +160,23 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         global_size = constants["nelem_x_elemsize_x_ncomp"]
         workgroup_size = min(workgroup_size, global_size)
 
-    if global_size % workgroup_size == 0:
-        kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
-            outer_tag="g.0", inner_tag="l.0")
-    else:
-        kRestrict6 = lp.split_iname(kRestrict6, "i", workgroup_size,
+    slabs = (0,0) if global_size % workgroup_size == 0 else (0,1)
+    k = lp.split_iname(k, "i", workgroup_size,
             outer_tag="g.0", inner_tag="l.0", slabs=(0,1))
-  
+
+    code = lp.generate_code_v2(k).device_code()  
+
     outDict = {
-        "kernel": kRestrict6,
+        "kernel": code,
         "work_dim": 1,
-        "local_work_size": (workgroup_size, 1, 1) 
+        "local_work_size": [workgroup_size, 1, 1] 
     }
     if global_size > 0:
-       outDict.update({"global_work_size": (global_size, 1, 1)}),
+       outDict.update({"global_work_size": [global_size, 1, 1]}),
     
     return outDict
 
-kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
-kRestrict6 = generate_kRestrict6(constants={})
-print(kRestrict6)
+#kRestrict6 = generate_kRestrict6(constants={"nelem_x_elemsize_x_ncomp": 256})
+#kRestrict6 = generate_kRestrict6(constants={})
+#print(kRestrict6)
 #print(lp.generate_code_v2(kRestrict6["kernel"]).device_code())
