@@ -32,10 +32,10 @@ static inline size_t bytes(const CeedElemRestriction res) {
 // *****************************************************************************
 static
 int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
-                                  CeedTransposeMode tmode,
-                                  CeedTransposeMode lmode,
-                                  CeedVector u, CeedVector v,
-                                  CeedRequest *request) {
+                                    CeedTransposeMode tmode,
+                                    CeedTransposeMode lmode,
+                                    CeedVector u, CeedVector v,
+                                    CeedRequest *request) {
   int ierr;
   Ceed ceed;
   ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
@@ -70,11 +70,12 @@ int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
     localSize = 1;
     CeedOpenCL *work = data->work[6];
-    clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], work->work_dim, NULL,
+    clEnqueueNDRangeKernel(ceed_data->queue, data->kRestrict[6], work->work_dim,
+                           NULL,
                            work->globa_work_size, work->local_work_size, 0, NULL, NULL);
     clFlush(ceed_data->queue);
     clFinish(ceed_data->queue);
- 
+
   } else if (restriction) {
     // Perform: v = r * u
     if (ncomp == 1) {
@@ -144,9 +145,9 @@ static int CeedElemRestrictionDestroy_OpenCL(CeedElemRestriction r) {
 // *****************************************************************************
 static
 int CeedElemRestrictionOffset_OpenCL(const CeedElemRestriction r,
-                                   const CeedInt *indices,
-                                   CeedInt *toffsets,
-                                   CeedInt *tindices) {
+                                     const CeedInt *indices,
+                                     CeedInt *toffsets,
+                                     CeedInt *tindices) {
   int ierr;
   CeedInt nelem, elemsize, ndof;
   ierr = CeedElemRestrictionGetNumElements(r, &nelem); CeedChk(ierr);
@@ -173,9 +174,9 @@ int CeedElemRestrictionOffset_OpenCL(const CeedElemRestriction r,
 
 // *****************************************************************************
 int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
-                                   const CeedCopyMode cmode,
-                                   const CeedInt *indices,
-                                   const CeedElemRestriction r) {
+                                     const CeedCopyMode cmode,
+                                     const CeedInt *indices,
+                                     const CeedElemRestriction r) {
   int ierr;
   Ceed ceed;
   ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
@@ -221,7 +222,7 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   if(indices) {
     CeedElemRestrictionOffset_OpenCL(r,indices,toffsets,tindices);
     clEnqueueWriteBuffer(ceed_data->queue, data->d_toffsets, CL_TRUE, 0,
-                     (1+ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
+                         (1+ndof)*sizeof(CeedInt), toffsets, 0, NULL, NULL);
     clEnqueueWriteBuffer(ceed_data->queue, data->d_tindices, CL_TRUE, 0,
                          bytes(r), tindices, 0, NULL, NULL);
     clEnqueueWriteBuffer(ceed_data->queue, data->d_indices, CL_TRUE, 0,
@@ -246,19 +247,26 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   char *result;
   const char *pythonFile = "loopy_kernel_output.py";
   concat(&result, ceed_data->openclBackendDir, pythonFile);
-  data->kRestrict[0] = createKernelFromPython("kRestrict0", result, arch, constantDict,
+  data->kRestrict[0] = createKernelFromPython("kRestrict0", result, arch,
+                       constantDict,
                        ceed_data, &data->work[0]);
-  data->kRestrict[1] = createKernelFromPython("kRestrict1", result, arch, constantDict,
+  data->kRestrict[1] = createKernelFromPython("kRestrict1", result, arch,
+                       constantDict,
                        ceed_data, &data->work[1]);
-  data->kRestrict[2] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+  data->kRestrict[2] = createKernelFromPython("kRestrict2", result, arch,
+                       constantDict,
                        ceed_data, &data->work[2]);
-  data->kRestrict[3] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+  data->kRestrict[3] = createKernelFromPython("kRestrict2", result, arch,
+                       constantDict,
                        ceed_data, &data->work[3]);
-  data->kRestrict[4] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+  data->kRestrict[4] = createKernelFromPython("kRestrict2", result, arch,
+                       constantDict,
                        ceed_data, &data->work[4]);
-  data->kRestrict[5] = createKernelFromPython("kRestrict2", result, arch, constantDict,
+  data->kRestrict[5] = createKernelFromPython("kRestrict2", result, arch,
+                       constantDict,
                        ceed_data, &data->work[5]);
-  data->kRestrict[6] = createKernelFromPython("kRestrict6", result, arch, constantDict,
+  data->kRestrict[6] = createKernelFromPython("kRestrict6", result, arch,
+                       constantDict,
                        ceed_data, &data->work[6]);
   free(result);
 

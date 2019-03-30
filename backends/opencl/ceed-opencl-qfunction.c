@@ -62,8 +62,9 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
           "\"epsilon\": %lf}",
           data->nc, data->dim, 1.e-14);
 
-  data->kQFunctionApply = createKernelFromPython(data->qFunctionName, "loopy_kernel_output.py",
-      arch, constantDict, ceed_data, &data->work,);
+  data->kQFunctionApply = createKernelFromPython(data->qFunctionName,
+                          "loopy_kernel_output.py",
+                          arch, constantDict, ceed_data, &data->work,);
   // ***************************************************************************
 
   return 0;
@@ -139,7 +140,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   cl_int* pointer1;
   cl_int* pointer2;
   cl_double *pointer3;
-  
+
   // CHECK INPUT DATA
   //cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
   //    d_indata, CL_TRUE, CL_MAP_READ, 0, sizeof(double), 0, NULL, NULL, NULL);
@@ -178,21 +179,25 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
   err = clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), (void*)&d_idx);
   err = clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), (void*)&d_odx);
-  err = clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem), (void*)&d_indata);
-  err = clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem), (void*)&d_outdata);
+  err = clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem),
+                       (void*)&d_indata);
+  err = clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem),
+                       (void*)&d_outdata);
 
   CeedOpenCL *work = data->work;
-  err = clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply, work->work_dim, NULL, work->global_work_size, work->local_work_size, 0, NULL, NULL);
+  err = clEnqueueNDRangeKernel(ceed_data->queue, data->kQFunctionApply,
+                               work->work_dim, NULL, work->global_work_size, work->local_work_size, 0, NULL,
+                               NULL);
 
   clFlush(ceed_data->queue);
   clFinish(ceed_data->queue);
 
-   // CHECK INPUT DATA
-  
+  // CHECK INPUT DATA
+
   //pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
   //    d_indata, CL_TRUE, CL_MAP_READ, 0, 2*Q*sizeof(double), 0, NULL, NULL, &err);
   //printf("STATUS: %d\n", err);
-  //for(int i=0; i<2*Q; i++) { 
+  //for(int i=0; i<2*Q; i++) {
   //  printf("indata_from_device[%d]=%lf\n",i,pointer[i]);
   //}
   //pointer1 = (cl_int*)clEnqueueMapBuffer(ceed_data->queue,
@@ -216,15 +221,15 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   //  printf("outdata_from_device[%d]=%g\n",i,pointer3[i]);
   //}
 
-   //CHECK OUTPUT DATA
+  //CHECK OUTPUT DATA
   //exit(0);
 
   //clEnqueueUnmapMemObject(ceed_data->queue, d_indata, pointer, NULL, NULL, NULL);
   //clEnqueueUnmapMemObject(ceed_data->queue, d_idx, pointer1, NULL, NULL, NULL);
   //clEnqueueUnmapMemObject(ceed_data->queue, d_odx, pointer2, NULL, NULL, NULL);
   //clEnqueueUnmapMemObject(ceed_data->queue, d_outdata, pointer3, NULL, NULL, NULL);
-  // END CHECK INPUT DATA 
-  
+  // END CHECK INPUT DATA
+
   // ***************************************************************************
   if (cbytes>0) clEnqueueReadBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
                                       cbytes, qf->ctx, 0, NULL, NULL);
@@ -246,8 +251,8 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
       dbg("[CeedQFunction][Apply] out \"%s\" NONE",name);
 
       //printf("err from Readbuffer = %d\n", err);
-      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, 
-        data->oOf7[i]*bytes,Q*ncomp*nelem*bytes, out[i], 0, NULL, NULL);
+      clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE,
+                          data->oOf7[i]*bytes,Q*ncomp*nelem*bytes, out[i], 0, NULL, NULL);
 
       //for(int j= 0; j<Q*ncomp*nelem; j++) {
       //  printf("%s %lf\n",name, out[i][j]);
@@ -257,7 +262,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
       dbg("[CeedQFunction][Apply] out \"%s\" INTERP %d",name, Q);
 
       err = clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE,
-        data->oOf7[i]*bytes, Q*ncomp*nelem*bytes, out[i], 0, NULL, NULL);
+                                data->oOf7[i]*bytes, Q*ncomp*nelem*bytes, out[i], 0, NULL, NULL);
       //printf("err from Readbuffer = %d\n", err);
 
       //for(int j= 0; j<Q*ncomp*nelem; j++) {
@@ -267,7 +272,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
     case CEED_EVAL_GRAD:
       dbg("[CeedQFunction][Apply] out \"%s\" GRAD",name);
       clEnqueueReadBuffer(ceed_data->queue, d_outdata, CL_TRUE, data->oOf7[i]*bytes,
-          Q*ncomp*dim*nelem*bytes, out[i], 0, NULL, NULL);
+                          Q*ncomp*dim*nelem*bytes, out[i], 0, NULL, NULL);
       //for(int j= 0; j<Q*ncomp*dim*nelem; j++) {
       //  printf("%s %lf\n",name, out[i][j]);
       //}

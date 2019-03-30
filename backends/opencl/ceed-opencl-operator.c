@@ -85,10 +85,10 @@ static int CeedOperatorDestroy_OpenCL(CeedOperator op) {
 // * Setup infields or outfields
 // *****************************************************************************
 static int CeedOperatorSetupFields_OpenCL(CeedQFunction qf, CeedOperator op,
-                                        bool inOrOut,
-                                        CeedVector *fullevecs, CeedVector *evecs,
-                                        CeedVector *qvecs, CeedInt starte,
-                                        CeedInt numfields, CeedInt Q) {
+    bool inOrOut,
+    CeedVector *fullevecs, CeedVector *evecs,
+    CeedVector *qvecs, CeedInt starte,
+    CeedInt numfields, CeedInt Q) {
   CeedInt dim = 1, ierr, ncomp, P;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);
@@ -227,14 +227,14 @@ static int CeedOperatorSetup_OpenCL(CeedOperator op) {
   dbg("\t[CeedOperator][Setup] Set up IN fields:");
   // Infields
   ierr = CeedOperatorSetupFields_OpenCL(qf, op, 0, data->Evecs,
-                                      data->evecsin, data->qvecsin, 0,
-                                      numinputfields, Q);
+                                        data->evecsin, data->qvecsin, 0,
+                                        numinputfields, Q);
   CeedChk(ierr);
   dbg("\t[CeedOperator][Setup] Set up OUT fields:");
   // Outfields
   ierr = CeedOperatorSetupFields_OpenCL(qf, op, 1, data->Evecs,
-                                      data->evecsout, data->qvecsout,
-                                      numinputfields, numoutputfields, Q);
+                                        data->evecsout, data->qvecsout,
+                                        numinputfields, numoutputfields, Q);
   CeedChk(ierr);
   ierr = CeedOperatorSetSetupDone(op); CeedChk(ierr);
   dbg("\t[CeedOperator][Setup] done");
@@ -270,9 +270,9 @@ static int SyncToHostPointer(CeedVector vec) {
 // * Apply CeedOperator to a vector
 // *****************************************************************************
 static int CeedOperatorApply_OpenCL(CeedOperator op,
-                                  CeedVector invec,
-                                  CeedVector outvec,
-                                  CeedRequest *request) {
+                                    CeedVector invec,
+                                    CeedVector outvec,
+                                    CeedRequest *request) {
   int ierr;
   Ceed ceed;
   ierr = CeedOperatorGetCeed(op, &ceed); CeedChk(ierr);

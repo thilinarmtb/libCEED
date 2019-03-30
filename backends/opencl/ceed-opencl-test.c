@@ -31,7 +31,7 @@ const char *kernelSource =                                       "\n" \
 
 int OpenCL_test_00(void) {
   // Length of vectors
-  
+
   unsigned int n = 100000;
 
   // Host input vectors
@@ -69,7 +69,7 @@ int OpenCL_test_00(void) {
 
   // Number of total work items - localSize must be devisor
   globalSize = ceil(n/(double)localSize)*localSize;
-  
+
   // Get platform and device information
   cl_platform_id* platforms = NULL;
   cl_uint num_platforms;
@@ -77,31 +77,31 @@ int OpenCL_test_00(void) {
   //Set up the Platform
   cl_int clStatus = clGetPlatformIDs(0, NULL, &num_platforms);
   platforms = (cl_platform_id *)
-  malloc(sizeof(cl_platform_id)*num_platforms);
+              malloc(sizeof(cl_platform_id)*num_platforms);
   clStatus = clGetPlatformIDs(num_platforms, platforms, NULL);
-  
+
   //Get the devices list and choose the device you want to run on
   cl_device_id *device_list = NULL;
   cl_uint num_devices;
   clStatus = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_CPU, 0,
-    NULL, &num_devices);
+                            NULL, &num_devices);
   device_list = (cl_device_id *)
-  malloc(sizeof(cl_device_id)*num_devices);
+                malloc(sizeof(cl_device_id)*num_devices);
   clStatus = clGetDeviceIDs(platforms[0],
-  CL_DEVICE_TYPE_CPU, num_devices, device_list, NULL);
+                            CL_DEVICE_TYPE_CPU, num_devices, device_list, NULL);
 
   // Create one OpenCL context for each device in the platform
   cl_context context;
   context = clCreateContext(NULL, num_devices, device_list,
-    NULL, NULL, &clStatus);
+                            NULL, NULL, &clStatus);
 
   // Create a command queue
   cl_command_queue queue = clCreateCommandQueue(
-    context, device_list[0], 0, &clStatus);
+                             context, device_list[0], 0, &clStatus);
 
   // Create the compute program from the source buffer
   cl_program program = clCreateProgramWithSource(context, 1,
-                                      (const char **) & kernelSource, NULL, &err);
+                       (const char **) & kernelSource, NULL, &err);
   // Build the program executable
   clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
 
