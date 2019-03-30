@@ -73,6 +73,8 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
     k = lp.split_iname(k, "i", workgroup_size,
             outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+
+    #k = lp.add_prefetch(k, "in")
  
     code = lp.generate_code_v2(k).device_code()
  
@@ -179,9 +181,13 @@ kernel_name = sys.argv[1]
 arch = sys.argv[2]
 constants = json.loads(sys.argv[3])
 
+#constants = {}
+#arch = "INTEL_CPU"
+#kernel_name = 'masssetupf'
+
 if kernel_name == 'masssetupf':
     k = generate_masssetupf(constants, arch)
-if kernel_name == 'massf':
+elif kernel_name == 'massf':
     k = generate_massf(constants, arch)
 else:
     print("Invalid kernel name: {}".format(kernel_name))
