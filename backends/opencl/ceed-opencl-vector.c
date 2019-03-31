@@ -38,16 +38,13 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
   CeedVectorGetData(vec, (void*)&data);
   assert(data);
   assert(data->h_array);
-  clEnqueueWriteBuffer(ceed_data->queue, data->d_array, CL_TRUE,
-                       0, bytes(vec), data->h_array, 0, NULL, NULL);
+  
+  cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+      data->d_array, CL_TRUE, CL_MAP_WRITE, 0, bytes(vec), 0, NULL, NULL, NULL);
 
-  //printf("bytes(vec)=%zu, p=%p\n",bytes(vec), data->h_array);
-  //cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
-  //    data->d_array, CL_TRUE, CL_MAP_READ, 0, bytes(vec), 0, NULL, NULL, NULL);
-  //for(int i=0; i<27; i++) {
-  //  printf("right_after_the_write[%d]=%lf\n",i,pointer[i]);
-  //}
-  //fflush(stdout);
+  memcpy(pointer, data->h_array, bytes(vec));
+
+  clEnqueueUnmapMemObject (ceed_data->queue, data->d_array, pointer, 0, NULL, NULL);
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
@@ -62,8 +59,14 @@ static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
   assert(ceed_data);
   assert(data);
   assert(data->h_array);
-  clEnqueueReadBuffer(ceed_data->queue, data->d_array, CL_TRUE,
-                      0, bytes(vec), data->h_array, 0, NULL, NULL);
+
+  cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+      data->d_array, CL_TRUE, CL_MAP_READ, 0, bytes(vec), 0, NULL, NULL, NULL);
+
+  memcpy(data->h_array, pointer, bytes(vec));
+
+  clEnqueueUnmapMemObject (ceed_data->queue, data->d_array, pointer, 0, NULL, NULL);
+
   dbg("[CeedReadBuffer] Done.");
 }
 // *****************************************************************************
@@ -254,9 +257,8 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
     break;
   }
   size_t b = (size_t) bytes(vec);
-  data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, MAX_BUF,
-                                 NULL, NULL);
-  //data->d_array = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE, , NULL, NULL);
+  data->d_array = clCreateBuffer(ceed_data->context, 
+                    CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, MAX_BUF,  NULL, NULL);
   switch (err) {
   case CL_SUCCESS:
     break;
