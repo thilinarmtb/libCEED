@@ -57,12 +57,10 @@ static int CeedQFunctionBuildKernel(CeedQFunction qf, const CeedInt Q) {
   // ***************************************************************************
   char *arch = ceed_data->arch;
   char constantDict[BUFSIZ];
-  //TODO: We need to fix bp1 kernel.
-  //sprintf(constantDict, "{\"nc\": %d,"
-  //        "\"dim\": %d,"
-  //        "\"epsilon\": %lf}",
-  //        data->nc, data->dim, 1.e-14);
-  sprintf(constantDict, "{}");
+  sprintf(constantDict, "{\"nc\": %d,"
+          "\"dim\": %d,"
+          "\"Q\": %d}",
+          data->nc, data->dim, Q);
 
   data->kQFunctionApply = createKernelFromPython(data->qFunctionName,
                           data->pythonFile,
