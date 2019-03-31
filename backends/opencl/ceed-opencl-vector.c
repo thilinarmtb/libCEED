@@ -20,10 +20,11 @@
 // *****************************************************************************
 // * Bytes used
 // *****************************************************************************
-static inline size_t bytes(const CeedVector vec) {
+int bytes(const CeedVector vec) {
   CeedInt length;
   CeedVectorGetLength(vec, &length);
-  return length * sizeof(CeedScalar);
+  size_t size = length*sizeof(CeedScalar);
+  return size;
 }
 
 // *****************************************************************************
@@ -40,11 +41,13 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
   assert(data->h_array);
   
   cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
-      data->d_array, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0, bytes(vec), 0, NULL, NULL, NULL);
+      data->d_array, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0, bytes(vec), 0,
+      NULL, NULL, NULL);
 
   memcpy(pointer, data->h_array, bytes(vec));
 
   clEnqueueUnmapMemObject (ceed_data->queue, data->d_array, pointer, 0, NULL, NULL);
+  dbg("[CeedWriteBuffer] Done.");
 }
 // *****************************************************************************
 static inline void CeedReadBuffer_OpenCL(const CeedVector vec) {
@@ -246,9 +249,9 @@ int CeedVectorCreate_OpenCL(const CeedInt n, CeedVector vec) {
               "OpenCL backend can't initialize the CPUs.: Out of resources");
     break;
   }
-  size_t b = (size_t) bytes(vec);
+
   data->d_array = clCreateBuffer(ceed_data->context, 
-                    CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, MAX_BUF,  NULL, NULL);
+                    CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, bytes(vec),  NULL, NULL);
   switch (err) {
   case CL_SUCCESS:
     break;
