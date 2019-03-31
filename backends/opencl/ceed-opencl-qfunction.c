@@ -164,17 +164,27 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   // END CHECK INPUT DATA
 
   // ***************************************************************************
+
+  cl_int err;
   void *ctx;
   if (cbytes>0) {
     ierr = CeedQFunctionGetInnerContext(qf, &ctx); CeedChk(ierr);
-    clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-                         cbytes, ctx, 0, NULL, NULL);
+
+    //clEnqueueWriteBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
+    //                     cbytes, ctx, 0, NULL, NULL);
+
+    cl_double* ptr = (cl_double*) clEnqueueMapBuffer(ceed_data->queue,
+      d_ctx, CL_TRUE, CL_MAP_WRITE, 0, cbytes, 0, NULL, NULL, &err);
+
+    memcpy(ptr, qf->ctx, cbytes);
+   
+    clEnqueueUnmapMemObject(ceed_data->queue, d_ctx, ptr, NULL, NULL, NULL);
+ 
   }
 
   // ***************************************************************************
   dbg("[CeedQFunction][Apply] OpenCLKernelRun");
 
-  cl_int err;
   err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), (void*)&d_ctx);
   //err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
   err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(cl_mem), (void*)&d_idx);
@@ -231,9 +241,15 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   // END CHECK INPUT DATA
 
   // ***************************************************************************
-  if (cbytes>0) clEnqueueReadBuffer(ceed_data->queue, d_ctx, CL_TRUE, 0,
-                                      cbytes, qf->ctx, 0, NULL, NULL);
+  if (cbytes>0) 
+  {
+    cl_double* ptr = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+      d_ctx, CL_TRUE, CL_MAP_READ, 0, cbytes, 0, NULL, NULL, &err);
 
+    memcpy(qf->ctx, ptr, cbytes);
+   
+    clEnqueueUnmapMemObject(ceed_data->queue, d_ctx, ptr, NULL, NULL, NULL);
+  }
   // ***************************************************************************
   CeedQFunctionField *outputfields;
   ierr = CeedQFunctionGetFields(qf, NULL, &outputfields); CeedChk(ierr);
