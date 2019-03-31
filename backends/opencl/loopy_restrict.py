@@ -155,26 +155,29 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         workgroup_size = 32
     else:
         workgroup_size = 128
+    '''
 
+    local_size = 1
     global_size = -1
+ 
     if "nelem_x_elemsize_x_ncomp" in constants:
         global_size = constants["nelem_x_elemsize_x_ncomp"]
-        workgroup_size = min(workgroup_size, global_size)
+        #workgroup_size = min(workgroup_size, global_size)
     
-
-    slabs = (0,0) if global_size % workgroup_size == 0 else (0,1)
-    '''
+    #slabs = (0,0) if global_size % workgroup_size == 0 else (0,1)
+    
     k = lp.tag_inames(k, [("i", "g.0")])
 
     code = lp.generate_code_v2(k).device_code()  
-
-    workgroup_size = 1
+ 
     outDict = {
         "kernel": code,
         "work_dim": 1,
-        "local_work_size": [workgroup_size] 
+        "local_work_size": [local_size] 
     }
     if global_size > 0:
        outDict.update({"global_work_size": [global_size]}),
     
     return outDict
+
+#print(generate_kRestrict6()["kernel"])
