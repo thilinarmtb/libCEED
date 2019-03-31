@@ -176,12 +176,12 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
 
   cl_int err;
   err  = clSetKernelArg(data->kQFunctionApply, 0, sizeof(cl_mem), (void*)&d_ctx);
-  err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
-  err = clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), (void*)&d_idx);
-  err = clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem), (void*)&d_odx);
-  err = clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem),
+  //err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(CeedInt), (void*) &Q);
+  err = clSetKernelArg(data->kQFunctionApply, 1, sizeof(cl_mem), (void*)&d_idx);
+  err = clSetKernelArg(data->kQFunctionApply, 2, sizeof(cl_mem), (void*)&d_odx);
+  err = clSetKernelArg(data->kQFunctionApply, 3, sizeof(cl_mem),
                        (void*)&d_indata);
-  err = clSetKernelArg(data->kQFunctionApply, 5, sizeof(cl_mem),
+  err = clSetKernelArg(data->kQFunctionApply, 4, sizeof(cl_mem),
                        (void*)&d_outdata);
 
   CeedWork_OpenCL *work = data->work;
