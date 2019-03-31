@@ -203,17 +203,17 @@ int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
   // ***************************************************************************
   CeedInt *toffsets;
   CeedInt *tindices;
-  //data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
   //                                  bytes(r), NULL, NULL);
-  data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  data->d_indices  = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
                                     MAX_BUF, NULL, NULL);
-  //data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
   //                                  (1+ndof)*sizeof(CeedInt), NULL, NULL);
-  data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  data->d_toffsets = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
                                     MAX_BUF, NULL, NULL);
-  //data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  //data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
   //                                  bytes(r), NULL, NULL);
-  data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_WRITE,
+  data->d_tindices = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
                                     MAX_BUF, NULL, NULL);
   // ***************************************************************************
   ierr = CeedMalloc(ndof+1, &toffsets); CeedChk(ierr);
