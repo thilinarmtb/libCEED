@@ -175,7 +175,6 @@ def write_kernel(data):
     print("[global_work_size]\n{}\n".format('\n'.join(map(str, globalWorkSize))))
     print("[local_work_size]\n{}\n".format('\n'.join(map(str, localWorkSize))))
 
-'''
 arg_len = len(sys.argv)
 if arg_len != 4:
     print("Usage: python loopy_kernel_output.py kernel_name arch '{\"c1\": val1, ... }'")
@@ -185,11 +184,12 @@ if arg_len != 4:
 kernel_name = sys.argv[1]
 arch = sys.argv[2]
 constants = json.loads(sys.argv[3])
+
 '''
 constants = {"Q": 256}
 arch = "NVIDIA_GPU"
 kernel_name = 'masssetupf'
-
+'''
 if kernel_name == 'masssetupf':
     k = generate_masssetupf(constants, arch)
 elif kernel_name == 'massf':
