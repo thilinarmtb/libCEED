@@ -173,16 +173,6 @@ static int CeedVectorRestoreArrayRead_OpenCL(const CeedVector vec,
   assert(*array);
 
   CeedWriteBuffer_OpenCL(vec); // sync Host to Device
-  //for(int i = 0; i<27; i++) {
-  //  printf("restore[%d]=%lf %lf\n",i,(*array)[i], data->h_array[i]);
-  //}
-  //printf("bytes(vec)=%zu, p=%p\n",bytes(vec), data->h_array);
-  //cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
-  //    data->d_array, CL_TRUE, CL_MAP_READ, 0, bytes(vec), 0, NULL, NULL, NULL);
-  //for(int i=0; i<27; i++) {
-  //  printf("after_the_write[%d]=%lf\n",i,pointer[i]);
-  //}
-  //*array = NULL;
   return 0;
 }
 // *****************************************************************************

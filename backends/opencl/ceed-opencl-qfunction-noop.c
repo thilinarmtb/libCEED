@@ -165,10 +165,10 @@ int CeedQFunctionAllocNoOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
   dbg("[CeedQFunction][AllocNoOpOut] olen=%d", olen);
   // OUTPUT alloc **********************************************************
   if (olen>0) {
-    //data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_WRITE_ONLY,
-    //                                 olen*bytes, NULL, NULL);
-    data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_WRITE_ONLY,
-                                     MAX_BUF, NULL, NULL);
+    //data->o_outdata = clCreateBuffer(ceed_data->context, 
+    //  CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, olen*bytes, NULL, NULL);
+    data->o_outdata = clCreateBuffer(ceed_data->context, 
+      CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, MAX_BUF, NULL, NULL);
     //data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
     //                             odx*sizeof(int), NULL, NULL);
     data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,

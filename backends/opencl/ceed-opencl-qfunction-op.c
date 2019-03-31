@@ -95,10 +95,10 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   dbg("[CeedQFunction][AllocOpIn] ilen=%d", ilen);
   // INPUT+IDX alloc ***********************************************************
   assert(ilen>0);
-  //qf_data->o_indata = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
-  //                                   ilen*bytes, NULL, NULL);
-  qf_data->o_indata = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
-                                     MAX_BUF, NULL, NULL);
+  //qf_data->o_indata = clCreateBuffer(ceed_data->context, 
+  //  CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, ilen*bytes, NULL, NULL);
+  qf_data->o_indata = clCreateBuffer(ceed_data->context, 
+    CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, MAX_BUF, NULL, NULL);
   //qf_data->d_idx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
   //                                idx*sizeof(int), NULL, NULL);
   qf_data->d_idx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
@@ -106,9 +106,6 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
   clEnqueueWriteBuffer(ceed_data->queue, qf_data->d_idx, CL_TRUE, 0,
                        idx*sizeof(int),
                        iOf7, 0, NULL, NULL);
-  //for(int i = 0; i<idx; i++) {
-  //  printf("d_idx[%d]=%d\n",i,iOf7[i]);
-  //}
   // CTX alloc *****************************************************************
   //qf_data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
   //                                cbytes>0?cbytes:32, NULL, NULL);
@@ -190,14 +187,15 @@ int CeedQFunctionAllocOpOut_OpenCL(CeedQFunction qf, CeedInt Q,
   assert(olen>0);
   dbg("[CeedQFunction][AllocOpIn] Alloc OUT of length %d", olen);
   // OUTPUT alloc **********************************************************
-  //data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_WRITE_ONLY,
-  //                                 olen*bytes, NULL, NULL);
-  data->o_outdata = clCreateBuffer(ceed_data->context, CL_MEM_WRITE_ONLY,
-                                   MAX_BUF, NULL, NULL);
+  //data->o_outdata = clCreateBuffer(ceed_data->context, 
+  //  CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, olen*bytes, NULL, NULL);
+
+  data->o_outdata = clCreateBuffer(ceed_data->context, 
+    CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, MAX_BUF, NULL, NULL);
   //data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
   //                             odx*sizeof(int), NULL, NULL);
-  data->d_odx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
-                               MAX_BUF, NULL, NULL);
+  data->d_odx = clCreateBuffer(ceed_data->context, 
+    CL_MEM_READ_ONLY, MAX_BUF, data->d_odx, NULL);
   clEnqueueWriteBuffer(ceed_data->queue, data->d_odx, CL_TRUE, 0, odx*sizeof(int),
                        oOf7, 0, NULL, NULL);
   //for(int i = 0; i<odx; i++) {
