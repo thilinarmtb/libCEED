@@ -148,27 +148,27 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     k = lp.fix_parameters(k, **constants)
     k = lp.add_and_infer_dtypes(k, dtypes)
 
-    '''
     if arch == "AMD_GPU":
-        workgroup_size = 64
+        local_size = 64
     elif arch == "NVIDIA_GPU":
-        workgroup_size = 32
+        local_size = 32
     else:
-        workgroup_size = 128
-    '''
+        local_size = 128
 
-    local_size = 1
     global_size = -1
- 
     if "nelem_x_elemsize_x_ncomp" in constants:
-        global_size = constants["nelem_x_elemsize_x_ncomp"]
-        #workgroup_size = min(workgroup_size, global_size)
+        work_items = constants["nelem_x_elemsize_x_ncomp"]
+        local_size = min(local_size, work_items)
+        global_size = int(np.ceil(work_items/local_size))*local_size
     
-    #slabs = (0,0) if global_size % workgroup_size == 0 else (0,1)
-    
-    k = lp.tag_inames(k, [("i", "g.0")])
+    slabs = (0,0) if work_items % local_size == 0 else (0,1)
+    k = lp.split_iname(k, "i", inner_length=local_size, 
+        outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+
 
     code = lp.generate_code_v2(k).device_code()  
+    #print(k)
+    #print(code)
  
     outDict = {
         "kernel": code,
@@ -180,4 +180,4 @@ def generate_kRestrict6(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     
     return outDict
 
-#print(generate_kRestrict6()["kernel"])
+#generate_kRestrict6({"nelem_x_elemsize_x_ncomp": 377})
