@@ -40,7 +40,7 @@ static inline void CeedWriteBuffer_OpenCL(const CeedVector vec) {
   assert(data->h_array);
   
   cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
-      data->d_array, CL_TRUE, CL_MAP_WRITE, 0, bytes(vec), 0, NULL, NULL, NULL);
+      data->d_array, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0, bytes(vec), 0, NULL, NULL, NULL);
 
   memcpy(pointer, data->h_array, bytes(vec));
 

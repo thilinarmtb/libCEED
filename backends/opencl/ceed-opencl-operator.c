@@ -260,8 +260,15 @@ static int SyncToHostPointer(CeedVector vec) {
   if (outvdata->h_array) {
     CeedInt length;
     ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
-    clEnqueueReadBuffer(ceed_data->queue, outvdata->d_array, CL_TRUE, 0,
-                        length * sizeof(CeedScalar), outvdata->h_array, 0, NULL, NULL);
+
+    cl_double *pointer = (cl_double*)clEnqueueMapBuffer(ceed_data->queue,
+      outvdata->d_array, CL_TRUE, CL_MAP_READ, 0, 
+      length*sizeof(CeedScalar), 0, NULL, NULL, NULL);
+
+    memcpy(outvdata->h_array, pointer, length*sizeof(CeedScalar));
+
+    clEnqueueUnmapMemObject(ceed_data->queue, outvdata->d_array, 
+      pointer, 0, NULL, NULL);
   }
   return 0;
 }
