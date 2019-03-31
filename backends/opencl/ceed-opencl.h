@@ -15,7 +15,7 @@
 #endif
 
 #define OPENCL_TILE_SIZE 32
-#define MAX_BUF 100000
+#define MAX_BUF 3000000
 
 // *****************************************************************************
 // * CeedWork_OpenCL struct
