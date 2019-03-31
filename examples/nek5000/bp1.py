@@ -59,33 +59,31 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     k = lp.fix_parameters(k, **constants)
     k = lp.add_and_infer_dtypes(k, dtypes)
     
+    ''' 
     if arch == "AMD_GPU":
         workgroup_size = 64
-        #GPU threads have 32 B cache lines so likely not better
-        #k = lp.precompute(k, "v") 
     elif arch == "NVIDIA_GPU":
         workgroup_size = 32
-        #k = lp.precompute(k, "v")
     else:
         workgroup_size = 128
+    '''
 
-    global_size = -1
+    global_size, local_size = -1, 1
     if "Q" in constants:
         global_size = constants["Q"]
-        workgroup_size = min(workgroup_size, global_size)
+        #workgroup_size = min(workgroup_size, global_size)
 
-    slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
+    #slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
     #k = lp.split_iname(k, "i", workgroup_size,
     #        outer_tag="g.0", inner_tag="l.0", slabs=slabs)
-
+    k = lp.tag_inames(k, [("i", "g.0")])   
  
     code = lp.generate_code_v2(k).device_code()
 
-    workgroup_size = 1
     outDict = {
         "kernel": code,
         "work_dim": 1,
-        "local_work_size": [workgroup_size]
+        "local_work_size": [local_size]
     }
     if global_size > 0:
        outDict.update({"global_work_size": [global_size]}),
@@ -131,25 +129,27 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
 
     k = lp.fix_parameters(k, **constants)
     k = lp.add_and_infer_dtypes(k, dtypes)
-    
+   
+    ''' 
     if arch == "AMD_GPU":
         workgroup_size = 64
     elif arch == "NVIDIA_GPU":
         workgroup_size = 32
     else:
         workgroup_size = 128
+    '''
 
-    global_size = -1
+    global_size, local_size = -1, 1
     if "Q" in constants:
         global_size = constants["Q"]
-        workgroup_size = min(workgroup_size, global_size)
+        #workgroup_size = min(workgroup_size, global_size)
 
-    slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
+    #slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
     #k = lp.split_iname(k, "i", workgroup_size,
     #        outer_tag="g.0", inner_tag="l.0", slabs=slabs)
-   
+    k = lp.tag_inames(k, [("i", "g.0")])   
+
     code = lp.generate_code_v2(k).device_code()
-    print(k)
  
     workgroup_size = 1
     outDict = {
