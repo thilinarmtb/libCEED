@@ -38,13 +38,14 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         end
 
         D := 3
-        v(a, b, c) := in[(a*D + b)*Q + i + iOf7[c]]
+        v(a, b) := in[(a*D + b)*Q + i + iOf7[1]]
+        v2(a) := in[a*Q + i + iOf7[0]]
 
         det := in[iOf7[2] + i] * (
-                   v(0,0,1) * (v(1,1,1)*v(2,2,1) - v(1,2,1)*v(2,1,1))
-                 - v(0,1,1) * (v(1,0,1)*v(2,2,1) - v(1,2,1)*v(2,0,1))
-                 + v(0,2,1) * (v(1,0,1)*v(2,1,1) - v(1,1,1)*v(2,0,1)))
-        sum := v(0,0,0)**2 + v(0,1,0)**2 + v(0,2,0)**2
+                   v(0,0) * (v(1,1)*v(2,2) - v(1,2)*v(2,1))
+                 - v(0,1) * (v(1,0)*v(2,2) - v(1,2)*v(2,0))
+                 + v(0,2) * (v(1,0)*v(2,1) - v(1,1)*v(2,0)))
+        sum := v2(0)**2 + v2(1)**2 + v2(2)**2
 
         out[oOf7[0] + i] = det
         out[oOf7[1] + i] = det * sqrt(sum) 
@@ -60,8 +61,11 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     
     if arch == "AMD_GPU":
         workgroup_size = 64
+        #GPU threads have 32 B cache lines so likely not better
+        #k = lp.precompute(k, "v") 
     elif arch == "NVIDIA_GPU":
         workgroup_size = 32
+        #k = lp.precompute(k, "v")
     else:
         workgroup_size = 128
 
@@ -73,9 +77,11 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
     slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
     k = lp.split_iname(k, "i", workgroup_size,
             outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+
  
     code = lp.generate_code_v2(k).device_code()
- 
+
+    print(k) 
     outDict = {
         "kernel": code,
         "work_dim": 1,
@@ -179,6 +185,11 @@ kernel_name = sys.argv[1]
 arch = sys.argv[2]
 constants = json.loads(sys.argv[3])
 
+'''
+constants = {"Q": 256}
+arch = "NVIDIA_GPU"
+kernel_name = 'masssetupf'
+'''
 if kernel_name == 'masssetupf':
     k = generate_masssetupf(constants, arch)
 elif kernel_name == 'massf':
