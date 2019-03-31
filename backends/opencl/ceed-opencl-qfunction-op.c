@@ -107,10 +107,11 @@ int CeedQFunctionAllocOpIn_OpenCL(CeedQFunction qf, CeedInt Q,
                        idx*sizeof(int),
                        iOf7, 0, NULL, NULL);
   // CTX alloc *****************************************************************
-  //qf_data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
-  //                                cbytes>0?cbytes:32, NULL, NULL);
-  qf_data->d_ctx = clCreateBuffer(ceed_data->context, CL_MEM_READ_ONLY,
-                                  MAX_BUF, NULL, NULL);
+  //qf_data->d_ctx = clCreateBuffer(ceed_data->context, 
+  //  CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, cbytes>0?cbytes:32, NULL, NULL);
+  qf_data->d_ctx = clCreateBuffer(ceed_data->context, 
+    CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, MAX_BUF, NULL, NULL);
+
   return 0;
 }
 
