@@ -390,7 +390,10 @@ cl_kernel createKernelFromPython(char *kernelName, char *pythonFile, char *arch,
   free(kernelCode);
 
   err = clBuildProgram(program, 1, &ceed_data->device_id, 
-    "-cl-fast-relaxed-math -cl-denorms-are-zero", NULL, NULL);
+    NULL, NULL, NULL);
+
+  //err = clBuildProgram(program, 1, &ceed_data->device_id, 
+  //  "-cl-fast-relaxed-math -cl-denorms-are-zero", NULL, NULL);
 
   // Determine the size of the log
   size_t log_size;
