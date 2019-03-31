@@ -75,13 +75,13 @@ def generate_masssetupf(constants={}, arch="INTEL_CPU", fp_format=np.float64, ta
         workgroup_size = min(workgroup_size, global_size)
 
     slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
-    k = lp.split_iname(k, "i", workgroup_size,
-            outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+    #k = lp.split_iname(k, "i", workgroup_size,
+    #        outer_tag="g.0", inner_tag="l.0", slabs=slabs)
 
  
     code = lp.generate_code_v2(k).device_code()
 
-    print(k) 
+    workgroup_size = 1
     outDict = {
         "kernel": code,
         "work_dim": 1,
@@ -145,16 +145,18 @@ def generate_massf(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         workgroup_size = min(workgroup_size, global_size)
 
     slabs = (0,0) if global_size % workgroup_size == 0 else (0,1) 
-    k = lp.split_iname(k, "i", workgroup_size,
-            outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+    #k = lp.split_iname(k, "i", workgroup_size,
+    #        outer_tag="g.0", inner_tag="l.0", slabs=slabs)
    
     code = lp.generate_code_v2(k).device_code()
     print(k)
  
+    workgroup_size = 1
     outDict = {
         "kernel": code,
         "work_dim": 1,
         "local_work_size": [workgroup_size]
+        "
     }
     if global_size > 0:
        outDict.update({"global_work_size": [global_size]}),
