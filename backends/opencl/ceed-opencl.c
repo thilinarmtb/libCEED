@@ -269,7 +269,7 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
               "OpenCL backend can't initialize the CPUs.: Out of resources");
     break;
   }
-  printf("Num devices: %u\n", value);
+  //printf("Num devices: %u\n", value);
 
   data->queue = clCreateCommandQueueWithProperties(data->context, device_list[0],
                 0, &err);
@@ -284,7 +284,7 @@ void concat(char **result, const char *s1, const char *s2) {
   *result = (char *) calloc(sizeof(char), strlen(s1) + strlen(s2) + 1);
   strcpy(*result, s1);
   strcpy(*result + strlen(s1), s2);
-  printf("result = %s\n", *result);
+  //printf("result = %s\n", *result);
 }
 
 void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
@@ -301,7 +301,7 @@ void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
     } while(!strstr(buf, "\[work_dim\]"));
     fgets(buf, BUFSIZ, fp);
     sscanf(buf,"%u",&work->work_dim);
-    printf("work_dim: %u\n",work->work_dim);
+    //printf("work_dim: %u\n",work->work_dim);
 
     work->global_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
     work->local_work_size = (size_t *) calloc(sizeof(size_t), work->work_dim);
@@ -314,7 +314,7 @@ void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
     fgets(buf, BUFSIZ, fp);
     for(int i = 0; i < work->work_dim; i++) {
       sscanf(buf,"%zd\n", work->global_work_size + i);
-      printf("global_work_dim[%d]: %zd\n",i,work->global_work_size[i]);
+      //printf("global_work_dim[%d]: %zd\n",i,work->global_work_size[i]);
     }
 
     fseek(fp, 0, SEEK_SET);
@@ -325,7 +325,7 @@ void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
     fgets(buf, BUFSIZ, fp);
     for(int i = 0; i < work->work_dim; i++) {
       sscanf(buf,"%zd\n", work->local_work_size + i);
-      printf("local_work_dim[%d]: %zd\n",i,work->local_work_size[i]);
+      //printf("local_work_dim[%d]: %zd\n",i,work->local_work_size[i]);
     }
 
     fseek(fp, 0, SEEK_SET);
@@ -334,7 +334,7 @@ void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
     } while(!strstr(buf, "\[kernel_length\]"));
     fgets(buf, BUFSIZ, fp);
     sscanf(buf,"%d",&kernel_length);
-    printf("kernel_length=%d\n", kernel_length);
+    //printf("kernel_length=%d\n", kernel_length);
 
     *kernel = calloc(sizeof(char), kernel_length + 1);
 
@@ -343,7 +343,7 @@ void readPythonDict(char *kernelName, CeedWork_OpenCL *work, char **kernel) {
       fgets(buf, BUFSIZ, fp);
     } while(!strstr(buf, "\[kernel\]"));
     fread(*kernel, sizeof(char), kernel_length, fp);
-    printf("kernel=%s\n", *kernel);
+    //printf("kernel=%s\n", *kernel);
   } else {
     fprintf(stderr, "Can't open the dict file\n");
   }
@@ -433,7 +433,7 @@ cl_kernel createKernelFromPython(char *kernelName, char *pythonFile, char *arch,
                           log_size,
                           log, NULL);
     // Print the log
-    printf("%s\n", log);
+    //printf("%s\n", log);
     fprintf(stderr, "OpenCL backend: Build program failure.");
     break;
   case CL_OUT_OF_HOST_MEMORY:
