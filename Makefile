@@ -49,6 +49,9 @@ MAGMA_DIR ?= ../magma
 # If CUDA_DIR is not set, check for nvcc, or resort to /usr/local/cuda
 CUDA_DIR  ?= $(or $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir \
                $(shell which nvcc 2> /dev/null))))),/usr/local/cuda)
+# If OPENCL_DIR is not set
+OPENCL_DIR ?= /usr/lib/x86_64-linux-gnu/
+OPENCL_INCDIR ?= /usr/include
 
 # Check for PETSc in ../petsc
 ifneq ($(wildcard ../petsc/lib/libpetsc.*),)
@@ -157,6 +160,7 @@ magma_tmp.c    := $(magma_pre_src:%.c=%_tmp.c)
 magma_tmp.cu   := $(magma_pre_src:%.c=%_cuda.cu)
 magma_allsrc.c := $(magma_dsrc) $(magma_tmp.c)
 magma_allsrc.cu:= $(magma_tmp.cu)
+opencl.c     := $(sort $(wildcard backends/opencl/*.c))
 
 # Output using the 216-color rules mode
 rule_file = $(notdir $(1))
@@ -297,6 +301,15 @@ ifneq ($(wildcard $(MAGMA_DIR)/lib/libmagma.*),)
   $(magma_allsrc.cu:%.cu=$(OBJDIR)/%.o) : NVCCFLAGS += --compiler-options=-fPIC -DADD_ -I$(MAGMA_DIR)/include -I$(MAGMA_DIR)/magmablas -I$(MAGMA_DIR)/control -I$(CUDA_DIR)/include
   BACKENDS += /gpu/magma
   endif
+endif
+
+# OpenCL Backend
+ifneq ($(wildcard $(OPENCL_DIR)/libOpenCL.*),)
+  libceed.c += $(opencl.c)
+  BACKENDS += /cpu/opencl /gpu/opencl
+  $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I/$(OPENCL_INCDIR)
+  $(libceed) : LDFLAGS += -L$(OPENCL_DIR) -Wl,-rpath,$(abspath $(OPENCL_DIR))
+  $(libceed) : LDLIBS += -lOpenCL
 endif
 
 export BACKENDS
