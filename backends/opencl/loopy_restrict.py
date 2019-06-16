@@ -77,6 +77,8 @@ def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.f
     else:
         raise Exception("Invalid version value in generate_kRestrict()")  
 
+    
+
     loopyCode += suffix
     k = lp.make_kernel(
         "{ [i]: 0<=i<esize }",
@@ -86,8 +88,15 @@ def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.f
         assumptions="esize > 0",
         target=target
     )
-    
+ 
     k = lp.fix_parameters(k, **constants)
+
+    if arch == "AMD_GPU":
+        local_size = 64
+    elif arch == "NVIDIA_GPU":
+        local_size = 32
+    else:
+        local_size = 128
 
     global_size = -1
     if "esize" in constants:
