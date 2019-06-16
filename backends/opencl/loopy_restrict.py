@@ -1,0 +1,128 @@
+import numpy as np
+import loopy as lp
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+
+import sys
+import json
+
+# setup
+#----
+lp.set_caching_enabled(False)
+from warnings import filterwarnings, catch_warnings
+filterwarnings('error', category=lp.LoopyWarning)
+import loopy.options
+loopy.options.ALLOW_TERMINAL_COLORS = False
+
+LMODE = 4 
+TMODE = 2
+INDICES = 1
+#VERSION = LMODE | TMODE | INDICES
+
+#Idea: Have function take platform id and device id and have it figure out workgroup sizes itself
+def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+
+    kernel_data = [
+        lp.GlobalArg("u", fp_format),
+        lp.GlobalArg("v", fp_format, for_atomic=True if version >= 4 else False),
+        lp.GlobalArg("indices", np.int32)
+    ]
+    if constants=={}:
+        kernel_data += [
+            lp.ValueArg("elemsize", np.int32), 
+            lp.ValueArg("ncomp", np.int32),
+            lp.ValueArg("ndof", np.int32),
+            lp.ValueArg("esize", np.int32)]
+    else:
+        constants["esize"] = constants["nelem"]*constants["elemsize"]*constants["ncomp"]
+        constants.pop("nelem")
+
+    loopyCode = """
+                e := i / (ncomp * elemsize) 
+                d := (i / elemsize) % ncomp
+                s := i % elemsize"""
+
+    suffix = ""    
+    if version == int(not LMODE) | int(not TMODE) | int(not INDICES):
+        suffix = """ 
+                 v[i] = u[s + elemsize*e + ndof*d] 
+                 """
+    elif version == int(not LMODE) | int(not TMODE) | INDICES:
+        suffix = """
+                 v[i] = u[indices[s + elemsize*e] + ndof*d]
+                 """        
+    elif version == int(not LMODE) | TMODE | int(not INDICES):
+        suffix = """
+                 v[i] = u[ncomp*(s + elemsize*e) + d]
+                 """        
+    elif version == int(not LMODE) | TMODE | INDICES:
+        suffix = """
+                 v[i] = u[ncomp * indices[s + elemsize*e] + d]
+                 """        
+    elif version == LMODE | int(not TMODE) | int(not INDICES):
+        suffix = """
+                 v[s + elemsize*e + ndof*d] = v[s + elemsize*e + ndof*d] + u[i] {atomic}
+                 """        
+    elif version == LMODE | int(not TMODE) | INDICES:
+        suffix = """
+                 v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}
+                 """        
+    elif version == LMODE | TMODE | int(not INDICES):
+        suffix = """
+                 v[ncomp*(s + elemsize*e) + d] = v[ncomp*(s + elemsize*e) + d] + u[i] {atomic}
+                 """        
+    elif version == LMODE | TMODE | INDICES:
+        suffix = """
+                 v[ncomp * indices[s + elemsize*e] + d] = v[ncomp * indices[s + elemsize*e] + d] + u[i] {atomic}
+                 """      
+    else:
+        raise Exception("Invalid version value in generate_kRestrict()")  
+
+    loopyCode += suffix
+    #print(loopyCode)
+    k = lp.make_kernel(
+        "{ [i]: 0<=i<esize }",
+        loopyCode,
+        name="kRestrict",
+        kernel_data=kernel_data,
+        assumptions="esize > 0",
+        target=target
+    )
+    
+    k = lp.fix_parameters(k, **constants)
+
+    if arch == "AMD_GPU":
+        local_size = 64
+    elif arch == "NVIDIA_GPU":
+        local_size = 32
+    else:
+        local_size = 128
+
+    global_size = -1
+    if "esize" in constants:
+        work_items = constants["esize"]
+        local_size = min(local_size, work_items)
+        global_size = int(np.ceil(work_items/local_size))*local_size
+    else:
+        work_items = 1    
+
+    slabs = (0,0) if work_items % local_size == 0 else (0,1)
+    k = lp.split_iname(k, "i", inner_length=local_size, 
+        outer_tag="g.0", inner_tag="l.0", slabs=slabs)
+
+    code = lp.generate_code_v2(k).device_code()  
+    print(k)
+    print(code)
+ 
+    outDict = {
+        "kernel": code,
+        "work_dim": 1,
+        "local_work_size": [local_size] 
+    }
+    if global_size > 0:
+        outDict["global_work_size"] = [global_size]
+    
+    return outDict
+
+for i in range(8):
+    generate_kRestrict(constants={}, version=i)
+#generate_kRestrict6({"nelem_x_elemsize_x_ncomp": 377})
