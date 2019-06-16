@@ -174,19 +174,6 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   return 0;
 }
 
-CEED_INTERN int run_kernel(Ceed ceed,
-    cl_kernel kernel,
-    CeedWork_OpenCL *work,
-    void **args) {
-  return 0;
-}
-
-CEED_INTERN int compile(Ceed ceed, void *data,
-    const char *type,
-    int nparams, ...) {
-  return 0;
-}
-
 __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/opencl", CeedInit_OpenCL, 20);

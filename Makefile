@@ -20,6 +20,9 @@ endif
 ifeq (,$(filter-out undefined default,$(origin FC)))
   FC = gfortran
 endif
+ifeq (,$(filter-out undefined default,$(origin CXX)))
+  CXX = g++
+endif
 NVCC = $(CUDA_DIR)/bin/nvcc
 
 # ASAN must be left empty if you don't want to use it
@@ -161,6 +164,7 @@ magma_tmp.cu   := $(magma_pre_src:%.c=%_cuda.cu)
 magma_allsrc.c := $(magma_dsrc) $(magma_tmp.c)
 magma_allsrc.cu:= $(magma_tmp.cu)
 opencl.c     := $(sort $(wildcard backends/opencl/*.c))
+opencl.cpp     := $(sort $(wildcard backends/opencl/*.cpp))
 
 # Output using the 216-color rules mode
 rule_file = $(notdir $(1))
@@ -200,6 +204,7 @@ info:
 	$(info ------------------------------------)
 	$(info CC         = $(CC))
 	$(info FC         = $(FC))
+	$(info CXX        = $(CXX))
 	$(info CPPFLAGS   = $(CPPFLAGS))
 	$(info CFLAGS     = $(value CFLAGS))
 	$(info FFLAGS     = $(value FFLAGS))
@@ -238,6 +243,7 @@ $(libceed) : LDFLAGS += $(if $(DARWIN), -install_name @rpath/$(notdir $(libceed)
 libceed.c += $(ref.c)
 libceed.c += $(template.c)
 libceed.c += $(blocked.c)
+libceed.cpp += $(opencl.cpp)
 
 # AVX Backed
 AVX_STATUS = Disabled
@@ -307,7 +313,8 @@ endif
 ifneq ($(wildcard $(OPENCL_DIR)/libOpenCL.*),)
   libceed.c += $(opencl.c)
   BACKENDS += /cpu/opencl /gpu/opencl
-  $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS += -I/$(OPENCL_INCDIR)
+  $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS+= -I/$(OPENCL_INCDIR)
+  $(opencl.cpp:%.cpp=$(OBJDIR)/%.o) : CXXFLAGS+= -std=c++11 -I/$(OPENCL_INCDIR) $(shell python3 -m pybind11 --includes)
   $(libceed) : LDFLAGS += -L$(OPENCL_DIR) -Wl,-rpath,$(abspath $(OPENCL_DIR))
   $(libceed) : LDLIBS += -lOpenCL
 endif
@@ -318,7 +325,7 @@ export BACKENDS
 %_tmp.c %_cuda.cu : %.c
 	$(magma_preprocessor) $<
 
-libceed.o = $(libceed.c:%.c=$(OBJDIR)/%.o) $(libceed.cu:%.cu=$(OBJDIR)/%.o)
+libceed.o = $(libceed.c:%.c=$(OBJDIR)/%.o) $(libceed.cu:%.cu=$(OBJDIR)/%.o) $(libceed.cpp:%.cpp=$(OBJDIR)/%.o)
 $(libceed.o): | info-backends
 $(libceed) : $(libceed.o) | $$(@D)/.DIR
 	$(call quiet,CC) $(LDFLAGS) -shared -o $@ $^ $(LDLIBS)
@@ -328,6 +335,9 @@ $(OBJDIR)/%.o : $(CURDIR)/%.c | $$(@D)/.DIR
 
 $(OBJDIR)/%.o : $(CURDIR)/%.cu | $$(@D)/.DIR
 	$(call quiet,NVCC) $(CPPFLAGS) $(NVCCFLAGS) -c -o $@ $(abspath $<)
+
+$(OBJDIR)/%.o : $(CURDIR)/%.cpp | $$(@D)/.DIR
+	$(call quiet,CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $(abspath $<)
 
 $(OBJDIR)/% : tests/%.c | $$(@D)/.DIR
 	$(call quiet,LINK.c) -o $@ $(abspath $<) -lceed $(LDLIBS)
