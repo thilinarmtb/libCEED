@@ -1,9 +1,8 @@
 import numpy as np
 import loopy as lp
-from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
-
 import sys
-import json
+
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 # setup
 #----
@@ -13,13 +12,14 @@ filterwarnings('error', category=lp.LoopyWarning)
 import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
+#VERSION = LMODE | TMODE | INDICES
 LMODE = 4 
 TMODE = 2
 INDICES = 1
-#VERSION = LMODE | TMODE | INDICES
 
 #Idea: Have function take platform id and device id and have it figure out workgroup sizes itself
-def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64, \
+        target=lp.OpenCLTarget()):
 
     kernel_data = [
         lp.GlobalArg("u", fp_format),
@@ -78,7 +78,6 @@ def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.f
         raise Exception("Invalid version value in generate_kRestrict()")  
 
     loopyCode += suffix
-    #print(loopyCode)
     k = lp.make_kernel(
         "{ [i]: 0<=i<esize }",
         loopyCode,
@@ -89,13 +88,6 @@ def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.f
     )
     
     k = lp.fix_parameters(k, **constants)
-
-    if arch == "AMD_GPU":
-        local_size = 64
-    elif arch == "NVIDIA_GPU":
-        local_size = 32
-    else:
-        local_size = 128
 
     global_size = -1
     if "esize" in constants:
@@ -109,20 +101,4 @@ def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.f
     k = lp.split_iname(k, "i", inner_length=local_size, 
         outer_tag="g.0", inner_tag="l.0", slabs=slabs)
 
-    code = lp.generate_code_v2(k).device_code()  
-    print(k)
-    print(code)
- 
-    outDict = {
-        "kernel": code,
-        "work_dim": 1,
-        "local_work_size": [local_size] 
-    }
-    if global_size > 0:
-        outDict["global_work_size"] = [global_size]
-    
-    return outDict
-
-for i in range(8):
-    generate_kRestrict(constants={}, version=i)
-#generate_kRestrict6({"nelem_x_elemsize_x_ncomp": 377})
+    return k
