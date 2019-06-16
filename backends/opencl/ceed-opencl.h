@@ -104,8 +104,6 @@ typedef struct {
   CeedInt *h_ind_allocated;
   cl_mem d_ind;
   cl_mem d_ind_allocated;
-  cl_mem d_toffsets;
-  cl_mem d_tindices;
 } CeedElemRestriction_OpenCL;
 
 typedef struct {
@@ -148,12 +146,12 @@ CEED_INTERN int CeedBasisCreateH1_OpenCL(CeedElemTopology topo,
 //    const CeedCopyMode cmode, const CeedInt *indices,
 //    const CeedElemRestriction res);
 
-CEED_INTERN int compile(Ceed ceed, void *data,
+int compile(Ceed ceed, void *data,
     const char *type,
     int nparams, ...
 );
 
-CEED_INTERN int run_kernel(Ceed ceed,
+int run_kernel(Ceed ceed,
     cl_kernel kernel,
     CeedWork_OpenCL *work,
     void **args

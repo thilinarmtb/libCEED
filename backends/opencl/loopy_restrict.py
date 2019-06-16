@@ -18,7 +18,7 @@ TMODE = 2
 INDICES = 1
 
 #Idea: Have function take platform id and device id and have it figure out workgroup sizes itself
-def generate_kRestrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64, \
+def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64, \
         target=lp.OpenCLTarget()):
 
     kernel_data = [

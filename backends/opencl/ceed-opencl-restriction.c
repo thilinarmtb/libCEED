@@ -141,15 +141,15 @@ int CeedElemRestrictionCreate_OpenCL(CeedMemType mtype,
   } else
     return CeedError(ceed, 1, "Only MemType = HOST or DEVICE supported");
 
-  CeedInt ncomp, ndof, nelem;
+  CeedInt ncomp, ndof;
   ierr = CeedElemRestrictionGetNumComponents(r, &ncomp); CeedChk(ierr);
   ierr = CeedElemRestrictionGetNumDoF(r, &ndof); CeedChk(ierr);
   ierr = CeedElemRestrictionGetNumElements(r, &nelem); CeedChk(ierr);
   ierr = compile(ceed, impl, "CeedRestrict", 4,
-                 "RESTRICTION_NELEM", nelem,
-                 "RESTRICTION_ELEMSIZE", elemsize,
-                 "RESTRICTION_NCOMP", ncomp,
-                 "RESTRICTION_NDOF", ndof); CeedChk(ierr);
+                 "nelem", nelem,
+                 "elemsize", elemsize,
+                 "ncomp", ncomp,
+                 "ndof", ndof); CeedChk(ierr);
 
   ierr = CeedElemRestrictionSetData(r, (void *)&impl); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "ElemRestriction", r, "Apply",
