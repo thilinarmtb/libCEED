@@ -5,6 +5,67 @@ from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 import sys
 import json
 
+def generate_kInterp(tranpose=False):
+
+    loopyCode = ""
+
+    if transpose:
+        loopyCode += """
+                     P := Q1D
+                     Q := P1D
+                     stride0 := 1
+                     stride1 := P1D
+                     u_stride := nqpt
+                     v_stride := ncomp*elemsize
+                     u_comp_stride := nelem*nqpt
+                     v_comp_stride := elemsize
+                     u_size := nqpt
+                     """
+    else:
+        loopyCode += """
+                     P := P1D
+                     Q := Q1D
+                     stride0 := P1D
+                     stride1 := 1
+                     u_stride := ncomp*elemsize
+                     v_stride := nqpt
+                     u_comp_stride := nelem*nqpt
+                     v_comp_stride := elemsize
+                     u_size := nqpt
+                     """
+
+    loopyCode += """
+                 c := k % post
+                 j := (k / post) % Q
+                 a := k / (post * Q)
+                 u_offset := elem*u_stride + comp*u_comp_stride
+                 v_offset := elem*v_stride + comp*v_comp_stride
+                
+
+                 for elem,comp
+                     <> pre = u_size
+                     <> post = 1
+                     for d
+                         pre = pre / P
+
+                         # in and out stuff here
+
+                         <> writeLen = pre * post * Q
+                         for k
+                             vk = sum(b, interp1d[j*stride0 + b*stride1] * in[(a*P + b)*post + c])
+                         end
+                         post = post * Q
+
+                     end
+                 end
+                 """
+
+
+def generate_kInterp()
+
+    loopyCode = """
+                
+
 def head(transpose=False, interleaved=False):
     loopyCode = """
                 c := k % post
@@ -656,7 +717,6 @@ def generate_kGrad(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
 
     return kGrad
 
-# Only works for 3D, if need 2D or 1D add separate cases to handle
 def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data= [
