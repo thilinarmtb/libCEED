@@ -5,7 +5,10 @@ from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 import sys
 import json
 
-def generate_kInterp(transpose=False):
+TRANSPOSE = 1
+INTERLEAVE = 2
+
+def generate_kInterp(version=0):
 
     constants = {}
     constants["dim"] = 4
@@ -14,43 +17,72 @@ def generate_kInterp(transpose=False):
         "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
     if constants=={}:
         kernel_data = kernel_data + [
-            "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+            "elemsize","ncomp","ndof","nelem", "nqpt", "P1D", "Q1D"]
 
     loopyCode = ""
 
-    if transpose:
-        loopyCode += """
-                     P := Q1D
-                     Q := P1D
-                     stride0 := 1
-                     stride1 := P1D
-                     u_stride := nqpt
-                     v_stride := ncomp*elemsize
-                     u_comp_stride := nelem*nqpt
-                     v_comp_stride := elemsize
-                     u_size := nqpt
-                     """
-    else:
+    if not version & TRANSPOSE: #Not transpose
         loopyCode += """
                      P := P1D
                      Q := Q1D
                      stride0 := P1D
                      stride1 := 1
+                     """
+    else: #Transpose
+        loopyCode += """
+                     P := Q1D
+                     Q := P1D
+                     stride0 := 1
+                     stride1 := P1D
+                     """ 
+
+    if version == int(not INTERLEAVE) | int(not TRANSPOSE):
+        loopyCode += """
                      u_stride := ncomp*elemsize
                      v_stride := nqpt
                      u_comp_stride := elemsize
                      v_comp_stride := nelem * nqpt
                      u_size := elemsize
                      """
+    elif version == int(not INTERLEAVE) | TRANSPOSE:
+        loopyCode += """
+                     u_stride := nqpt
+                     v_stride := ncomp*elemsize
+                     u_comp_stride := nelem*nqpt
+                     v_comp_stride := elemsize
+                     u_size := nqpt
+                     """
+    elif version == INTERLEAVE | int(not TRANSPOSE):
+        loopyCode += """
+                     u_stride := ncomp*elemsize
+                     v_stride := ncomp*nqpt                     
+                     """
+    elif version == INTERLEAVE | TRANSPOSE:
+        loopyCode += """
+                     u_stride := ncomp*nqpt
+                     v_stride := ncomp*elemsize                     
+                     """
+    else:
+        print("ERROR")
+
+    if not version & INTERLEAVE:
+        loopyCode += """
+                     u_offset := elem*u_stride + comp*u_comp_stride
+                     v_offset := elem*v_stride + comp*v_comp_stride 
+                     pre(d) := u_size*(P**(dim-1-d))
+                     """
+    else:
+        loopyCode += """
+                     u_offset := elem*u_stride
+                     v_offset := elem*v_stride
+                     pre(d) := u_stride*(P**(dim-1-d))
+                     """
 
     loopyCode += """
-                 pre(d) := u_size*(P**(dim-1-d))
                  post(d) := Q**d 
                  c(d,k) := k % post(d)
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
-                 u_offset := elem*u_stride + comp*u_comp_stride
-                 v_offset := elem*v_stride + comp*v_comp_stride
                  <> PP = P
                  """
 
@@ -832,4 +864,4 @@ def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, 
 
     return kWeight
 #generate_kWeight(dim=3)
-generate_kInterp(transpose=True)
+generate_kInterp(version=3)
