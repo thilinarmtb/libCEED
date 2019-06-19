@@ -7,6 +7,15 @@ import json
 
 def generate_kInterp(transpose=False):
 
+    constants = {}
+    constants["dim"] = 4
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "elemsize","nc","ndof","nelem", "nqpt", "P1d", "Q1d", "tmpSz"]
+
     loopyCode = ""
 
     if transpose:
@@ -42,39 +51,50 @@ def generate_kInterp(transpose=False):
                  a(d,k) := k / (post(d) * Q)
                  u_offset := elem*u_stride + comp*u_comp_stride
                  v_offset := elem*v_stride + comp*v_comp_stride
-                 #in_offset(d) := if(d % 2, BASIS_BUF_LEN, 0) # Can precalculate these
-                 #out_offset(d) := if(d % 2, 0, BASIS_BUF_LEN)
-
                  <> PP = P
-                 #<> uu_size = u_size
-                 for elem,comp
-                     #Probalamente se podria encontrar una manera de hacer sin copiar pero el GPU lo requiere de todos modos
-                     #<> tmp[kk] = u[u_offset + kk] 
-                     for d #Esto deberia iterar a menos de dim-1
-                         <> writeLen = pre(d) * post(d) * Q
-                         for k
-                            if d == 0 
-                                <> tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * u[u_offset + (a(d,k)*P + b)*post(d) + c(d,k)])
-                            elif d%2 == 0
-                                # This probably will not work because loading from and saving to same array
-                                # tmp[out_offset(d) + k] = 0#sum(b, interp1d[j(d,k)*stride0 + b*stride1]) #* tmp[in_offset(d) + (a(d,k)*P + b)*post(d) + c(d,k)])
-                                tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp[(a(d,k)*P + b)*post(d) + c(d,k)])
-                            else 
-                                tmp[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp2[(a(d,k)*P + b)*post(d) + c(d,k)])
-                            end
-                         end
-                     end
-                     <> writeLen2 = pre(dim-1) * post(dim-1) * Q
-                     for kkk # Note: Change this iteration variable name at some point
-                        #v[v_offset + kkk] = sum(b, interp1d[j(dim-1,kkk)*stride0 + b*stride1] * tmp[in_offset(dim-1) + (a(dim-1,kkk)*P + b)*post(dim-1) + c(dim-1,kkk)])
-                        if dim - 1 == 0 
-                            v[v_offset + kkk] = sum(b, interp1d[j(dim-1,kkk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kkk)*P + b)*post(dim-1) + c(dim-1,kkk)])
-                        elif dim-1 % 2 == 0
-                            v[v_offset + kkk] = sum(b, interp1d[j(dim-1,kkk)*stride0 + b*stride1] * tmp[(a(dim-1,kkk)*P + b)*post(dim-1) + c(dim-1,kkk)])
-                        else
-                            v[v_offset + kkk] = sum(b, interp1d[j(dim-1,kkk)*stride0 + b*stride1] * tmp2[(a(dim-1,kkk)*P + b)*post(dim-1) + c(dim-1,kkk)])
-                        end
-                     end
+                 """
+
+    if constants["dim"] == 1:
+        loopyCode += """                 
+                    <> writeLen = pre(0) * post(0) * Q
+                    v[v_offset + k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                    """
+    elif constants["dim"] == 2:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     v[v_offset + kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     """
+    elif constants["dim"] == 3:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> writeLen3 = pre(2) * post(2) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     <> tmp[kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     v[v_offset + kkk] = sum(b, interp1d[j(2,kkk)*stride0 + b*stride1] * tmp[(a(2,kkk)*P + b)*post(2) + c(2,kkk)])
+                     """
+    else: 
+        loopyCode += """ 
+                 <> writeLen2 = pre(dim-1) * post(dim-1) * Q
+                 for elem, comp     
+                    <> writeLen = pre(d) * post(d) * Q
+                    if d == 0 
+                        <> tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * u[u_offset + (a(d,k)*P + b)*post(d) + c(d,k)])
+                    elif d%2 == 0
+                        tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    else 
+                        <> tmp[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp2[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    end
+
+                    if dim - 1 == 0 
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    elif dim-1 % 2 == 0
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    else
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    end
                  end
                  """
 
@@ -82,12 +102,12 @@ def generate_kInterp(transpose=False):
         ["{ [elem]: 0<=elem<nelem }",
          "{ [comp]: 0<=comp<ncomp }",
          "{ [d]: 0<=d<dim-1 }",
-         #"{ [kk]: 0<=kk<uu_size}",
-         "{ [k]: 0<=k<writeLen}",
-         "{ [kkk]: 0<=kkk<writeLen2}",
+         "{ [k]: 0<=k<writeLen }",
+         "{ [kk]: 0<=kk<writeLen2 }",
+         "{ [kkk]: 0<=kkk<writeLen3 }",
          "{ [b]: 0<=b<PP}"],
         loopyCode,
-        name="kWeight"
+        name="kInterp"
         #target=target,
         #kernel_data=kernel_data
     )
@@ -812,4 +832,4 @@ def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, 
 
     return kWeight
 #generate_kWeight(dim=3)
-generate_kInterp()
+generate_kInterp(transpose=True)
