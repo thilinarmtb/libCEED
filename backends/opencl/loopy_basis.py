@@ -42,8 +42,8 @@ def generate_kInterp(transpose=False):
                  a(d,k) := k / (post(d) * Q)
                  u_offset := elem*u_stride + comp*u_comp_stride
                  v_offset := elem*v_stride + comp*v_comp_stride
-                 in_offset(d) := if(d % 2, BASIS_BUF_LEN, 0) # Can precalculate these
-                 out_offset(d) := if(d % 2, 0, BASIS_BUF_LEN)
+                 #in_offset(d) := if(d % 2, BASIS_BUF_LEN, 0) # Can precalculate these
+                 #out_offset(d) := if(d % 2, 0, BASIS_BUF_LEN)
 
                  <> PP = P
                  #<> uu_size = u_size
