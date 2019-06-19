@@ -29,9 +29,9 @@ def generate_kInterp(tranpose=False):
                      stride1 := 1
                      u_stride := ncomp*elemsize
                      v_stride := nqpt
-                     u_comp_stride := nelem*nqpt
-                     v_comp_stride := elemsize
-                     u_size := nqpt
+                     u_comp_stride := elemsize
+                     v_comp_stride := nelem * nqpt
+                     u_size := elemsize
                      """
 
     loopyCode += """
@@ -40,21 +40,22 @@ def generate_kInterp(tranpose=False):
                  a := k / (post * Q)
                  u_offset := elem*u_stride + comp*u_comp_stride
                  v_offset := elem*v_stride + comp*v_comp_stride
-                
-
+                 pre := u_size*(P**(dim-1-d))
+                 post := Q**d
+                 
                  for elem,comp
-                     <> pre = u_size
-                     <> post = 1
+                     <> tmp[kk] = u[u_offset + kk]
                      for d
-                         pre = pre / P
-
+   
                          # in and out stuff here
+                         if 
+
 
                          <> writeLen = pre * post * Q
                          for k
-                             vk = sum(b, interp1d[j*stride0 + b*stride1] * in[(a*P + b)*post + c])
+                             out[k] = sum(b, interp1d[j*stride0 + b*stride1] * in[(a*P + b)*post + c])
                          end
-                         post = post * Q
+
 
                      end
                  end
@@ -119,6 +120,7 @@ for elem, comp
     <> post = 1
     for d
         pre = pre / P
+        post = 
         <> outOffset = 
         <> inOffset = 
         writeLen = pre*post*Q
