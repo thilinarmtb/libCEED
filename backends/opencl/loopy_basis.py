@@ -5,6 +5,298 @@ from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 import sys
 import json
 
+TRANSPOSE = 1
+INTERLEAVE = 2
+
+def generate_kInterp(version=0):
+
+    constants = {}
+    constants["dim"] = 4
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "elemsize","ncomp","ndof","nelem", "nqpt", "P1D", "Q1D"]
+
+    loopyCode = ""
+
+    if not version & TRANSPOSE: #Not transpose
+        loopyCode += """
+                     P := P1D
+                     Q := Q1D
+                     stride0 := P1D
+                     stride1 := 1
+                     """
+    else: #Transpose
+        loopyCode += """
+                     P := Q1D
+                     Q := P1D
+                     stride0 := 1
+                     stride1 := P1D
+                     """ 
+
+    if version == int(not INTERLEAVE) | int(not TRANSPOSE):
+        loopyCode += """
+                     u_stride := ncomp*elemsize
+                     v_stride := nqpt
+                     u_comp_stride := elemsize
+                     v_comp_stride := nelem * nqpt
+                     u_size := elemsize
+                     """
+    elif version == int(not INTERLEAVE) | TRANSPOSE:
+        loopyCode += """
+                     u_stride := nqpt
+                     v_stride := ncomp*elemsize
+                     u_comp_stride := nelem*nqpt
+                     v_comp_stride := elemsize
+                     u_size := nqpt
+                     """
+    elif version == INTERLEAVE | int(not TRANSPOSE):
+        loopyCode += """
+                     u_stride := ncomp*elemsize
+                     v_stride := ncomp*nqpt                     
+                     """
+    elif version == INTERLEAVE | TRANSPOSE:
+        loopyCode += """
+                     u_stride := ncomp*nqpt
+                     v_stride := ncomp*elemsize                     
+                     """
+    else:
+        print("ERROR")
+
+    if not version & INTERLEAVE:
+        loopyCode += """
+                     u_offset := elem*u_stride + comp*u_comp_stride
+                     v_offset := elem*v_stride + comp*v_comp_stride 
+                     pre(d) := u_size*(P**(dim-1-d))
+                     """
+    else:
+        loopyCode += """
+                     u_offset := elem*u_stride
+                     v_offset := elem*v_stride
+                     pre(d) := u_stride*(P**(dim-1-d))
+                     """
+
+    loopyCode += """
+                 post(d) := Q**d 
+                 c(d,k) := k % post(d)
+                 j(d,k) := (k / post(d)) % Q
+                 a(d,k) := k / (post(d) * Q)
+                 <> PP = P
+                 """
+
+    if constants["dim"] == 1:
+        loopyCode += """                 
+                    <> writeLen = pre(0) * post(0) * Q
+                    v[v_offset + k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                    """
+    elif constants["dim"] == 2:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     v[v_offset + kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     """
+    elif constants["dim"] == 3:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> writeLen3 = pre(2) * post(2) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     <> tmp[kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     v[v_offset + kkk] = sum(b, interp1d[j(2,kkk)*stride0 + b*stride1] * tmp[(a(2,kkk)*P + b)*post(2) + c(2,kkk)])
+                     """
+    else: 
+        loopyCode += """ 
+                 <> writeLen2 = pre(dim-1) * post(dim-1) * Q
+                 for elem, comp     
+                    <> writeLen = pre(d) * post(d) * Q
+                    if d == 0 
+                        <> tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * u[u_offset + (a(d,k)*P + b)*post(d) + c(d,k)])
+                    elif d%2 == 0
+                        tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    else 
+                        <> tmp[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp2[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    end
+
+                    if dim - 1 == 0 
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    elif dim-1 % 2 == 0
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    else
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    end
+                 end
+                 """
+
+    kInterp = lp.make_kernel(
+        ["{ [elem]: 0<=elem<nelem }",
+         "{ [comp]: 0<=comp<ncomp }",
+         "{ [d]: 0<=d<dim-1 }",
+         "{ [k]: 0<=k<writeLen }",
+         "{ [kk]: 0<=kk<writeLen2 }",
+         "{ [kkk]: 0<=kkk<writeLen3 }",
+         "{ [b]: 0<=b<PP}"],
+        loopyCode,
+        name="kInterp"
+        #target=target,
+        #kernel_data=kernel_data
+    )
+
+    print(kInterp)
+
+def generate_kGrad(version=0):
+
+    constants = {}
+    constants["dim"] = 4
+
+    kernel_data = [
+        "QnD", "transpose", "tmode", "tmp0", "tmp1", "interp1d", "d_u", "d_v" ]
+    if constants=={}:
+        kernel_data = kernel_data + [
+            "elemsize","ncomp","ndof","nelem", "nqpt", "P1D", "Q1D"]
+
+    loopyCode = ""
+
+    if not version & TRANSPOSE: #Not transpose
+        loopyCode += """
+                     P := P1D
+                     Q := Q1D
+                     stride0 := P1D
+                     stride1 := 1
+                     """
+    else: #Transpose
+        loopyCode += """
+                     P := Q1D
+                     Q := P1D
+                     stride0 := 1
+                     stride1 := P1D
+                     """ 
+
+    if version == int(not INTERLEAVE) | int(not TRANSPOSE):
+        loopyCode += """
+                     u_stride := ncomp*elemsize
+                     v_stride := nqpt
+                     u_comp_stride := elemsize
+                     v_comp_stride := nelem * nqpt
+                     u_dim_stride := 0
+                     v_dim_stride := nelem*nqpt*ncomp
+                     """
+    elif version == int(not INTERLEAVE) | TRANSPOSE:
+        loopyCode += """
+                     u_stride := nqpt
+                     v_stride := ncomp*elemsize
+                     u_comp_stride := nelem*nqpt
+                     v_comp_stride := elemsize
+                     u_dim_stride := nelem*nqpt*ncomp
+                     v_dim_stride := 0
+                     """
+    elif version == INTERLEAVE | int(not TRANSPOSE):
+        loopyCode += """
+                     u_stride := ncomp*elemsize
+                     v_stride := ncomp*nqpt                     
+                     """
+    elif version == INTERLEAVE | TRANSPOSE:
+        loopyCode += """
+                     u_stride := ncomp*nqpt
+                     v_stride := ncomp*elemsize                     
+                     """
+    else:
+        print("ERROR")
+
+    if not version & INTERLEAVE:
+        loopyCode += """
+                     u_offset := elem*u_stride + comp*u_comp_stride
+                     v_offset := elem*v_stride + comp*v_comp_stride 
+                     pre(d) := u_size*(P**(dim-1-d))
+                     """
+    else:
+        loopyCode += """
+                     u_offset := elem*u_stride
+                     v_offset := elem*v_stride
+                     pre(d) := u_stride*(P**(dim-1-d))
+                     """
+
+    loopyCode += """
+                 post(d) := Q**d 
+                 c(d,k) := k % post(d)
+                 j(d,k) := (k / post(d)) % Q
+                 a(d,k) := k / (post(d) * Q)
+                 <> PP = P
+                 """
+
+    if constants["dim"] == 1:
+        loopyCode += """                 
+                    <> writeLen = pre(0) * post(0) * Q
+                    v[v_offset + k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                    """
+    elif constants["dim"] == 2:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     v[v_offset + kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     """
+    elif constants["dim"] == 3:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> writeLen3 = pre(2) * post(2) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     <> tmp[kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     v[v_offset + kkk] = sum(b, interp1d[j(2,kkk)*stride0 + b*stride1] * tmp[(a(2,kkk)*P + b)*post(2) + c(2,kkk)])
+                     """
+    else: 
+        loopyCode += """ 
+                 <> writeLen2 = pre(dim-1) * post(dim-1) * Q
+                 for elem, comp     
+                    <> writeLen = pre(d) * post(d) * Q
+                    if d == 0 
+                        <> tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * u[u_offset + (a(d,k)*P + b)*post(d) + c(d,k)])
+                    elif d%2 == 0
+                        tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    else 
+                        <> tmp[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp2[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    end
+
+                    if dim - 1 == 0 
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    elif dim-1 % 2 == 0
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    else
+                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                    end
+                 end
+                 """
+
+    kGrad = lp.make_kernel(
+        ["{ [elem]: 0<=elem<nelem }",
+         "{ [comp]: 0<=comp<ncomp }",
+         "{ [d1]: 0<=d1<dim1-1 }",
+         "{ [d2]: 0<=d2<dim1-1 }",
+         "{ [k]: 0<=k<writeLen }",
+         "{ [kk]: 0<=kk<writeLen2 }",
+         "{ [kkk]: 0<=kkk<writeLen3 }",
+         "{ [b]: 0<=b<PP}"],
+        loopyCode,
+        name="kGrad"
+        #target=target,
+        #kernel_data=kernel_data
+    )
+
+    print(kInterp)
+
+
+
+    #print(loopyCode)
+
+'''
+def generate_kInterp()
+
+    loopyCode = ""
+                
+
 def head(transpose=False, interleaved=False):
     loopyCode = """
                 c := k % post
@@ -58,6 +350,7 @@ for elem, comp
     <> post = 1
     for d
         pre = pre / P
+        post = 
         <> outOffset = 
         <> inOffset = 
         writeLen = pre*post*Q
@@ -87,7 +380,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
         target=target
     )
 
-    '''
+    """
     kZero = lp.tag_inames(kZero, {"e":"g.1"}) 
     if arch == "AMD_GPU":
         workgroup_size=64
@@ -96,7 +389,7 @@ def generate_kZero(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     else:
         workgroup_size=128
     kZero = lp.split_iname(kZero, "i", workgroup_size, inner_tag="l.0",outer_tag="g.0", slabs=(0,1))
-    '''
+    """
 
     kZero = lp.fix_parameters(kZero, **constants)
     kZero = lp.add_and_infer_dtypes(kZero, dtypes)
@@ -655,8 +948,7 @@ def generate_kGrad(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     kGrad = lp.add_and_infer_dtypes(kGrad, dtypes)
 
     return kGrad
-
-# Only works for 3D, if need 2D or 1D add separate cases to handle
+'''
 def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
     kernel_data= [
@@ -714,5 +1006,5 @@ def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, 
     print(code)
 
     return kWeight
-generate_kWeight(dim=3)
-
+#generate_kWeight(dim=3)
+generate_kInterp(version=3)
