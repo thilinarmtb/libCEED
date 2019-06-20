@@ -174,6 +174,41 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   return 0;
 }
 
+
+// *****************************************************************************
+// * CeedDebugImpl256
+// *****************************************************************************
+void CeedDebugImpl256_OpenCL(const Ceed ceed,
+                             const unsigned char color,
+                             const char *format,...) {
+  const Ceed_OpenCL *data;
+  CeedGetData(ceed, (void *)&data);
+  if (!data->debug) return;
+  va_list args;
+  va_start(args, format);
+  fflush(stdout);
+  fprintf(stdout,"\033[38;5;%dm",color);
+  vfprintf(stdout,format,args);
+  fprintf(stdout,"\033[m");
+  fprintf(stdout,"\n");
+  fflush(stdout);
+  va_end(args);
+}
+
+// *****************************************************************************
+// * CeedDebugImpl
+// *****************************************************************************
+void CeedDebugImpl_OpenCL(const Ceed ceed,
+                          const char *format,...) {
+  const Ceed_OpenCL *data;
+  CeedGetData(ceed, (void *)&data);
+  if (!data->debug) return;
+  va_list args;
+  va_start(args, format);
+  CeedDebugImpl256_OpenCL(ceed,0,format,args);
+  va_end(args);
+}
+
 __attribute__((constructor))
 static void Register(void) {
   CeedRegister("/cpu/opencl", CeedInit_OpenCL, 20);

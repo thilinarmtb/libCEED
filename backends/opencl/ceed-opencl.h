@@ -139,6 +139,8 @@ typedef struct {
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue
+  cl_kernel setVector;
+  CeedWork_OpenCL *setVector_work;
   bool gpu;
   bool cpu;
 } Ceed_OpenCL;
@@ -161,15 +163,15 @@ CEED_INTERN int CeedBasisCreateH1_OpenCL(CeedElemTopology topo,
     const CeedScalar *qweight1d,
     CeedBasis basis);
 
-//// *****************************************************************************
-//CEED_INTERN int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
-//    const CeedCopyMode cmode, const CeedInt *indices,
-//    const CeedElemRestriction res);
-//
-//// *****************************************************************************
-//CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
-//    const CeedCopyMode cmode, const CeedInt *indices,
-//    const CeedElemRestriction res);
+// *****************************************************************************
+CEED_INTERN int CeedElemRestrictionCreate_OpenCL(const CeedMemType mtype,
+    const CeedCopyMode cmode, const CeedInt *indices,
+    const CeedElemRestriction res);
+
+// *****************************************************************************
+CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
+    const CeedCopyMode cmode, const CeedInt *indices,
+    const CeedElemRestriction res);
 
 int compile(Ceed ceed, void *data,
     const char *type,

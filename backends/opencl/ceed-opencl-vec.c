@@ -147,8 +147,6 @@ static int CeedHostSetValue(CeedScalar *h_array, CeedInt length,
   return 0;
 }
 
-int CeedDeviceSetValue(cl_mem d_array, CeedInt length, CeedScalar val);
-
 // *****************************************************************************
 // * Set a vector to a value,
 // *****************************************************************************
@@ -162,6 +160,8 @@ static int CeedVectorSetValue_OpenCL(CeedVector vec, CeedScalar val) {
   ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
   Ceed_OpenCL *ceed_data;
   CeedGetData(ceed,(void*)&ceed_data);
+
+  void *args[] = {data->d_array, &length, &val};
 
   switch(data->memState) {
   case HOST_SYNC:
@@ -179,17 +179,17 @@ static int CeedVectorSetValue_OpenCL(CeedVector vec, CeedScalar val) {
       data->d_array = data->d_array_allocated;
     }
     data->memState = DEVICE_SYNC;
-    ierr = CeedDeviceSetValue(data->d_array, length, val);
+    ierr = run_kernel(ceed,ceed_data->setVector,ceed_data->setVector_work,args);
     CeedChk(ierr);
     break;
   case DEVICE_SYNC:
-    ierr = CeedDeviceSetValue(data->d_array, length, val);
+    ierr = run_kernel(ceed,ceed_data->setVector,ceed_data->setVector_work,args);
     CeedChk(ierr);
     break;
   case BOTH_SYNC:
     ierr = CeedHostSetValue(data->h_array, length, val);
     CeedChk(ierr);
-    ierr = CeedDeviceSetValue(data->d_array, length, val);
+    ierr = run_kernel(ceed,ceed_data->setVector,ceed_data->setVector_work,args);
     CeedChk(ierr);
     break;
   }

@@ -316,7 +316,7 @@ ifneq ($(wildcard $(OPENCL_DIR)/libOpenCL.*),)
   $(opencl.c:%.c=$(OBJDIR)/%.o) : CFLAGS+= -I/$(OPENCL_INCDIR)
   $(opencl.cpp:%.cpp=$(OBJDIR)/%.o) : CXXFLAGS+= -fPIC -std=c++11 -I/$(OPENCL_INCDIR) $(shell python3 -m pybind11 --includes)
   $(libceed) : LDFLAGS += -L$(OPENCL_DIR) -Wl,-rpath,$(abspath $(OPENCL_DIR))
-  $(libceed) : LDLIBS += -lOpenCL
+  $(libceed) : LDLIBS += -lOpenCL  $(shell python3-config --ldflags) -lstdc++
 endif
 
 export BACKENDS
