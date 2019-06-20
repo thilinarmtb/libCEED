@@ -76,20 +76,6 @@ typedef struct {
 } CeedVector_OpenCL;
 
 typedef struct {
-  cl_kernel interp;
-  CeedWork_OpenCL *interp_work;
-  cl_kernel grad;
-  CeedWork_OpenCL *grad_work;
-  cl_kernel weight;
-  CeedWork_OpenCL *weight_work;
-  cl_mem d_interp1d;
-  cl_mem d_grad1d;
-  cl_mem d_qweight1d;
-  CeedScalar *c_B;
-  CeedScalar *c_G;
-} CeedBasis_OpenCL;
-
-typedef struct {
   cl_kernel noTrNoTr;
   CeedWork_OpenCL *noTrNoTr_work;
   cl_kernel noTrTr;
@@ -105,6 +91,45 @@ typedef struct {
   cl_mem d_ind;
   cl_mem d_ind_allocated;
 } CeedElemRestriction_OpenCL;
+
+// We use a struct to avoid having to memCpy the array of pointers
+// __global__ copies by value the struct.
+typedef struct {
+  const CeedScalar *inputs[16];
+  CeedScalar *outputs[16];
+} Fields_OpenCL;
+
+typedef struct {
+  char *qFunctionName;
+  cl_kernel qFunction;
+  CeedWork_OpenCL *qFunction_work;
+  Fields_OpenCL fields;
+  cl_mem d_c;
+} CeedQFunction_OpenCL;
+
+typedef struct {
+  cl_kernel interp;
+  CeedWork_OpenCL *interp_work;
+  cl_kernel grad;
+  CeedWork_OpenCL *grad_work;
+  cl_kernel weight;
+  CeedWork_OpenCL *weight_work;
+  cl_mem d_interp1d;
+  cl_mem d_grad1d;
+  cl_mem d_qweight1d;
+  CeedScalar *c_B;
+  CeedScalar *c_G;
+} CeedBasis_OpenCL;
+
+typedef struct {
+  CeedVector
+  *evecs;   /// E-vectors needed to apply operator (input followed by outputs)
+  CeedScalar **edata;
+  CeedVector *qvecsin;   /// Input Q-vectors needed to apply operator
+  CeedVector *qvecsout;   /// Output Q-vectors needed to apply operator
+  CeedInt    numein;
+  CeedInt    numeout;
+} CeedOperator_OpenCL;
 
 typedef struct {
   bool debug;
