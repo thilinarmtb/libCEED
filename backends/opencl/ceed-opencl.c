@@ -44,16 +44,22 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
   // Warning: "backend cannot use resource" is used to grep in test/tap.sh
   if (!cpu && !gpu)
     return CeedError(ceed, 1, "OpenCL backend cannot use resource: %s", resource);
-  ierr = CeedSetData(ceed,(void *)&data); CeedChk(ierr);
+
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "VecCreate",
+                                CeedVectorCreate_OpenCL); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "BasisCreateTensorH1",
                                 CeedBasisCreateTensorH1_OpenCL); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "BasisCreateH1",
                                 CeedBasisCreateH1_OpenCL); CeedChk(ierr);
-  //ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "ElemRestrictionCreate",
-  //                              CeedElemRestrictionCreate_OpenCL); CeedChk(ierr);
-  //ierr = CeedSetBackendFunction(ceed, "Ceed", ceed,
-  //                              "ElemRestrictionCreateBlocked",
-  //                              CeedElemRestrictionCreateBlocked_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "ElemRestrictionCreate",
+                                CeedElemRestrictionCreate_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed,
+                                "ElemRestrictionCreateBlocked",
+                                CeedElemRestrictionCreateBlocked_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "QFunctionCreate",
+                                CeedQFunctionCreate_OpenCL); CeedChk(ierr);
+  ierr = CeedSetBackendFunction(ceed, "Ceed", ceed, "OperatorCreate",
+                                CeedOperatorCreate_OpenCL); CeedChk(ierr);
 
   // push env variables CEED_DEBUG or DBG to our data
   data->debug=!!getenv("CEED_DEBUG") || !!getenv("DBG");
@@ -96,21 +102,21 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     break;
   case CL_INVALID_PLATFORM:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+              "OpenCL backend can't initialize the device: Invalid Platform");
     break;
   case CL_INVALID_DEVICE_TYPE:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Invalid Device Type");
+              "OpenCL backend can't initialize the device: Invalid Device Type");
     break;
   case CL_INVALID_VALUE:
-    CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+    CeedError(ceed, 1, "OpenCL backend can't initialize the device: Invalid Value");
     break;
   case CL_DEVICE_NOT_FOUND:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Device not found");
+              "OpenCL backend can't initialize the device: Device not found");
     break;
   default:
-    CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+    CeedError(ceed, 1, "OpenCL backend can't initialize the device: Unknown reason");
     break;
   }
 
@@ -124,25 +130,25 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     break;
   case CL_INVALID_PLATFORM:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Invalid Platform");
+              "OpenCL backend can't create context: Invalid Platform");
     break;
   case CL_INVALID_VALUE:
-    CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+    CeedError(ceed, 1, "OpenCL backend can't create context: Invalid Value");
     break;
   case CL_INVALID_DEVICE:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Invalid Device");
+              "OpenCL backend can't create context: Invalid Device");
     break;
   case CL_DEVICE_NOT_AVAILABLE:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Device not available");
+              "OpenCL backend can't create context: Device not available");
     break;
   case CL_OUT_OF_HOST_MEMORY:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Out of host memory");
+              "OpenCL backend can't create context: Out of host memory");
     break;
   default:
-    CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Unknown");
+    CeedError(ceed, 1, "OpenCL backend can't create context: Unknown");
     break;
   }
 
@@ -154,23 +160,24 @@ static int CeedInit_OpenCL(const char *resource, Ceed ceed) {
     break;
   case CL_INVALID_CONTEXT:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Invalid Context");
+              "OpenCL backend can't get context info: Invalid Context");
     break;
   case CL_INVALID_VALUE:
-    CeedError(ceed, 1, "OpenCL backend can't initialize the CPUs.: Invalid Value");
+    CeedError(ceed, 1, "OpenCL backend can't get context info: Invalid Value");
     break;
   case CL_OUT_OF_HOST_MEMORY:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Out of host memory");
+              "OpenCL backend can't get context info: Out of host memory");
     break;
   case CL_OUT_OF_RESOURCES:
     CeedError(ceed, 1,
-              "OpenCL backend can't initialize the CPUs.: Out of resources");
+              "OpenCL backend can't get context info: Out of resources");
     break;
   }
 
   data->queue = clCreateCommandQueueWithProperties(data->context, device_list[0],
                 0, &err);
+  ierr = CeedSetData(ceed,(void *)&data); CeedChk(ierr);
   return 0;
 }
 

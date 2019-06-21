@@ -146,6 +146,9 @@ typedef struct {
 } Ceed_OpenCL;
 
 // *****************************************************************************
+int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec);
+
+// *****************************************************************************
 CEED_INTERN int CeedBasisCreateTensorH1_OpenCL(CeedInt dim,
     CeedInt P1d, CeedInt Q1d,
     const CeedScalar *interp1d,
@@ -173,11 +176,19 @@ CEED_INTERN int CeedElemRestrictionCreateBlocked_OpenCL(const CeedMemType mtype,
     const CeedCopyMode cmode, const CeedInt *indices,
     const CeedElemRestriction res);
 
+// *****************************************************************************
+int CeedQFunctionCreate_OpenCL(CeedQFunction qf);
+
+// *****************************************************************************
+int CeedOperatorCreate_OpenCL(CeedOperator op);
+
+// *****************************************************************************
 int compile(Ceed ceed, void *data,
     const char *type,
     int nparams, ...
 );
 
+// *****************************************************************************
 int run_kernel(Ceed ceed,
     cl_kernel kernel,
     CeedWork_OpenCL *work,
