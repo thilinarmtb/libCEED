@@ -180,6 +180,7 @@ def generate_kGrad(version=0):
                      v_stride := nqpt
                      u_comp_stride := elemsize
                      v_comp_stride := nelem * nqpt
+                     u_size := elemsize
                      u_dim_stride := 0
                      v_dim_stride := nelem*nqpt*ncomp
                      """
@@ -189,6 +190,7 @@ def generate_kGrad(version=0):
                      v_stride := ncomp*elemsize
                      u_comp_stride := nelem*nqpt
                      v_comp_stride := elemsize
+                     u_size := nqpt
                      u_dim_stride := nelem*nqpt*ncomp
                      v_dim_stride := 0
                      """
@@ -207,8 +209,8 @@ def generate_kGrad(version=0):
 
     if not version & INTERLEAVE:
         loopyCode += """
-                     u_offset := elem*u_stride + comp*u_comp_stride
-                     v_offset := elem*v_stride + comp*v_comp_stride 
+                     u_offset := elem*u_stride + dim1*u_dim_stride + comp*u_comp_stride
+                     v_offset := elem*v_stride + dim1*v_dim_stride + comp*v_comp_stride 
                      pre(d) := u_size*(P**(dim-1-d))
                      """
     else:
@@ -226,49 +228,41 @@ def generate_kGrad(version=0):
                  <> PP = P
                  """
 
-    if constants["dim"] == 1:
-        loopyCode += """                 
-                    <> writeLen = pre(0) * post(0) * Q
-                    v[v_offset + k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
-                    """
-    elif constants["dim"] == 2:
-        loopyCode += """                 
-                     <> writeLen = pre(0) * post(0) * Q
-                     <> writeLen2 = pre(1) * post(1) * Q
-                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
-                     v[v_offset + kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
-                     """
-    elif constants["dim"] == 3:
-        loopyCode += """                 
-                     <> writeLen = pre(0) * post(0) * Q
-                     <> writeLen2 = pre(1) * post(1) * Q
-                     <> writeLen3 = pre(2) * post(2) * Q
-                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
-                     <> tmp[kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
-                     v[v_offset + kkk] = sum(b, interp1d[j(2,kkk)*stride0 + b*stride1] * tmp[(a(2,kkk)*P + b)*post(2) + c(2,kkk)])
-                     """
-    else: 
-        loopyCode += """ 
+    loopyCode += """ 
                  <> writeLen2 = pre(dim-1) * post(dim-1) * Q
                  for elem, comp     
-                    <> writeLen = pre(d) * post(d) * Q
-                    if d == 0 
-                        <> tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * u[u_offset + (a(d,k)*P + b)*post(d) + c(d,k)])
-                    elif d%2 == 0
-                        tmp2[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp[(a(d,k)*P + b)*post(d) + c(d,k)])
+                    <> writeLen = pre(d2) * post(d2) * Q
+                    if d2 == 0 
+                        <> tmp2[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * u[u_offset + (a(d2,k)*P + b)*post(d2) + c(d,k)])
+                    elif d2%2 == 0
+                        tmp2[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * tmp[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
                     else 
-                        <> tmp[k] = sum(b, interp1d[j(d,k)*stride0 + b*stride1] * tmp2[(a(d,k)*P + b)*post(d) + c(d,k)])
+                        <> tmp[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * tmp2[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
                     end
-
-                    if dim - 1 == 0 
-                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                    elif dim-1 % 2 == 0
-                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                    else
-                        v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                    end
-                 end
                  """
+    if not version & TRANSPOSE:
+        loopyCode += """
+                        if dim - 1 == 0 
+                            v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                        elif dim-1 % 2 == 0
+                            v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                        else
+                            v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                        end
+                     end
+                     """
+    else:
+        loopyCode += """
+                        if dim - 1 == 0 
+                            v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                        elif dim-1 % 2 == 0
+                            v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                        else
+                            v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                        end
+                     end
+                     """
+
 
     kGrad = lp.make_kernel(
         ["{ [elem]: 0<=elem<nelem }",
