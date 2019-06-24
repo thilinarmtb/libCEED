@@ -26,6 +26,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
             lp.ValueArg("Q1D", np.int32)
     ]
 
+    # Remove this when finished testing
     if not "dim" in constants:
         constants["dim"] = 3
 
@@ -171,6 +172,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
 
     print(loopyCode)
     print(kInterp)
+    kInterp = lp.fix_parameters(kInterp, **constants)
     kInterp = lp.make_reduction_inames_unique(kInterp, "b")
     code  = lp.generate_code_v2(kInterp).device_code()
     print(code)
@@ -196,6 +198,7 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
             lp.ValueArg("Q1D", np.int32)
     ]
 
+    # Remove this when finished testing
     if not "dim" in constants:
         constants["dim"] = 3
 
@@ -451,8 +454,9 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
         kernel_data=kernel_data
     )
     print(kGrad)
+
+    kGrad = lp.fix_parameters(kGrad, **constants)
     kGrad = lp.make_reduction_inames_unique(kGrad, "b")
-    #kGrad = lp.make_
     code  = lp.generate_code_v2(kGrad).device_code()
     print(code)
 
