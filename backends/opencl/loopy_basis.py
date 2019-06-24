@@ -11,10 +11,10 @@ INTERLEAVE = 2
 def generate_kInterp(version=0):
 
     constants = {}
-    constants["dim"] = 4
+    constants["dim"] = 3
 
     kernel_data = [
-        "QnD", "transpose", "interp1d", "d_u", "d_v" ]
+        "QnD", "transpose", "interp1d", "u", "v" ]
     if constants=={}:
         kernel_data = kernel_data + [
             "elemsize","ncomp","ndof","nelem", "nqpt", "P1D", "Q1D"]
@@ -86,28 +86,48 @@ def generate_kInterp(version=0):
                  <> PP = P
                  """
 
-    if constants["dim"] == 1:
-        loopyCode += """                 
-                    <> writeLen = pre(0) * post(0) * Q
-                    v[v_offset + k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
-                    """
-    elif constants["dim"] == 2:
-        loopyCode += """                 
-                     <> writeLen = pre(0) * post(0) * Q
-                     <> writeLen2 = pre(1) * post(1) * Q
-                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
-                     v[v_offset + kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+    iterVars =  ["{ [elem]: 0<=elem<nelem }",
+                "{ [comp]: 0<=comp<ncomp }",
+                "{ [d]: 0<=d<dim-1 }",
+                "{ [b]: 0<=b<PP}"]
+ 
+    if "dim" in constants and constants["dim"] <= 3:
+
+        writeLenStrs = ""
+        loopBodyStrs = ""
+        for d in range(constants["dim"]):
+            kStr = "k" + str(d)
+            tmpStr = "tmp" if d%2 else "tmp2"
+            tmpStr2 = "tmp2" if d%2 else "tmp"
+            rhs = "{1}[{0}] = ".format(kStr,tmpStr)
+            lhs = "sum(b, interp1d[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d), tmpStr2) 
+
+            if d == 0:
+                rhs = "<> " + rhs
+                lhs = "sum(b, interp1d[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr)
+            elif d == 1:
+                rhs = "<> " + rhs
+                
+            if d == constants["dim"] - 1:
+                rhs = "v[v_offset + {0}] = ".format(kStr)
+
+            writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d))
+            loopBodyStrs += rhs + lhs + "\n"
+
+            iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d))
+            iterVars += ["{" + iterVarStr + "}"]
+        
+        loopyCode += writeLenStrs
+        loopyCode += """
+                     for elem, comp
                      """
-    elif constants["dim"] == 3:
-        loopyCode += """                 
-                     <> writeLen = pre(0) * post(0) * Q
-                     <> writeLen2 = pre(1) * post(1) * Q
-                     <> writeLen3 = pre(2) * post(2) * Q
-                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
-                     <> tmp[kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
-                     v[v_offset + kkk] = sum(b, interp1d[j(2,kkk)*stride0 + b*stride1] * tmp[(a(2,kkk)*P + b)*post(2) + c(2,kkk)])
+        loopyCode += loopBodyStrs
+        loopyCode += """
+                     end
                      """
-    else: 
+     
+    else:
+        iterVars += ["{ [k]: 0<=k<writeLen }", "{ [kk]: 0<=kk<writeLen2}"]
         loopyCode += """ 
                  <> writeLen2 = pre(dim-1) * post(dim-1) * Q
                  for elem, comp     
@@ -129,30 +149,24 @@ def generate_kInterp(version=0):
                     end
                  end
                  """
-
     kInterp = lp.make_kernel(
-        ["{ [elem]: 0<=elem<nelem }",
-         "{ [comp]: 0<=comp<ncomp }",
-         "{ [d]: 0<=d<dim-1 }",
-         "{ [k]: 0<=k<writeLen }",
-         "{ [kk]: 0<=kk<writeLen2 }",
-         "{ [kkk]: 0<=kkk<writeLen3 }",
-         "{ [b]: 0<=b<PP}"],
+        iterVars,
         loopyCode,
         name="kInterp"
         #target=target,
         #kernel_data=kernel_data
     )
 
+    print(loopyCode)
     print(kInterp)
 
 def generate_kGrad(version=0):
 
     constants = {}
-    constants["dim"] = 4
+    constants["dim"] = 3
 
     kernel_data = [
-        "QnD", "transpose", "interp1d", "grad1d", "d_u", "d_v" ]
+        "QnD", "transpose", "interp1d", "grad1d", "u", "v" ]
     if constants=={}:
         kernel_data = kernel_data + [
             "elemsize","ncomp","ndof","nelem", "nqpt", "P1D", "Q1D"]
@@ -199,12 +213,16 @@ def generate_kGrad(version=0):
                      u_stride := ncomp*elemsize
                      pre_coef := ncomp*elemsize
                      v_stride := ncomp*nqpt*dim                     
+                     u_offset := elem*u_stride
+                     v_offset := elem*v_stride + d1*nqpt*ncomp
                      """
     elif version == INTERLEAVE | TRANSPOSE:
         loopyCode += """
                      u_stride := ncomp*nqpt*dim
                      pre_coef := ncomp*nqpt
                      v_stride := ncomp*elemsize                     
+                     u_offset := elem*u_stride + d1*nqpt*ncomp
+                     v_offset := elem*v_stride
                      """
     else:
         print("ERROR")
@@ -217,8 +235,6 @@ def generate_kGrad(version=0):
                      """
     else:
         loopyCode += """
-                     u_offset := elem*u_stride
-                     v_offset := elem*v_stride
                      pre(d) := pre_coef*(P**(dim-1-d))
                      """
 
@@ -230,89 +246,132 @@ def generate_kGrad(version=0):
                  <> PP = P
                  """
 
-    loopyCode += """ 
-                 <> writeLen2 = pre(dim-1) * post(dim-1) * Q
-                 for elem, comp     
-                    <> writeLen = pre(d2) * post(d2) * Q
-                    if d2 != d1
-                        if d2 == 0 
-                            <> tmp2[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * u[u_offset + (a(d2,k)*P + b)*post(d2) + c(d2,k)])
-                        elif d2%2 == 0
-                            tmp2[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * tmp[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
-                        else 
-                            <> tmp[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * tmp2[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
-                        end
-                    else
-                        if d2 == 0 
-                            tmp2[k] = sum(b, grad1d[j(d2,k)*stride0 + b*stride1] * u[u_offset + (a(d2,k)*P + b)*post(d2) + c(d2,k)])
-                        elif d2%2 == 0
-                            tmp2[k] = sum(b, grad1d[j(d2,k)*stride0 + b*stride1] * tmp[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
-                        else 
-                            tmp[k] = sum(b, grad1d[j(d2,k)*stride0 + b*stride1] * tmp2[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
-                        end
-                    end
-                 """
-    if not version & TRANSPOSE:
+    iterVars =  ["{ [elem]: 0<=elem<nelem }",
+                "{ [comp]: 0<=comp<ncomp }",
+                "{ [d1,d2]: 0<=d1,d2<dim-1 }",
+                "{ [b]: 0<=b<PP}"]
+ 
+
+    if "dim" in constants and constants["dim"] <= 3:
+
+        writeLenStrs = ""
+        loopBodyStrs = ""
+        for d1 in range(constants["dim"]):
+            for d2 in range(constants["dim"]):
+                kStr = "k" + str(d2)
+                tmpStr = "tmp" if d2%2 else "tmp2"
+                tmpStr2 = "tmp2" if d2%2 else "tmp"
+                op = "grad1d" if d1 == d2 else "interp1d"
+
+                rhs = "{1}[{0}] = ".format(kStr,tmpStr)
+                lhs = "sum(b, {3}[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d2), tmpStr2, op) 
+
+                if d2 == 0:
+                    lhs = "sum(b, {1}[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr, op)
+
+                if (d2 == 0 or d2 == 1) and d1 == 0:
+                    rhs = "<> " + rhs
+                    
+                if d2 == constants["dim"] - 1:
+                    if not version & TRANSPOSE:
+                        rhs = "v[v_offset + {0}] = ".format(kStr)
+                    else:
+                        rhs = "v[v_offset + {0}] = v[v_offset + {0}] + ".format(kStr)
+
+                loopBodyStrs += rhs + lhs + "\n"
+            
+                if d1 == 0:
+                    writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d2))
+                    iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d2))
+                    iterVars += ["{" + iterVarStr + "}"]
+
+        loopyCode += writeLenStrs
         loopyCode += """
-                     if d2 != d1
-                        if dim - 1 == 0 
-                            v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        elif dim-1 % 2 == 0
-                            v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        else
-                            v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        end
-                     else
-                        if dim - 1 == 0 
-                            v[v_offset + kk] = sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        elif dim-1 % 2 == 0
-                            v[v_offset + kk] = sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        else
-                            v[v_offset + kk] = sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        end
-                     end 
-                     end
-                     """
-    else:
-        loopyCode += """
-                    if d2 != d1
-                        if dim - 1 == 0 
-                            v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        elif dim-1 % 2 == 0
-                            v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        else
-                            v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        end
-                     else
-                        if dim - 1 == 0 
-                            v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        elif dim-1 % 2 == 0
-                            v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        else
-                            v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-                        end
-                     end
-                     end
+                     for elem, comp, d1
                      """
 
+        loopyCode += loopBodyStrs
+        loopyCode += """
+                     end
+                     """
+        
+    else: #Not tested
+        iterVars += ["{ [k]: 0<=k<writeLen }", "{ [kk]: 0<=kk<writeLen2}"]
+        loopyCode += """ 
+                     <> writeLen2 = pre(dim-1) * post(dim-1) * Q
+                     for elem, comp     
+                        <> writeLen = pre(d2) * post(d2) * Q
+                        if d2 != d1
+                            if d2 == 0 
+                                <> tmp2[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * u[u_offset + (a(d2,k)*P + b)*post(d2) + c(d2,k)])
+                            elif d2%2 == 0
+                                tmp2[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * tmp[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
+                            else 
+                                <> tmp[k] = sum(b, interp1d[j(d2,k)*stride0 + b*stride1] * tmp2[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
+                            end
+                        else
+                            if d2 == 0 
+                                tmp2[k] = sum(b, grad1d[j(d2,k)*stride0 + b*stride1] * u[u_offset + (a(d2,k)*P + b)*post(d2) + c(d2,k)])
+                            elif d2%2 == 0
+                                tmp2[k] = sum(b, grad1d[j(d2,k)*stride0 + b*stride1] * tmp[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
+                            else 
+                                tmp[k] = sum(b, grad1d[j(d2,k)*stride0 + b*stride1] * tmp2[(a(d2,k)*P + b)*post(d2) + c(d2,k)])
+                            end
+                        end
+                     """
+        if not version & TRANSPOSE:
+            loopyCode += """
+                         if d2 != d1
+                            if dim - 1 == 0 
+                                v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            elif dim-1 % 2 == 0
+                                v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            else
+                                v[v_offset + kk] = sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            end
+                         else
+                            if dim - 1 == 0 
+                                v[v_offset + kk] = sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            elif dim-1 % 2 == 0
+                                v[v_offset + kk] = sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            else
+                                v[v_offset + kk] = sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            end
+                         end 
+                         end
+                         """
+        else:
+            loopyCode += """
+                        if d2 != d1
+                            if dim - 1 == 0 
+                                v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            elif dim-1 % 2 == 0
+                                v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            else
+                                v[v_offset + kk] = v[v_offset + kk] + sum(b, interp1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            end
+                         else
+                            if dim - 1 == 0 
+                                v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            elif dim-1 % 2 == 0
+                                v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            else
+                                v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
+                            end
+                         end
+                         end
+                         """
 
+    print(loopyCode)
     kGrad = lp.make_kernel(
-        ["{ [elem]: 0<=elem<nelem }",
-         "{ [comp]: 0<=comp<ncomp }",
-         "{ [d1]: 0<=d1<dim1-1 }",
-         "{ [d2]: 0<=d2<dim1-1 }",
-         "{ [k]: 0<=k<writeLen }",
-         "{ [kk]: 0<=kk<writeLen2 }",
-         "{ [kkk]: 0<=kkk<writeLen3 }",
-         "{ [b]: 0<=b<PP}"],
+        iterVars,
         loopyCode,
         name="kGrad"
         #target=target,
         #kernel_data=kernel_data
     )
 
-    print(kInterp)
-
+    print(kGrad)
 
 
     #print(loopyCode)
@@ -862,7 +921,29 @@ def generate_kGrad(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
     kernel_data = [
         "QnD", "transpose", "tmode", "tmp0", "tmp1", "grad1d", "interp1d", "d_u", "d_v" ]
     dtypes = {
-        "d_v": fp_format, 
+        "d_v": fp_format,     
+    if constants["dim"] == 1:
+        loopyCode += """                 
+                    <> writeLen = pre(0) * post(0) * Q
+                    v[v_offset + k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                    """
+    elif constants["dim"] == 2:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     v[v_offset + kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     """
+    elif constants["dim"] == 3:
+        loopyCode += """                 
+                     <> writeLen = pre(0) * post(0) * Q
+                     <> writeLen2 = pre(1) * post(1) * Q
+                     <> writeLen3 = pre(2) * post(2) * Q
+                     <> tmp2[k] = sum(b, interp1d[j(0,k)*stride0 + b*stride1] * u[u_offset + (a(0,k)*P + b)*post(0) + c(0,k)])
+                     <> tmp[kk] = sum(b, interp1d[j(1,kk)*stride0 + b*stride1] * tmp2[(a(1,kk)*P + b)*post(1) + c(1,kk)])
+                     v[v_offset + kkk] = sum(b, interp1d[j(2,kkk)*stride0 + b*stride1] * tmp[(a(2,kkk)*P + b)*post(2) + c(2,kkk)])
+                     """
+ 
         "d_u": fp_format, 
         "tmp0": fp_format, 
         "tmp1": fp_format,
@@ -958,6 +1039,10 @@ def generate_kGrad(constants={}, arch="INTEL_CPU", fp_format=np.float64, target=
             with {dep=d_loop*}
             if transpose
                 d_u_offset = d_u_offset + nqpt
+     iterVars =  ["{ [elem]: 0<=elem<nelem }",
+                "{ [comp]: 0<=comp<ncomp }",
+                "{ [d]: 0<=d<dim-1 }",
+                "{ [b]: 0<=b<PP}"]
             else
                 d_v_offset = d_v_offset + nqpt
             end
@@ -1026,11 +1111,16 @@ def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, 
     kWeight = lp.prioritize_loops(kWeight,loopPriority)
     kWeight = lp.fix_parameters(kWeight, **constants)
 
-
+    iterVars =  ["{ [elem]: 0<=elem<nelem }",
+                "{ [comp]: 0<=comp<ncomp }",
+                "{ [d]: 0<=d<dim-1 }",
+                "{ [b]: 0<=b<PP}"]
+ 
     print(kWeight)
     code = lp.generate_code_v2(kWeight).device_code()
     print(code)
 
     return kWeight
 #generate_kWeight(dim=3)
-generate_kInterp(version=3)
+#for i in range(4):
+generate_kGrad(version=3)
