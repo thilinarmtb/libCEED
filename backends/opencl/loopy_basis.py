@@ -108,17 +108,20 @@ def generate_kInterp(constants={},version=0,target=lp.OpenCLTarget(), fp_format=
             kStr = "k" + str(d)
             tmpStr = "tmp" if d%2 else "tmp2"
             tmpStr2 = "tmp2" if d%2 else "tmp"
-            rhs = "{1}[{0}] = ".format(kStr,tmpStr)
-            lhs = "sum(b, interp1d[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d), tmpStr2) 
 
+            # LHS
             if d == 0:
-                rhs = "<> " + rhs
                 lhs = "sum(b, interp1d[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr)
-            elif d == 1:
-                rhs = "<> " + rhs
-                
+            else:            
+                lhs = "sum(b, interp1d[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d), tmpStr2)    
+
+            # RHS
             if d == constants["dim"] - 1:
                 rhs = "v[v_offset + {0}] = ".format(kStr)
+            else:
+                rhs = "{1}[{0}] = ".format(kStr,tmpStr)
+                if d == 0 or d == 1:
+                    rhs = "<>" + rhs
 
             writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d))
             loopBodyStrs += rhs + lhs + "\n"
@@ -194,7 +197,7 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
     ]
 
     if not "dim" in constants:
-        constants["dim"] = 2
+        constants["dim"] = 3
 
     loopyCode = ""
 
@@ -210,10 +213,7 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
                      P := Q1D
                      Q := P1D
                      stride0 := 1
-                constants = {}
-    constants["dim"] = 3
-
-         stride1 := P1D
+                     stride1 := P1D
                      """ 
 
     if version == int(not INTERLEAVE) | int(not TRANSPOSE):
@@ -286,45 +286,39 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
         loopBodyStrs = ""
         dim = constants["dim"]
         for d1 in range(constants["dim"]):
-            #loopBodyStrs += "with {id_prefix=group_" + str(d1) + "}\n"
+            writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d1))
             for d2 in range(constants["dim"]):
-                kStr = "k" + str(d2)
+                kStr = "k" + str(d1) + str(d2)
                 tmpStr = "tmp" if d2%2 else "tmp2"
                 tmpStr2 = "tmp2" if d2%2 else "tmp"
                 op = "grad1d" if d1 == d2 else "interp1d"
 
-                rhs = "{1}[{0}] = ".format(kStr,tmpStr)
-                lhs = "sum(b, {3}[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d2), tmpStr2, op) 
-                #tag = " {id=iter_" + str(d1) + str(d2) + ", dep=iter_" + str(d1-1) + str(d2) + "}"
-                #tag = " {id=iter_" + str(dim*d1 + d2) + ", dep=iter_" + str(dim*d1+d2-1) + "}"
+                # LHS
                 if d2 == 0:
                     lhs = "sum(b, {1}[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr, op)
+                else:
+                    lhs = "sum(b, {3}[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d2), tmpStr2, op) 
+                if d2 == constants["dim"] - 1 and version & TRANSPOSE:
+                    lhs = " v[v_offset + {0}] + ".format(kStr) + lhs
 
-                if (d2 == 0 or d2 == 1) and d1 == 0:
-                    rhs = "<> " + rhs
-                    
+                # RHS
                 if d2 == constants["dim"] - 1:
-                    if not version & TRANSPOSE:
-                        rhs = "v[v_offset + {0}] = ".format(kStr)
-                    else:
-                        rhs = "v[v_offset + {0}] = v[v_offset + {0}] + ".format(kStr)
-           
-                tag = ""
-                #if d1 != 0:
-                #    tag = " {dep=group_" + str(d1-1) + "*" + "}"
-                #if d1==0 and d2 == 0:
-                #    tag = " {id=iter_" + str(dim*d1 + d2) + "}"
+                    rhs = "v[v_offset + {0}] = ".format(kStr)
+                else:
+                    rhs = "{1}[{0}] = ".format(kStr,tmpStr)
+                    if (d2 == 0 or d2 == 1) and d1 == 0:
+                        rhs = "<> " + rhs
+          
+                if d1==0 and d2 == 0:
+                    tag = " {id=iter_" + str(dim*d1 + d2) + "}"
+                else:
+                    tag = " {id=iter_" + str(dim*d1 + d2) + ", dep=iter_" + str(dim*d1+d2-1) + "}"
 
-                if d1 == 0:
-                    #tag = " {id=iter_" + str(d1) + str(d2) + "}"
-                    writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d2))
-                    iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d2))
-                    iterVars += ["{" + iterVarStr + "}"]
-
+                iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d2))
+                iterVars += ["{" + iterVarStr + "}"]
 
                 loopBodyStrs += rhs + lhs + tag + "\n"
 
-            #loopBodyStrs += "end\n"
 
         loopyCode += writeLenStrs
         loopyCode += """
@@ -409,7 +403,7 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
                          end
                          end
                          """
-
+    '''
     loopyCode = """
                 P := P1D
                 Q := Q1D
@@ -437,16 +431,17 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
                 <> writeLen1 = pre(1) * post(1) * Q
 
                 for elem, comp, d1
-                    with {id_prefix=group_0}
+                    #with {id_prefix=group_0}
                         <> tmp2[k0] = sum(b, grad1d[j(0,k0)*stride0 + b*stride1] * u[u_offset + (a(0,k0)*P + b)*post(0) + c(0,k0)]) {id=cmnd0}
                         v[v_offset + k1] = sum(b, interp1d[j(1,k1)*stride0 + b*stride1] * tmp2[(a(1,k1)*P + b)*post(1) + c(1,k1)]) {id=cmnd1, dep=cmnd0}
                     #end
                     #with {dep=group_0*}
                         tmp2[k0] = sum(b, interp1d[j(0,k0)*stride0 + b*stride1] * u[u_offset + (a(0,k0)*P + b)*post(0) + c(0,k0)]) {id=cmnd2,dep=cmnd1}
                         v[v_offset + k1] = sum(b, grad1d[j(1,k1)*stride0 + b*stride1] * tmp2[(a(1,k1)*P + b)*post(1) + c(1,k1)]) {id=cmnd3, dep=cmnd2}
-                    end
+                    #end
                 end
                 """
+    '''
     print(loopyCode)
     kGrad = lp.make_kernel(
         iterVars,
@@ -457,6 +452,7 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
     )
     print(kGrad)
     kGrad = lp.make_reduction_inames_unique(kGrad, "b")
+    #kGrad = lp.make_
     code  = lp.generate_code_v2(kGrad).device_code()
     print(code)
 
@@ -523,7 +519,7 @@ def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, 
     code = lp.generate_code_v2(kWeight).device_code()
     print(code)
 
-    return kWeight
+    return code
 #generate_kWeight(dim=3)
 #for i in range(4):
-generate_kGrad(version=0)
+generate_kGrad(version=1)
