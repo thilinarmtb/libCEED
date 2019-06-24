@@ -393,58 +393,13 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
                                 v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * u[u_offset + (a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
                             elif dim-1 % 2 == 0
                                 v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
-        
-    kernel_data = [
-        "QnD", "transpose", "interp1d", "grad1d", "u", "v" ]
-    if constants=={}:
-        kernel_data = kernel_data + [
-            "elemsize","ncomp","ndof","nelem", "nqpt", "P1D", "Q1D"]
-
-                    else
+                            else
                                 v[v_offset + kk] = v[v_offset + kk] + sum(b, grad1d[j(dim-1,kk)*stride0 + b*stride1] * tmp2[(a(dim-1,kk)*P + b)*post(dim-1) + c(dim-1,kk)])
                             end
                          end
                          end
                          """
-    '''
-    loopyCode = """
-                P := P1D
-                Q := Q1D
-                stride0 := P1D
-                stride1 := 1
-                     
-                u_stride := ncomp*elemsize
-                v_stride := nqpt
-                u_comp_stride := elemsize
-                v_comp_stride := nelem * nqpt
-                u_size := elemsize
-                u_dim_stride := 0
-                v_dim_stride := nelem*nqpt*ncomp
-                     
-                u_offset := elem*u_stride + d1*u_dim_stride + comp*u_comp_stride
-                v_offset := elem*v_stride + d1*v_dim_stride + comp*v_comp_stride 
-                pre(d) := u_size*(P**(dim-1-d))
-                     
-                post(d) := Q**d 
-                c(d,k) := k % post(d)
-                j(d,k) := (k / post(d)) % Q
-                a(d,k) := k / (post(d) * Q)
-                <> PP = P
-                <> writeLen0 = pre(0) * post(0) * Q
-                <> writeLen1 = pre(1) * post(1) * Q
 
-                for elem, comp, d1
-                    #with {id_prefix=group_0}
-                        <> tmp2[k0] = sum(b, grad1d[j(0,k0)*stride0 + b*stride1] * u[u_offset + (a(0,k0)*P + b)*post(0) + c(0,k0)]) {id=cmnd0}
-                        v[v_offset + k1] = sum(b, interp1d[j(1,k1)*stride0 + b*stride1] * tmp2[(a(1,k1)*P + b)*post(1) + c(1,k1)]) {id=cmnd1, dep=cmnd0}
-                    #end
-                    #with {dep=group_0*}
-                        tmp2[k0] = sum(b, interp1d[j(0,k0)*stride0 + b*stride1] * u[u_offset + (a(0,k0)*P + b)*post(0) + c(0,k0)]) {id=cmnd2,dep=cmnd1}
-                        v[v_offset + k1] = sum(b, grad1d[j(1,k1)*stride0 + b*stride1] * tmp2[(a(1,k1)*P + b)*post(1) + c(1,k1)]) {id=cmnd3, dep=cmnd2}
-                    #end
-                end
-                """
-    '''
     print(loopyCode)
     kGrad = lp.make_kernel(
         iterVars,
