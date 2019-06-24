@@ -8,7 +8,7 @@ import json
 TRANSPOSE = 1
 INTERLEAVE = 2
 
-def generate_kInterp(constants={},version=0,target=lp.OpenCLTarget(), fp_format=np.float64):
+def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLTarget(), fp_format=np.float64):
 
     kernel_data = [
         lp.GlobalArg("interp1d", fp_format),
@@ -177,7 +177,7 @@ def generate_kInterp(constants={},version=0,target=lp.OpenCLTarget(), fp_format=
 
     return code
 
-def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.float64):
+def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarget(),fp_format=np.float64):
 
     kernel_data = [
         lp.GlobalArg("interp1d", fp_format),
@@ -459,8 +459,9 @@ def generate_kGrad(constants={},version=0,target=lp.OpenCLTarget(),fp_format=np.
     return code
 
 
-def generate_kWeight(constants={},dim=3,arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
+def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
 
+    dim = version
     kernel_data= [
         lp.GlobalArg("qweight1d", fp_format),
         lp.GlobalArg("w", fp_format)
