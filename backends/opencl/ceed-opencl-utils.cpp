@@ -61,7 +61,7 @@ int compile(Ceed ceed, void *data,
     constants[param_name] = param_value;
   }
 
-  if(strcmp(type,"CeedRestrict")==0) {
+  if(strcmp(type,"CeedRestrict")==0){
     CeedElemRestriction_OpenCL *data_ = (CeedElemRestriction_OpenCL *) data;
     int indices = data_->h_ind ? 1 : 0;
     int lmode[2] = {0,4};
@@ -75,8 +75,14 @@ int compile(Ceed ceed, void *data,
       }
     }
 
-  } else if(strcmp(type,"CeedBasis")==0) {
+    printf("CeedRestrict kernels are not implemented yet\n");
+    exit(1);
+  } else if(strcmp(type,"CeedBasis")==0){
     CeedBasis_OpenCL *data_ = (CeedBasis_OpenCL *) data;
+
+    printf("CeedBasis kernels are not implemented yet\n");
+    exit(1);
+  } else if(strcmp(type,"setVector")==0){
   }
 
   return 0;
