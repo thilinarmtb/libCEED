@@ -73,6 +73,8 @@ typedef struct {
   cl_mem d_array;
   cl_mem d_array_allocated;
   SyncState memState;
+  cl_kernel setVector;
+  CeedWork_OpenCL *setVector_work;
 } CeedVector_OpenCL;
 
 typedef struct {
@@ -139,8 +141,6 @@ typedef struct {
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue
-  cl_kernel setVector;
-  CeedWork_OpenCL *setVector_work;
   bool gpu;
   bool cpu;
 } Ceed_OpenCL;

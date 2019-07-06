@@ -183,19 +183,19 @@ static int CeedVectorSetValue_OpenCL(CeedVector vec, CeedScalar val) {
       data->d_array = data->d_array_allocated;
     }
     data->memState = DEVICE_SYNC;
-    ierr = run_kernel(ceed,ceed_data->setVector,ceed_data->setVector_work,args);
+    ierr = run_kernel(ceed,data->setVector,data->setVector_work,args);
     CeedChk(ierr);
     break;
   case DEVICE_SYNC:
     dbg("[CeedVectorSetValue][OpenCL][DEVICE_SYNC]");
-    ierr = run_kernel(ceed,ceed_data->setVector,ceed_data->setVector_work,args);
+    ierr = run_kernel(ceed,data->setVector,data->setVector_work,args);
     CeedChk(ierr);
     break;
   case BOTH_SYNC:
     dbg("[CeedVectorSetValue][OpenCL][BOTH_SYNC]");
     ierr = CeedHostSetValue(data->h_array, length, val);
     CeedChk(ierr);
-    ierr = run_kernel(ceed,ceed_data->setVector,ceed_data->setVector_work,args);
+    ierr = run_kernel(ceed,data->setVector,data->setVector_work,args);
     CeedChk(ierr);
     break;
   }
@@ -352,6 +352,8 @@ int CeedVectorCreate_OpenCL(CeedInt n, CeedVector vec) {
   ierr = CeedCalloc(1, &data); CeedChk(ierr);
   ierr = CeedVectorSetData(vec, (void *)&data); CeedChk(ierr);
   data->memState = NONE_SYNC;
+  compile(ceed,data,"CeedVector",1,"length",n);
+
   dbg("[CeedVectorCreate][OpenCL]");
   return 0;
 }

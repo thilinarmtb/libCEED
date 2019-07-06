@@ -28,6 +28,9 @@ extern "C" {
 }
 #endif
 
+#include <iostream>
+#include <string>
+
 #include <cstring>
 #include <cstdarg>
 
@@ -35,6 +38,113 @@ extern "C" {
 #include <pybind11/embed.h>
 namespace py = pybind11;
 using namespace py::literals;
+
+// *****************************************************************************
+// * Build from Python
+// *****************************************************************************
+cl_kernel createKernelFromSource(Ceed ceed,const char* kernelCode,const char *kernelName) {
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed,(void **)&ceed_data);
+
+  cl_int err;
+  cl_program program;
+  program = clCreateProgramWithSource(ceed_data->context,1,(const char **)&kernelCode,
+      NULL, &err);
+  switch(err) {
+  case CL_SUCCESS:
+    break;
+  case CL_INVALID_CONTEXT:
+    fprintf(stderr, "OpenCL backend: Invalid context.");
+    break;
+  case CL_INVALID_VALUE:
+    fprintf(stderr, "OpenCL backend: Invalid value.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    fprintf(stderr, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    fprintf(stderr, "OpenCL backend: Out of host memory.");
+    break;
+  }
+
+  err = clBuildProgram(program, 1, &ceed_data->device_id, 
+    "-cl-fast-relaxed-math -cl-denorms-are-zero", NULL, NULL);
+
+  // Determine the size of the log
+  size_t log_size;
+  char *log;
+  switch(err) {
+  case CL_SUCCESS:
+    break;
+  case CL_INVALID_PROGRAM:
+    fprintf(stderr, "OpenCL backend: Invalid program.");
+    break;
+  case CL_INVALID_VALUE:
+    fprintf(stderr, "OpenCL backend: Invalid value.");
+    break;
+  case CL_INVALID_DEVICE:
+    fprintf(stderr, "OpenCL backend: Invalid device.");
+    break;
+  case CL_INVALID_BINARY:
+    fprintf(stderr, "OpenCL backend: Invalid binary.");
+    break;
+  case CL_INVALID_BUILD_OPTIONS:
+    fprintf(stderr, "OpenCL backend: Invalid build options.");
+    break;
+  case CL_INVALID_OPERATION:
+    fprintf(stderr, "OpenCL backend: Invalid operation.");
+    break;
+  case CL_COMPILER_NOT_AVAILABLE:
+    fprintf(stderr, "OpenCL backend: Compiler not available.");
+    break;
+  case CL_BUILD_PROGRAM_FAILURE:
+    clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
+                          0, NULL,
+                          &log_size);
+    // Allocate memory for the log
+    log = (char *) malloc(log_size);
+    // Get the log
+    clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
+                          log_size,
+                          log, NULL);
+    // Print the log
+    //printf("%s\n", log);
+    fprintf(stderr, "OpenCL backend: Build program failure.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    fprintf(stderr, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    fprintf(stderr, "OpenCL backend: Out of host memory.");
+    break;
+  }
+
+  cl_kernel kernel   = clCreateKernel(program,kernelName,&err);
+  switch(err) {
+  case CL_INVALID_PROGRAM:
+    fprintf(stderr, "OpenCL backend: Invalid program.");
+    break;
+  case CL_INVALID_PROGRAM_EXECUTABLE:
+    fprintf(stderr, "OpenCL backend: Invalid program executable.");
+    break;
+  case CL_INVALID_KERNEL_NAME:
+    fprintf(stderr, "OpenCL backend: Invalid kernel name.");
+    break;
+  case CL_INVALID_KERNEL_DEFINITION:
+    fprintf(stderr, "OpenCL backend: Invalid kernel definition.");
+    break;
+  case CL_INVALID_VALUE:
+    fprintf(stderr, "OpenCL backend: Invalid value.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    fprintf(stderr, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
+
+  return kernel;
+}
 
 int run_kernel(Ceed ceed,
     cl_kernel kernel,
@@ -46,15 +156,15 @@ int run_kernel(Ceed ceed,
 int compile(Ceed ceed, void *data,
     const char *type,
     int nparams, ...) {
-  py::scoped_interpreter guard{};
-  py::object get_restrict = py::module::import("loopy_restrict").attr("get_restirct");
-  auto constants = py::dict();
-
   va_list args;
   va_start(args, nparams);
 
+  // Init pybind11
+  py::scoped_interpreter guard{};
+
   const char *param_name;
   int param_value;
+  auto constants = py::dict();
   for(int i=0;i<nparams;i++) {
     param_name=va_arg(args,const char *);
     param_value=va_arg(args,int);
@@ -62,11 +172,12 @@ int compile(Ceed ceed, void *data,
   }
 
   if(strcmp(type,"CeedRestrict")==0){
-    CeedElemRestriction_OpenCL *data_ = (CeedElemRestriction_OpenCL *) data;
-    int indices = data_->h_ind ? 1 : 0;
+    py::object get_restrict = py::module::import("loopy_restrict").attr("get_restirct");
+    CeedElemRestriction_OpenCL *rstrct = (CeedElemRestriction_OpenCL *) data;
+    int indices = rstrct->h_ind ? 1 : 0;
     int lmode[2] = {0,4};
     int tmode[2] = {0,2};
-    cl_kernel kernels[2][2] = {data_->noTrNoTr,data_->noTrTr,data_->trNoTr,data_->trTr};
+    cl_kernel kernels[2][2] = {rstrct->noTrNoTr,rstrct->noTrTr,rstrct->trNoTr,rstrct->trTr};
 
     for(int ll=0;ll<2;ll++) {
       for(int tt=0;tt<2;tt++) {
@@ -78,12 +189,18 @@ int compile(Ceed ceed, void *data,
     printf("CeedRestrict kernels are not implemented yet\n");
     exit(1);
   } else if(strcmp(type,"CeedBasis")==0){
-    CeedBasis_OpenCL *data_ = (CeedBasis_OpenCL *) data;
+    py::object get_basis = py::module::import("loopy_basis").attr("get_basis");
+    CeedBasis_OpenCL *basis = (CeedBasis_OpenCL *) data;
 
     printf("CeedBasis kernels are not implemented yet\n");
     exit(1);
-  } else if(strcmp(type,"setVector")==0){
+  } else if(strcmp(type,"CeedVector")==0){
+    py::object gen_set_array = py::module::import("loopy_vec").attr("gen_set_array");
+    CeedVector_OpenCL *vector = (CeedVector_OpenCL *) data;
+    py::object kernel = gen_set_array("constants"_a=constants);
+    std::string source = py::cast<std::string>(kernel);
+    std::cout << source << std::endl;
+    vector->setVector=createKernelFromSource(ceed,source.c_str(),"setVector");
   }
-
   return 0;
 }
