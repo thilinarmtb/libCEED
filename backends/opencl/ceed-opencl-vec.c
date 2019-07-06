@@ -163,7 +163,10 @@ static int CeedVectorSetValue_OpenCL(CeedVector vec, CeedScalar val) {
 
   dbg("[CeedVectorSetValue][OpenCL]");
 
-  void *args[] = {data->d_array, &length, &val};
+  int nparam=2;
+  size_t size1=sizeof(cl_mem);
+  size_t size2=sizeof(CeedScalar);
+  void *args[] = {&nparam,&size1,(void *)&data->d_array,&size2,(void *)&val};
 
   switch(data->memState) {
   case HOST_SYNC:

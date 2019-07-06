@@ -39,10 +39,9 @@ extern "C" {
 namespace py = pybind11;
 using namespace py::literals;
 
-// *****************************************************************************
-// * Build from Python
-// *****************************************************************************
-cl_kernel createKernelFromSource(Ceed ceed,const char* kernelCode,const char *kernelName) {
+cl_kernel createKernelFromSource(Ceed ceed,
+    const char* kernelCode,
+    const char *kernelName) {
   Ceed_OpenCL *ceed_data;
   CeedGetData(ceed,(void **)&ceed_data);
 
@@ -146,21 +145,11 @@ cl_kernel createKernelFromSource(Ceed ceed,const char* kernelCode,const char *ke
   return kernel;
 }
 
-int run_kernel(Ceed ceed,
-    cl_kernel kernel,
-    CeedWork_OpenCL *work,
-    void **args) {
-  return 0;
-}
-
 int compile(Ceed ceed, void *data,
     const char *type,
     int nparams, ...) {
   va_list args;
   va_start(args, nparams);
-
-  // Init pybind11
-  py::scoped_interpreter guard{};
 
   const char *param_name;
   int param_value;
@@ -202,5 +191,33 @@ int compile(Ceed ceed, void *data,
     std::cout << source << std::endl;
     vector->setVector=createKernelFromSource(ceed,source.c_str(),"setVector");
   }
+  return 0;
+}
+
+int run_kernel(Ceed ceed,
+    cl_kernel kernel,
+    CeedWork_OpenCL *work,
+    void **args) {
+  Ceed_OpenCL *ceed_data;
+  CeedGetData(ceed,(void **)&ceed_data);
+
+  cl_int err;
+  int nparam=*((int *)args[0]);
+  for(int i=0;i<nparam;i++){
+    size_t size=*((size_t*)args[2*i+1]);
+    void *ptr=args[2*i+2];
+    err|=clSetKernelArg(kernel,i,size,ptr);
+  }
+
+  clEnqueueNDRangeKernel(ceed_data->queue,kernel,work->work_dim,NULL,
+      work->global_work_size, work->local_work_size,0,NULL, NULL);
+
+  clFlush(ceed_data->queue);
+  clFinish(ceed_data->queue);
+  return 0;
+}
+
+int init_loopy() {
+  py::initialize_interpreter();
   return 0;
 }

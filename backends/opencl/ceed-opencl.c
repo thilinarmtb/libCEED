@@ -218,6 +218,7 @@ void CeedDebugImpl_OpenCL(const Ceed ceed,
 
 __attribute__((constructor))
 static void Register(void) {
+  init_loopy();
   CeedRegister("/cpu/opencl", CeedInit_OpenCL, 20);
   CeedRegister("/gpu/opencl", CeedInit_OpenCL, 20);
 }
