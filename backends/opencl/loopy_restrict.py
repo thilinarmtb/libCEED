@@ -2,6 +2,8 @@ import numpy as np
 import loopy as lp
 import sys
 
+#from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+
 # setup
 #----
 lp.set_caching_enabled(False)
@@ -49,9 +51,9 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
     '''
 
     loopyCode = """
-                e := i / (ncomp * elemsize) 
-                d := (i / elemsize) % ncomp
-                s := i % elemsize
+                <int> e = (i / (ncomp * elemsize)) 
+                <int> d = ((i / elemsize) % ncomp)
+                <int> s = (i % elemsize)
                 """
 
     versionList = [
@@ -60,7 +62,7 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
                     "v[i] = u[ncomp*(s + elemsize*e) + d]",
                     "v[i] = u[ncomp * indices[s + elemsize*e] + d]",
                     "v[s + elemsize*e + ndof*d] = v[s + elemsize*e + ndof*d] + u[i] {atomic}",
-                    "v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}"
+                    "v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}",
                     "v[ncomp*(s + elemsize*e) + d] = v[ncomp*(s + elemsize*e) + d] + u[i] {atomic}",
                     "v[ncomp * indices[s + elemsize*e] + d] = v[ncomp * indices[s + elemsize*e] + d] + u[i] {atomic}" ]
 

@@ -170,14 +170,9 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         kernel_data=kernel_data
     )
 
-    print(loopyCode)
-    print(kInterp)
     kInterp = lp.fix_parameters(kInterp, **constants)
     kInterp = lp.make_reduction_inames_unique(kInterp, "b")
-    code  = lp.generate_code_v2(kInterp).device_code()
-    print(code)
-
-    return code
+    return lp.generate_code_v2(kInterp).device_code()
 
 def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarget(),fp_format=np.float64):
 
@@ -400,7 +395,6 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
                          end
                          """
 
-    print(loopyCode)
     kGrad = lp.make_kernel(
         iterVars,
         loopyCode,
@@ -408,14 +402,10 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
         target=target,
         kernel_data=kernel_data
     )
-    print(kGrad)
 
     kGrad = lp.fix_parameters(kGrad, **constants)
     kGrad = lp.make_reduction_inames_unique(kGrad, "b")
-    code  = lp.generate_code_v2(kGrad).device_code()
-    print(code)
-
-    return code
+    return lp.generate_code_v2(kGrad).device_code()
 
 
 def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float64, target=lp.OpenCLTarget()):
@@ -475,11 +465,4 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
                 "{ [d]: 0<=d<dim-1 }",
                 "{ [b]: 0<=b<PP}"]
  
-    print(kWeight)
-    code = lp.generate_code_v2(kWeight).device_code()
-    print(code)
-
-    return code
-#generate_kWeight(dim=3)
-#for i in range(4):
-generate_kInterp(version=1)
+    return lp.generate_code_v2(kWeight).device_code()
