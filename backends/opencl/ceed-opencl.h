@@ -61,8 +61,8 @@ void CeedDebugImpl256_OpenCL(const Ceed,const unsigned char,const char*,...);
 // *****************************************************************************
 typedef struct {
   cl_uint work_dim;
-  size_t *global_work_size;
-  size_t *local_work_size;
+  size_t global_work_size;
+  size_t local_work_size;
 } CeedWork_OpenCL;
 
 typedef enum {HOST_SYNC, DEVICE_SYNC, BOTH_SYNC, NONE_SYNC} SyncState;
@@ -73,6 +73,8 @@ typedef struct {
   cl_mem d_array;
   cl_mem d_array_allocated;
   SyncState memState;
+  cl_kernel setVector;
+  CeedWork_OpenCL setVector_work;
 } CeedVector_OpenCL;
 
 typedef struct {
@@ -139,8 +141,6 @@ typedef struct {
   cl_device_id device_id;           // device ID
   cl_context context;               // context
   cl_command_queue queue;           // command queue
-  cl_kernel setVector;
-  CeedWork_OpenCL *setVector_work;
   bool gpu;
   bool cpu;
 } Ceed_OpenCL;
@@ -194,5 +194,8 @@ int run_kernel(Ceed ceed,
     CeedWork_OpenCL *work,
     void **args
 );
+
+// *****************************************************************************
+int init_loopy();
 
 #endif
