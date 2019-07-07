@@ -188,7 +188,6 @@ int compile(Ceed ceed, void *data,
     CeedVector_OpenCL *vector = (CeedVector_OpenCL *) data;
     py::object kernel = gen_set_array("constants"_a=constants);
     std::string source = py::cast<std::string>(kernel);
-    std::cout << source << std::endl;
     vector->setVector=createKernelFromSource(ceed,source.c_str(),"setVector");
   }
   return 0;
@@ -209,8 +208,52 @@ int run_kernel(Ceed ceed,
     err|=clSetKernelArg(kernel,i,size,ptr);
   }
 
-  clEnqueueNDRangeKernel(ceed_data->queue,kernel,work->work_dim,NULL,
-      work->global_work_size, work->local_work_size,0,NULL, NULL);
+  err = clEnqueueNDRangeKernel(ceed_data->queue,kernel,work->work_dim,NULL,
+      &work->global_work_size,&work->local_work_size,0,NULL,NULL);
+
+  switch(err) {
+  case CL_INVALID_PROGRAM_EXECUTABLE:
+    fprintf(stderr, "OpenCL backend: Invalid program executable.");
+    break;
+  case CL_INVALID_COMMAND_QUEUE:
+    fprintf(stderr, "OpenCL backend: Invalid command queue.");
+    break;
+  case CL_INVALID_KERNEL:
+    fprintf(stderr, "OpenCL backend: Invalid kernel.");
+    break;
+  case CL_INVALID_CONTEXT:
+    fprintf(stderr, "OpenCL backend: Invalid context.");
+    break;
+  case CL_INVALID_KERNEL_ARGS:
+    fprintf(stderr, "OpenCL backend: Invalid kernel args.");
+    break;
+  case CL_INVALID_WORK_DIMENSION:
+    fprintf(stderr, "OpenCL backend: Invalid work dimension.");
+    break;
+  case CL_INVALID_WORK_GROUP_SIZE:
+    fprintf(stderr, "OpenCL backend: Invalid work group size.");
+    break;
+  case CL_INVALID_WORK_ITEM_SIZE:
+    fprintf(stderr, "OpenCL backend: Invalid work item size.");
+    break;
+  case CL_INVALID_GLOBAL_OFFSET:
+    fprintf(stderr, "OpenCL backend: Invalid global offset.");
+    break;
+  case CL_OUT_OF_RESOURCES:
+    fprintf(stderr, "OpenCL backend: Out of host resources.");
+    break;
+  case CL_MEM_OBJECT_ALLOCATION_FAILURE:
+    fprintf(stderr, "OpenCL backend: Mem object allocation failure.");
+    break;
+  case CL_INVALID_EVENT_WAIT_LIST:
+    fprintf(stderr, "OpenCL backend: Invalid event wait list.");
+    break;
+  case CL_OUT_OF_HOST_MEMORY:
+    fprintf(stderr, "OpenCL backend: Out of host memory.");
+    break;
+  default:
+    break;
+  }
 
   clFlush(ceed_data->queue);
   clFinish(ceed_data->queue);

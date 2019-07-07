@@ -61,8 +61,8 @@ void CeedDebugImpl256_OpenCL(const Ceed,const unsigned char,const char*,...);
 // *****************************************************************************
 typedef struct {
   cl_uint work_dim;
-  size_t *global_work_size;
-  size_t *local_work_size;
+  size_t global_work_size;
+  size_t local_work_size;
 } CeedWork_OpenCL;
 
 typedef enum {HOST_SYNC, DEVICE_SYNC, BOTH_SYNC, NONE_SYNC} SyncState;
@@ -74,7 +74,7 @@ typedef struct {
   cl_mem d_array_allocated;
   SyncState memState;
   cl_kernel setVector;
-  CeedWork_OpenCL *setVector_work;
+  CeedWork_OpenCL setVector_work;
 } CeedVector_OpenCL;
 
 typedef struct {
