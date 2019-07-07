@@ -172,7 +172,8 @@ int compile(Ceed ceed, void *data,
 #define get_kernel_source \
     version=tmode|lmode|indices; \
     kernel = get_restrict("constants"_a=constants,"version"_a=version); \
-    source = py::cast<std::string>(kernel);
+    source = py::cast<std::string>(kernel); \
+    dbg("%s\n",source.c_str());
 
     py::object kernel;
     std::string source;
@@ -181,18 +182,22 @@ int compile(Ceed ceed, void *data,
 
     get_kernel_source
     rstrct->noTrNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+    dbg("[OpenCL][compile] kernel(noTrNoTr)=%p, version=%d",rstrct->noTrNoTr,version);
 
-    lmode=4;
+    lmode=2;
     get_kernel_source
     rstrct->noTrTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+    dbg("[OpenCL][compile] kernel(noTrTr)=%p, version=%d",rstrct->noTrTr,version);
 
     tmode=2,lmode=0;
     get_kernel_source
     rstrct->trNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+    dbg("[OpenCL][compile] kernel(trNoTr)=%p, version=%d",rstrct->trNoTr,version);
 
     lmode=4;
     get_kernel_source
     rstrct->trTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+    dbg("[OpenCL][compile] kernel(trTr)=%p, version=%d",rstrct->noTrNoTr,version);
 
   } else if(strcmp(type,"CeedBasis")==0){
     py::object get_basis = py::module::import("loopy_basis").attr("get_basis");
@@ -219,6 +224,7 @@ int run_kernel(Ceed ceed,
 
   cl_int err;
   int nparam=*((int *)args[0]);
+  dbg("[OpenCL][run] kernel: %p, nparam=%d",kernel,nparam);
   for(int i=0;i<nparam;i++){
     size_t size=*((size_t*)args[2*i+1]);
     void *ptr=args[2*i+2];

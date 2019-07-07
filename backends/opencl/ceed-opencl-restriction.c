@@ -35,8 +35,10 @@ static int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   if (tmode == CEED_NOTRANSPOSE) {
     if (lmode == CEED_NOTRANSPOSE) {
       kernel=impl->noTrNoTr;
+      dbg("[CeedElemRestrictApply][OpenCL] kernel: noTrNoTr");
     } else {
       kernel=impl->noTrTr;
+      dbg("[CeedElemRestrictApply][OpenCL] kernel: noTrTr");
     }
   } else {
     if (lmode == CEED_NOTRANSPOSE) {
@@ -48,14 +50,13 @@ static int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
 
   CeedInt nelem;
   CeedElemRestrictionGetNumElements(r, &nelem);
-  int nparam=3;
   size_t size2=sizeof(cl_mem);
+  int nparam=impl->h_ind?3:2;
   void *args[] = {&nparam,&size2,(void*)&d_u,&size2,(void *)&d_v,&size2,(void*)&impl->d_ind};
   dbg("[CeedElemRestrictApply][OpenCL] run_kernel");
   ierr = run_kernel(ceed,kernel,&impl->kernel_work,args); CeedChk(ierr);
   if (request != CEED_REQUEST_IMMEDIATE && request != CEED_REQUEST_ORDERED)
     *request = NULL;
-  dbg("[CeedElemRestrictApply][OpenCL] run_kernel");
 
   ierr = CeedVectorRestoreArrayRead(u, (const CeedScalar **)&d_u); CeedChk(ierr);
   ierr = CeedVectorRestoreArray(v, (CeedScalar **)&d_v); CeedChk(ierr);
