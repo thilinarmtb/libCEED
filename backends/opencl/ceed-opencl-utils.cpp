@@ -182,15 +182,15 @@ int compile(Ceed ceed, void *data,
     get_kernel_source
     rstrct->noTrNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
 
-    lmode=1;
+    lmode=4;
     get_kernel_source
     rstrct->noTrTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
 
-    tmode=4,lmode=0;
+    tmode=2,lmode=0;
     get_kernel_source
     rstrct->trNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
 
-    lmode=1;
+    lmode=4;
     get_kernel_source
     rstrct->trTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
 
@@ -224,8 +224,6 @@ int run_kernel(Ceed ceed,
     void *ptr=args[2*i+2];
     err|=clSetKernelArg(kernel,i,size,ptr);
   }
-  printf("dbg: kernel=%p,dim=%d,local=%zu,global=%zu\n",kernel,work->work_dim,
-      work->local_work_size,work->global_work_size);
 
   err = clEnqueueNDRangeKernel(ceed_data->queue,kernel,work->work_dim,NULL,
       &work->global_work_size,&work->local_work_size,0,NULL,NULL);

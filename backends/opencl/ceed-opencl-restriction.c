@@ -35,7 +35,6 @@ static int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   if (tmode == CEED_NOTRANSPOSE) {
     if (lmode == CEED_NOTRANSPOSE) {
       kernel=impl->noTrNoTr;
-      printf("dbg: kernel=%p\n",impl->noTrNoTr);
     } else {
       kernel=impl->noTrTr;
     }
