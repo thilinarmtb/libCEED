@@ -110,22 +110,22 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
             tmpStr = "tmp" if d%2 else "tmp2"
             tmpStr2 = "tmp2" if d%2 else "tmp"
 
-            # LHS
-            if d == 0:
-                lhs = "sum(b, interp1d[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr)
-            else:            
-                lhs = "sum(b, interp1d[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d), tmpStr2)    
-
             # RHS
+            if d == 0:
+                rhs = "sum(b, interp1d[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr)
+            else:            
+                rhs = "sum(b, interp1d[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d), tmpStr2)    
+
+            # LHS
             if d == constants["dim"] - 1:
-                rhs = "v[v_offset + {0}] = ".format(kStr)
+                lhs = "v[v_offset + {0}] = ".format(kStr)
             else:
-                rhs = "{1}[{0}] = ".format(kStr,tmpStr)
+                lhs = "{1}[{0}] = ".format(kStr,tmpStr)
                 if d == 0 or d == 1:
-                    rhs = "<>" + rhs
+                    lhs = "<>" + lhs
 
             writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d))
-            loopBodyStrs += rhs + lhs + "\n"
+            loopBodyStrs += lhs + rhs + "\n"
 
             iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d))
             iterVars += ["{" + iterVarStr + "}"]
@@ -296,21 +296,21 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
                 tmpStr2 = "tmp2" if d2%2 else "tmp"
                 op = "grad1d" if d1 == d2 else "interp1d"
 
-                # LHS
-                if d2 == 0:
-                    lhs = "sum(b, {1}[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr, op)
-                else:
-                    lhs = "sum(b, {3}[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d2), tmpStr2, op) 
-                if d2 == constants["dim"] - 1 and version & TRANSPOSE:
-                    lhs = " v[v_offset + {0}] + ".format(kStr) + lhs
-
                 # RHS
-                if d2 == constants["dim"] - 1:
-                    rhs = "v[v_offset + {0}] = ".format(kStr)
+                if d2 == 0:
+                    rhs = "sum(b, {1}[j(0,{0})*stride0 + b*stride1] * u[u_offset + (a(0,{0})*P + b)*post(0) + c(0,{0})])".format(kStr, op)
                 else:
-                    rhs = "{1}[{0}] = ".format(kStr,tmpStr)
+                    rhs = "sum(b, {3}[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d2), tmpStr2, op) 
+                if d2 == constants["dim"] - 1 and version & TRANSPOSE:
+                    rhs = " v[v_offset + {0}] + ".format(kStr) + rhs
+
+                # LHS
+                if d2 == constants["dim"] - 1:
+                    lhs = "v[v_offset + {0}] = ".format(kStr)
+                else:
+                    lhs = "{1}[{0}] = ".format(kStr,tmpStr)
                     if (d2 == 0 or d2 == 1) and d1 == 0:
-                        rhs = "<> " + rhs
+                        lhs = "<> " + lhs
           
                 if d1==0 and d2 == 0:
                     tag = " {id=iter_" + str(dim*d1 + d2) + "}"
@@ -320,7 +320,7 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
                 iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d2))
                 iterVars += ["{" + iterVarStr + "}"]
 
-                loopBodyStrs += rhs + lhs + tag + "\n"
+                loopBodyStrs += lhs + rhs + tag + "\n"
 
 
         loopyCode += writeLenStrs
@@ -482,4 +482,4 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     return code
 #generate_kWeight(dim=3)
 #for i in range(4):
-generate_kGrad(version=1)
+generate_kInterp(version=1)
