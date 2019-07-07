@@ -25,41 +25,42 @@ static int CeedElemRestrictionApply_OpenCL(CeedElemRestriction r,
   ierr = CeedElemRestrictionGetData(r, (void *)&impl); CeedChk(ierr);
   Ceed ceed;
   ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
+  dbg("[CeedElemRestrictApply][OpenCL]");
   const cl_mem d_u;
-  cl_mem *d_v;
-  ierr = CeedVectorGetArrayRead(u, CEED_MEM_DEVICE, (const CeedScalar **)&d_u); CeedChk(ierr);
+  cl_mem d_v;
+  ierr = CeedVectorGetArrayRead(u, CEED_MEM_DEVICE, (const CeedScalar**)&d_u); CeedChk(ierr);
   ierr = CeedVectorGetArray(v, CEED_MEM_DEVICE, (CeedScalar **)&d_v); CeedChk(ierr);
 
   cl_kernel kernel;
-  CeedWork_OpenCL *kernel_work;
   if (tmode == CEED_NOTRANSPOSE) {
     if (lmode == CEED_NOTRANSPOSE) {
-      kernel = impl->noTrNoTr;
-      kernel_work = impl->noTrNoTr_work;
+      kernel=impl->noTrNoTr;
+      printf("dbg: kernel=%p\n",impl->noTrNoTr);
     } else {
-      kernel = impl->noTrTr;
-      kernel_work = impl->noTrTr_work;
+      kernel=impl->noTrTr;
     }
   } else {
     if (lmode == CEED_NOTRANSPOSE) {
-      kernel = impl->trNoTr;
-      kernel_work = impl->trNoTr_work;
+      kernel=impl->trNoTr;
     } else {
-      kernel = impl->trTr;
-      kernel_work = impl->trTr_work;
+      kernel=impl->trTr;
     }
   }
 
   CeedInt nelem;
   CeedElemRestrictionGetNumElements(r, &nelem);
-  void *args[] = {&nelem,&impl->d_ind,(void *)&d_u,&d_v};
-  ierr = run_kernel(ceed, kernel, kernel_work, args); CeedChk(ierr);
-
+  int nparam=3;
+  size_t size2=sizeof(cl_mem);
+  void *args[] = {&nparam,&size2,(void*)&d_u,&size2,(void *)&d_v,&size2,(void*)&impl->d_ind};
+  dbg("[CeedElemRestrictApply][OpenCL] run_kernel");
+  ierr = run_kernel(ceed,kernel,&impl->kernel_work,args); CeedChk(ierr);
   if (request != CEED_REQUEST_IMMEDIATE && request != CEED_REQUEST_ORDERED)
     *request = NULL;
+  dbg("[CeedElemRestrictApply][OpenCL] run_kernel");
 
   ierr = CeedVectorRestoreArrayRead(u, (const CeedScalar **)&d_u); CeedChk(ierr);
   ierr = CeedVectorRestoreArray(v, (CeedScalar **)&d_v); CeedChk(ierr);
+  dbg("[CeedElemRestrictApply][OpenCL]");
   return 0;
 }
 
@@ -83,6 +84,7 @@ int CeedElemRestrictionCreate_OpenCL(CeedMemType mtype,
   int ierr;
   Ceed ceed;
   ierr = CeedElemRestrictionGetCeed(r, &ceed); CeedChk(ierr);
+  dbg("[CeedElemRestrictCreate][OpenCL]");
   Ceed_OpenCL *ceed_data;
   ierr = CeedGetData(ceed, (void *)&ceed_data); CeedChk(ierr);
   CeedElemRestriction_OpenCL *impl;
@@ -150,12 +152,21 @@ int CeedElemRestrictionCreate_OpenCL(CeedMemType mtype,
                  "elemsize", elemsize,
                  "ncomp", ncomp,
                  "ndof", ndof); CeedChk(ierr);
+  // Architecture specific
+  int nn=nelem*elemsize*ncomp;
+  size_t local_size=nn<32?nn:32;
+  size_t global_size=((nn+local_size-1)/local_size)*local_size;
+
+  impl->kernel_work.work_dim=1;
+  impl->kernel_work.local_work_size=local_size;
+  impl->kernel_work.global_work_size=global_size;
 
   ierr = CeedElemRestrictionSetData(r, (void *)&impl); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "ElemRestriction", r, "Apply",
                                 CeedElemRestrictionApply_OpenCL); CeedChk(ierr);
   ierr = CeedSetBackendFunction(ceed, "ElemRestriction", r, "Destroy",
                                 CeedElemRestrictionDestroy_OpenCL); CeedChk(ierr);
+  dbg("[CeedElemRestrictCreate][OpenCL]");
   return 0;
 }
 

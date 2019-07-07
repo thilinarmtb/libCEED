@@ -228,42 +228,44 @@ static int CeedVectorGetArrayRead_OpenCL(const CeedVector vec,
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  dbg("CeedVectorGetArrayRead][OpenCL]");
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void *)&data); CeedChk(ierr);
   Ceed_OpenCL *ceed_data;
   CeedGetData(ceed,(void*)&ceed_data);
 
   switch (mtype) {
-  case CEED_MEM_HOST:
-    if(data->h_array==NULL) {
-      CeedInt length;
-      ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
-      ierr = CeedMalloc(length, &data->h_array_allocated);
-      CeedChk(ierr);
-      data->h_array = data->h_array_allocated;
-    }
-    if(data->memState==DEVICE_SYNC) {
-      ierr = CeedSyncD2H_OpenCL(vec);
-      CeedChk(ierr);
-      data->memState = BOTH_SYNC;
-    }
-    *array = data->h_array;
-    break;
-  case CEED_MEM_DEVICE:
-    if (data->d_array==NULL) {
-      data->d_array_allocated=clCreateBuffer(ceed_data->context,CL_MEM_READ_WRITE,
-          bytes(vec),0,0);
-      CeedChk_OCL(ceed, ierr);
-      data->d_array = data->d_array_allocated;
-    }
-    if (data->memState==HOST_SYNC) {
-      ierr = CeedSyncH2D_OpenCL(vec);
-      CeedChk(ierr);
-      data->memState = BOTH_SYNC;
-    }
-    *array = (CeedScalar *)data->d_array;
-    break;
+    case CEED_MEM_HOST:
+      if(data->h_array==NULL) {
+        CeedInt length;
+        ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
+        ierr = CeedMalloc(length, &data->h_array_allocated);
+        CeedChk(ierr);
+        data->h_array = data->h_array_allocated;
+      }
+      if(data->memState==DEVICE_SYNC) {
+        ierr = CeedSyncD2H_OpenCL(vec);
+        CeedChk(ierr);
+        data->memState = BOTH_SYNC;
+      }
+      *array = data->h_array;
+      break;
+    case CEED_MEM_DEVICE:
+      if (data->d_array==NULL) {
+        data->d_array_allocated=clCreateBuffer(ceed_data->context,CL_MEM_READ_WRITE,
+            bytes(vec),0,0);
+        CeedChk_OCL(ceed, ierr);
+        data->d_array = data->d_array_allocated;
+      }
+      if (data->memState==HOST_SYNC) {
+        ierr = CeedSyncH2D_OpenCL(vec);
+        CeedChk(ierr);
+        data->memState = BOTH_SYNC;
+      }
+      *array = (CeedScalar *)data->d_array;
+      break;
   }
+  dbg("CeedVectorGetArrayRead][OpenCL]");
   return 0;
 }
 
@@ -274,39 +276,42 @@ static int CeedVectorGetArray_OpenCL(const CeedVector vec,
   int ierr;
   Ceed ceed;
   ierr = CeedVectorGetCeed(vec, &ceed); CeedChk(ierr);
+  dbg("CeedVectorGetArray][OpenCL]");
   CeedVector_OpenCL *data;
   ierr = CeedVectorGetData(vec, (void *)&data); CeedChk(ierr);
   Ceed_OpenCL *ceed_data;
   CeedGetData(ceed,(void*)&ceed_data);
 
   switch (mtype) {
-  case CEED_MEM_HOST:
-    if(data->h_array==NULL) {
-      CeedInt length;
-      ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
-      ierr = CeedMalloc(length, &data->h_array_allocated);
-      CeedChk(ierr);
-      data->h_array = data->h_array_allocated;
-    }
-    if(data->memState==DEVICE_SYNC) {
-      ierr = CeedSyncD2H_OpenCL(vec); CeedChk(ierr);
-    }
-    data->memState = HOST_SYNC;
-    *array = data->h_array;
-    break;
-  case CEED_MEM_DEVICE:
-    if (data->d_array==NULL) {
-      data->d_array_allocated=clCreateBuffer(ceed_data->context,CL_MEM_READ_WRITE,bytes(vec),0,0);
-      CeedChk_OCL(ceed, ierr);
-      data->d_array = data->d_array_allocated;
-    }
-    if (data->memState==HOST_SYNC) {
-      ierr = CeedSyncH2D_OpenCL(vec); CeedChk(ierr);
-    }
-    data->memState = DEVICE_SYNC;
-    *array = (CeedScalar *) data->d_array;
-    break;
+    case CEED_MEM_HOST:
+      if(data->h_array==NULL) {
+        CeedInt length;
+        ierr = CeedVectorGetLength(vec, &length); CeedChk(ierr);
+        ierr = CeedMalloc(length, &data->h_array_allocated);
+        CeedChk(ierr);
+        data->h_array = data->h_array_allocated;
+      }
+      if(data->memState==DEVICE_SYNC) {
+        ierr = CeedSyncD2H_OpenCL(vec); CeedChk(ierr);
+      }
+      data->memState = HOST_SYNC;
+      *array = data->h_array;
+      break;
+    case CEED_MEM_DEVICE:
+      if (data->d_array==NULL) {
+        data->d_array_allocated=clCreateBuffer(ceed_data->context,
+            CL_MEM_READ_WRITE,bytes(vec),0,0);
+        CeedChk_OCL(ceed, ierr);
+        data->d_array = data->d_array_allocated;
+      }
+      if (data->memState==HOST_SYNC) {
+        ierr = CeedSyncH2D_OpenCL(vec); CeedChk(ierr);
+      }
+      data->memState = DEVICE_SYNC;
+      *array = (CeedScalar *) data->d_array;
+      break;
   }
+  dbg("CeedVectorGetArray][OpenCL]");
   return 0;
 }
 

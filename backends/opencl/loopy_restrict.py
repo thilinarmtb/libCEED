@@ -2,8 +2,6 @@ import numpy as np
 import loopy as lp
 import sys
 
-from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
-
 # setup
 #----
 lp.set_caching_enabled(False)
@@ -34,7 +32,6 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
             lp.ValueArg("esize", np.int32)]
     else:
         constants["esize"] = constants["nelem"]*constants["elemsize"]*constants["ncomp"]
-        constants.pop("nelem")
 
     loopyCode = """
                 e := i / (ncomp * elemsize) 
@@ -110,4 +107,4 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
     k = lp.split_iname(k, "i", inner_length=local_size, 
         outer_tag="g.0", inner_tag="l.0", slabs=slabs)
 
-    return k
+    return lp.generate_code_v2(k).device_code()
