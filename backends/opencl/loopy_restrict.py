@@ -23,9 +23,23 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
 
     kernel_data = [
         lp.GlobalArg("u", fp_format),
-        lp.GlobalArg("v", fp_format, for_atomic=True if version >= 4 else False),
-        lp.GlobalArg("indices", np.int32)
+        lp.GlobalArg("v", fp_format, for_atomic=True if version >= 4 else False)
     ]
+
+    if version & 1 == 1:
+        kernel_data.append(lp.GlobalArg("indices", np.int32))       
+
+    if not "elemsize" in constants:
+        kernel_data.append(lp.ValueArg("elemsize", np.int32))
+    if not "ncomp" in constants:
+        kernel_data.append(lp.ValueArg("ncomp", np.int32))
+    if not "ndof" in constants:
+        kernel_data.append(lp.ValueArg("ndof", np.int32))
+    if not "nelem" in constants and not "elemsize" in constants and not "ncomp" in constants:
+        kernel_data.append(lp.ValueArg("esize", np.int32))
+    else:
+        constants["esize"] = constants["nelem"]*constants["elemsize"]*constants["ncomp"]
+    '''
     if constants=={}:
         kernel_data += [
             lp.ValueArg("elemsize", np.int32), 
@@ -34,52 +48,62 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
             lp.ValueArg("esize", np.int32)]
     else:
         constants["esize"] = constants["nelem"]*constants["elemsize"]*constants["ncomp"]
-        constants.pop("nelem")
-
+    '''
     loopyCode = """
                 e := i / (ncomp * elemsize) 
                 d := (i / elemsize) % ncomp
-                s := i % elemsize"""
+                s := i % elemsize
+                """
 
-    suffix = ""    
+    versionList = [
+                    "v[i] = u[s + elemsize*e + ndof*d]",
+                    "v[i] = u[indices[s + elemsize*e] + ndof*d]",
+                    "v[i] = u[ncomp*(s + elemsize*e) + d]",
+                    "v[i] = u[ncomp * indices[s + elemsize*e] + d]",
+                    "v[s + elemsize*e + ndof*d] = v[s + elemsize*e + ndof*d] + u[i] {atomic}",
+                    "v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}"
+                    "v[ncomp*(s + elemsize*e) + d] = v[ncomp*(s + elemsize*e) + d] + u[i] {atomic}",
+                    "v[ncomp * indices[s + elemsize*e] + d] = v[ncomp * indices[s + elemsize*e] + d] + u[i] {atomic}" ]
+
+    loopyCode += versionList[version] + "\n"
+
+    '''
     if version == int(not LMODE) | int(not TMODE) | int(not INDICES):
-        suffix = """ 
-                 v[i] = u[s + elemsize*e + ndof*d] 
-                 """
+        loopyCode += """ 
+                     v[i] = u[s + elemsize*e + ndof*d] 
+                     """
     elif version == int(not LMODE) | int(not TMODE) | INDICES:
-        suffix = """
-                 v[i] = u[indices[s + elemsize*e] + ndof*d]
-                 """        
+        loopyCode += """
+                     v[i] = u[indices[s + elemsize*e] + ndof*d]
+                     """        
     elif version == int(not LMODE) | TMODE | int(not INDICES):
-        suffix = """
-                 v[i] = u[ncomp*(s + elemsize*e) + d]
-                 """        
+        loopyCode += """
+                     v[i] = u[ncomp*(s + elemsize*e) + d]
+                     """        
     elif version == int(not LMODE) | TMODE | INDICES:
-        suffix = """
-                 v[i] = u[ncomp * indices[s + elemsize*e] + d]
-                 """        
+        loopyCode += """
+                     v[i] = u[ncomp * indices[s + elemsize*e] + d]
+                     """        
     elif version == LMODE | int(not TMODE) | int(not INDICES):
-        suffix = """
-                 v[s + elemsize*e + ndof*d] = v[s + elemsize*e + ndof*d] + u[i] {atomic}
-                 """        
+        loopyCode += """
+                     v[s + elemsize*e + ndof*d] = v[s + elemsize*e + ndof*d] + u[i] {atomic}
+                     """        
     elif version == LMODE | int(not TMODE) | INDICES:
-        suffix = """
-                 v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}
-                 """        
+        loopyCode += """
+                     v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}
+                     """        
     elif version == LMODE | TMODE | int(not INDICES):
-        suffix = """
-                 v[ncomp*(s + elemsize*e) + d] = v[ncomp*(s + elemsize*e) + d] + u[i] {atomic}
-                 """        
+        loopyCode += """
+                     v[ncomp*(s + elemsize*e) + d] = v[ncomp*(s + elemsize*e) + d] + u[i] {atomic}
+                     """        
     elif version == LMODE | TMODE | INDICES:
-        suffix = """
-                 v[ncomp * indices[s + elemsize*e] + d] = v[ncomp * indices[s + elemsize*e] + d] + u[i] {atomic}
-                 """      
+        loopyCode += """
+                     v[ncomp * indices[s + elemsize*e] + d] = v[ncomp * indices[s + elemsize*e] + d] + u[i] {atomic}
+                     """      
     else:
         raise Exception("Invalid version value in generate_kRestrict()")  
+    '''
 
-    
-
-    loopyCode += suffix
     k = lp.make_kernel(
         "{ [i]: 0<=i<esize }",
         loopyCode,
@@ -111,3 +135,6 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
         outer_tag="g.0", inner_tag="l.0", slabs=slabs)
 
     return k
+
+k = get_restrict()
+print(lp.generate_code_v2(k).device_code())
