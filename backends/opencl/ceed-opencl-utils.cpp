@@ -50,20 +50,20 @@ cl_kernel createKernelFromSource(Ceed ceed,
   program = clCreateProgramWithSource(ceed_data->context,1,(const char **)&kernelCode,
       NULL, &err);
   switch(err) {
-  case CL_SUCCESS:
-    break;
-  case CL_INVALID_CONTEXT:
-    fprintf(stderr, "OpenCL backend: Invalid context.");
-    break;
-  case CL_INVALID_VALUE:
-    fprintf(stderr, "OpenCL backend: Invalid value.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    fprintf(stderr, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    fprintf(stderr, "OpenCL backend: Out of host memory.");
-    break;
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_CONTEXT:
+      fprintf(stderr, "OpenCL backend: Invalid context.");
+      break;
+    case CL_INVALID_VALUE:
+      fprintf(stderr, "OpenCL backend: Invalid value.");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
+    default:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
   }
 
   err = clBuildProgram(program, 1, &ceed_data->device_id, 
@@ -73,73 +73,76 @@ cl_kernel createKernelFromSource(Ceed ceed,
   size_t log_size;
   char *log;
   switch(err) {
-  case CL_SUCCESS:
-    break;
-  case CL_INVALID_PROGRAM:
-    fprintf(stderr, "OpenCL backend: Invalid program.");
-    break;
-  case CL_INVALID_VALUE:
-    fprintf(stderr, "OpenCL backend: Invalid value.");
-    break;
-  case CL_INVALID_DEVICE:
-    fprintf(stderr, "OpenCL backend: Invalid device.");
-    break;
-  case CL_INVALID_BINARY:
-    fprintf(stderr, "OpenCL backend: Invalid binary.");
-    break;
-  case CL_INVALID_BUILD_OPTIONS:
-    fprintf(stderr, "OpenCL backend: Invalid build options.");
-    break;
-  case CL_INVALID_OPERATION:
-    fprintf(stderr, "OpenCL backend: Invalid operation.");
-    break;
-  case CL_COMPILER_NOT_AVAILABLE:
-    fprintf(stderr, "OpenCL backend: Compiler not available.");
-    break;
-  case CL_BUILD_PROGRAM_FAILURE:
-    clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
-                          0, NULL,
-                          &log_size);
-    // Allocate memory for the log
-    log = (char *) malloc(log_size);
-    // Get the log
-    clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
-                          log_size,
-                          log, NULL);
-    // Print the log
-    //printf("%s\n", log);
-    fprintf(stderr, "OpenCL backend: Build program failure.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    fprintf(stderr, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    fprintf(stderr, "OpenCL backend: Out of host memory.");
-    break;
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_PROGRAM:
+      fprintf(stderr, "OpenCL backend: Invalid program.");
+      break;
+    case CL_INVALID_VALUE:
+      fprintf(stderr, "OpenCL backend: Invalid value.");
+      break;
+    case CL_INVALID_DEVICE:
+      fprintf(stderr, "OpenCL backend: Invalid device.");
+      break;
+    case CL_INVALID_BINARY:
+      fprintf(stderr, "OpenCL backend: Invalid binary.");
+      break;
+    case CL_INVALID_BUILD_OPTIONS:
+      fprintf(stderr, "OpenCL backend: Invalid build options.");
+      break;
+    case CL_INVALID_OPERATION:
+      fprintf(stderr, "OpenCL backend: Invalid operation.");
+      break;
+    case CL_COMPILER_NOT_AVAILABLE:
+      fprintf(stderr, "OpenCL backend: Compiler not available.");
+      break;
+    case CL_BUILD_PROGRAM_FAILURE:
+      clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
+                            0, NULL,
+                            &log_size);
+      // Allocate memory for the log
+      log = (char *) malloc(log_size);
+      // Get the log
+      clGetProgramBuildInfo(program, ceed_data->device_id, CL_PROGRAM_BUILD_LOG,
+                            log_size,
+                            log, NULL);
+      // Print the log
+      //printf("%s\n", log);
+      fprintf(stderr, "OpenCL backend: Build program failure.");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
+    default:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
   }
 
-  cl_kernel kernel   = clCreateKernel(program,kernelName,&err);
+  cl_kernel kernel=clCreateKernel(program,kernelName,&err);
   switch(err) {
-  case CL_INVALID_PROGRAM:
-    fprintf(stderr, "OpenCL backend: Invalid program.");
-    break;
-  case CL_INVALID_PROGRAM_EXECUTABLE:
-    fprintf(stderr, "OpenCL backend: Invalid program executable.");
-    break;
-  case CL_INVALID_KERNEL_NAME:
-    fprintf(stderr, "OpenCL backend: Invalid kernel name.");
-    break;
-  case CL_INVALID_KERNEL_DEFINITION:
-    fprintf(stderr, "OpenCL backend: Invalid kernel definition.");
-    break;
-  case CL_INVALID_VALUE:
-    fprintf(stderr, "OpenCL backend: Invalid value.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    fprintf(stderr, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    break;
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_PROGRAM:
+      fprintf(stderr, "OpenCL backend: Invalid program.");
+      break;
+    case CL_INVALID_PROGRAM_EXECUTABLE:
+      fprintf(stderr, "OpenCL backend: Invalid program executable.");
+      break;
+    case CL_INVALID_KERNEL_NAME:
+      fprintf(stderr, "OpenCL backend: Invalid kernel name.");
+      break;
+    case CL_INVALID_KERNEL_DEFINITION:
+      fprintf(stderr, "OpenCL backend: Invalid kernel definition.");
+      break;
+    case CL_INVALID_VALUE:
+      fprintf(stderr, "OpenCL backend: Invalid value.");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
+    default:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
   }
 
   return kernel;
@@ -151,6 +154,8 @@ int compile(Ceed ceed, void *data,
   va_list args;
   va_start(args, nparams);
 
+  py::module loopy=py::module::import("loopy");
+
   const char *param_name;
   int param_value;
   auto constants = py::dict();
@@ -161,22 +166,34 @@ int compile(Ceed ceed, void *data,
   }
 
   if(strcmp(type,"CeedRestrict")==0){
-    py::object get_restrict = py::module::import("loopy_restrict").attr("get_restirct");
+    py::object get_restrict = py::module::import("loopy_restrict").attr("get_restrict");
     CeedElemRestriction_OpenCL *rstrct = (CeedElemRestriction_OpenCL *) data;
+
+#define get_kernel_source \
+    version=tmode|lmode|indices; \
+    kernel = get_restrict("constants"_a=constants,"version"_a=version); \
+    source = py::cast<std::string>(kernel);
+
+    py::object kernel;
+    std::string source;
+    int tmode=0,lmode=0,version;
     int indices = rstrct->h_ind ? 1 : 0;
-    int lmode[2] = {0,4};
-    int tmode[2] = {0,2};
-    cl_kernel kernels[2][2] = {rstrct->noTrNoTr,rstrct->noTrTr,rstrct->trNoTr,rstrct->trTr};
 
-    for(int ll=0;ll<2;ll++) {
-      for(int tt=0;tt<2;tt++) {
-        int version=lmode[ll]|tmode[tt]|indices;
-        py::object temp = get_restrict("constants"_a=constants,"version"_a=version);
-      }
-    }
+    get_kernel_source
+    rstrct->noTrNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
 
-    printf("CeedRestrict kernels are not implemented yet\n");
-    exit(1);
+    lmode=4;
+    get_kernel_source
+    rstrct->noTrTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+
+    tmode=2,lmode=0;
+    get_kernel_source
+    rstrct->trNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+
+    lmode=4;
+    get_kernel_source
+    rstrct->trTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
+
   } else if(strcmp(type,"CeedBasis")==0){
     py::object get_basis = py::module::import("loopy_basis").attr("get_basis");
     CeedBasis_OpenCL *basis = (CeedBasis_OpenCL *) data;
@@ -212,47 +229,50 @@ int run_kernel(Ceed ceed,
       &work->global_work_size,&work->local_work_size,0,NULL,NULL);
 
   switch(err) {
-  case CL_INVALID_PROGRAM_EXECUTABLE:
-    fprintf(stderr, "OpenCL backend: Invalid program executable.");
-    break;
-  case CL_INVALID_COMMAND_QUEUE:
-    fprintf(stderr, "OpenCL backend: Invalid command queue.");
-    break;
-  case CL_INVALID_KERNEL:
-    fprintf(stderr, "OpenCL backend: Invalid kernel.");
-    break;
-  case CL_INVALID_CONTEXT:
-    fprintf(stderr, "OpenCL backend: Invalid context.");
-    break;
-  case CL_INVALID_KERNEL_ARGS:
-    fprintf(stderr, "OpenCL backend: Invalid kernel args.");
-    break;
-  case CL_INVALID_WORK_DIMENSION:
-    fprintf(stderr, "OpenCL backend: Invalid work dimension.");
-    break;
-  case CL_INVALID_WORK_GROUP_SIZE:
-    fprintf(stderr, "OpenCL backend: Invalid work group size.");
-    break;
-  case CL_INVALID_WORK_ITEM_SIZE:
-    fprintf(stderr, "OpenCL backend: Invalid work item size.");
-    break;
-  case CL_INVALID_GLOBAL_OFFSET:
-    fprintf(stderr, "OpenCL backend: Invalid global offset.");
-    break;
-  case CL_OUT_OF_RESOURCES:
-    fprintf(stderr, "OpenCL backend: Out of host resources.");
-    break;
-  case CL_MEM_OBJECT_ALLOCATION_FAILURE:
-    fprintf(stderr, "OpenCL backend: Mem object allocation failure.");
-    break;
-  case CL_INVALID_EVENT_WAIT_LIST:
-    fprintf(stderr, "OpenCL backend: Invalid event wait list.");
-    break;
-  case CL_OUT_OF_HOST_MEMORY:
-    fprintf(stderr, "OpenCL backend: Out of host memory.");
-    break;
-  default:
-    break;
+    case CL_SUCCESS:
+      break;
+    case CL_INVALID_PROGRAM_EXECUTABLE:
+      fprintf(stderr, "OpenCL backend: Invalid program executable.");
+      break;
+    case CL_INVALID_COMMAND_QUEUE:
+      fprintf(stderr, "OpenCL backend: Invalid command queue.");
+      break;
+    case CL_INVALID_KERNEL:
+      fprintf(stderr, "OpenCL backend: Invalid kernel.");
+      break;
+    case CL_INVALID_CONTEXT:
+      fprintf(stderr, "OpenCL backend: Invalid context.");
+      break;
+    case CL_INVALID_KERNEL_ARGS:
+      fprintf(stderr, "OpenCL backend: Invalid kernel args.");
+      break;
+    case CL_INVALID_WORK_DIMENSION:
+      fprintf(stderr, "OpenCL backend: Invalid work dimension.");
+      break;
+    case CL_INVALID_WORK_GROUP_SIZE:
+      fprintf(stderr, "OpenCL backend: Invalid work group size.");
+      break;
+    case CL_INVALID_WORK_ITEM_SIZE:
+      fprintf(stderr, "OpenCL backend: Invalid work item size.");
+      break;
+    case CL_INVALID_GLOBAL_OFFSET:
+      fprintf(stderr, "OpenCL backend: Invalid global offset.");
+      break;
+    case CL_OUT_OF_RESOURCES:
+      fprintf(stderr, "OpenCL backend: Out of host resources.");
+      break;
+    case CL_MEM_OBJECT_ALLOCATION_FAILURE:
+      fprintf(stderr, "OpenCL backend: Mem object allocation failure.");
+      break;
+    case CL_INVALID_EVENT_WAIT_LIST:
+      fprintf(stderr, "OpenCL backend: Invalid event wait list.");
+      break;
+    case CL_OUT_OF_HOST_MEMORY:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
+    default:
+      fprintf(stderr, "OpenCL backend: Out of host memory.");
+      break;
   }
 
   clFlush(ceed_data->queue);

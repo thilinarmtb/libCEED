@@ -79,15 +79,10 @@ typedef struct {
 
 typedef struct {
   cl_kernel noTrNoTr;
-  CeedWork_OpenCL *noTrNoTr_work;
   cl_kernel noTrTr;
-  CeedWork_OpenCL *noTrTr_work;
   cl_kernel trNoTr;
-  CeedWork_OpenCL *trNoTr_work;
   cl_kernel trTr;
-  CeedWork_OpenCL *trTr_work;
-  cl_kernel trNoTrIdentity;
-  cl_kernel trTrIdentity;
+  CeedWork_OpenCL kernel_work;
   CeedInt *h_ind;
   CeedInt *h_ind_allocated;
   cl_mem d_ind;
