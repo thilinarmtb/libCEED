@@ -2,7 +2,7 @@ import numpy as np
 import loopy as lp
 import sys
 
-#from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 # setup
 #----
@@ -12,13 +12,13 @@ filterwarnings('error', category=lp.LoopyWarning)
 import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
-#VERSION = LMODE | TMODE | INDICES
-LMODE = 4 
-TMODE = 2
+#VERSION = TMODE | LMODE | INDICES
+LMODE = 2 
+TMODE = 4
 INDICES = 1
 
 #Idea: Have function take platform id and device id and have it figure out workgroup sizes itself
-def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64, \
+def get_restrict(version=0, constants={}, arch="INTEL_CPU", fp_format=np.float64, \
         target=lp.OpenCLTarget()):
 
     kernel_data = [
@@ -52,9 +52,21 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
 
     loopyCode = """
                 <int> e = (i / (ncomp * elemsize)) 
-                <int> d = ((i / elemsize) % ncomp)
-                <int> s = (i % elemsize)
+                d := ((i / elemsize) % ncomp)
+                s := (i % elemsize)
                 """
+
+    '''
+    versionList = [
+                    "v[i] = u[(s) + elemsize*(e) + ndof*(d)]",
+                    "v[i] = u[indices[(s) + elemsize*(e)] + ndof*(d)]",
+                    "v[i] = u[ncomp*((s) + elemsize*(e)) + (d)]",
+                    "v[i] = u[ncomp * indices[(s) + elemsize*(e)] + (d)]",
+                    "v[(s) + elemsize*(e) + ndof*(d)] = v[(s) + elemsize*(e) + ndof*(d)] + u[i] {atomic}",
+                    "v[indices[(s) + elemsize*(e)] + ndof*(d)] = v[indices[(s) + elemsize*(e)] + ndof*(d)] + u[i] {atomic}",
+                    "v[ncomp*((s) + elemsize*(e)) + (d)] = v[ncomp*((s) + elemsize*(e)) + (d)] + u[i] {atomic}",
+                    "v[ncomp * indices[(s) + elemsize*(e)] + (d)] = v[ncomp * indices[(s) + elemsize*(e)] + (d)] + u[i] {atomic}" ]
+    '''
 
     versionList = [
                     "v[i] = u[s + elemsize*e + ndof*d]",
@@ -65,10 +77,10 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
                     "v[indices[s + elemsize*e] + ndof*d] = v[indices[s + elemsize*e] + ndof*d] + u[i] {atomic}",
                     "v[ncomp*(s + elemsize*e) + d] = v[ncomp*(s + elemsize*e) + d] + u[i] {atomic}",
                     "v[ncomp * indices[s + elemsize*e] + d] = v[ncomp * indices[s + elemsize*e] + d] + u[i] {atomic}" ]
+    #'''
 
     loopyCode += versionList[version] + "\n"
-
-    '''
+    '''    
     if version == int(not LMODE) | int(not TMODE) | int(not INDICES):
         loopyCode += """ 
                      v[i] = u[s + elemsize*e + ndof*d] 
@@ -104,7 +116,6 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
     else:
         raise Exception("Invalid version value in generate_kRestrict()")  
     '''
-
     k = lp.make_kernel(
         "{ [i]: 0<=i<esize }",
         loopyCode,
@@ -136,3 +147,11 @@ def get_restrict(constants={}, version=0, arch="INTEL_CPU", fp_format=np.float64
         outer_tag="g.0", inner_tag="l.0", slabs=slabs)
 
     return lp.generate_code_v2(k).device_code()
+
+'''
+constants = {"nelem": 3, "ncomp": 1, "ndof": 4, "elemsize": 2} 
+for v in range(8):
+    print(str(v) + "=======================")
+    code = get_restrict(version=v,constants=constants)
+    print(code)
+'''
