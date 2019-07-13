@@ -199,12 +199,48 @@ int compile(Ceed ceed, void *data,
     rstrct->trTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
     dbg("[OpenCL][compile] kernel(trTr)=%p, version=%d",rstrct->noTrNoTr,version);
 
+#undef get_kernel_source
   } else if(strcmp(type,"CeedBasis")==0){
-    py::object get_basis = py::module::import("loopy_basis").attr("get_basis");
-    CeedBasis_OpenCL *basis = (CeedBasis_OpenCL *) data;
+    py::object get_interp=py::module::import("loopy_basis").attr("generate_kInterp");
+    py::object get_grad=py::module::import("loopy_basis").attr("generate_kGrad");
+    py::object get_weight=py::module::import("loopy_basis").attr("generate_kWeight");
 
-    printf("CeedBasis kernels are not implemented yet\n");
-    exit(1);
+    CeedBasis_OpenCL *basis=(CeedBasis_OpenCL *) data;
+
+    py::object kernel;
+    std::string source;
+    int interleave=0,transpose=0,version;
+
+#define get_kernel_source(name_) \
+    version=interleave|transpose; \
+    kernel = get_##name_("constants"_a=constants,"version"_a=version); \
+    source = py::cast<std::string>(kernel);
+
+    get_kernel_source(interp)
+    basis->interp=createKernelFromSource(ceed,source.c_str(),"kInterp");
+    dbg("[OpenCL][compile] kernel(interp)=%p, version=%d",basis->interp,version);
+
+    transpose=1;
+    get_kernel_source(interp)
+    basis->interpT=createKernelFromSource(ceed,source.c_str(),"kInterp");
+    dbg("[OpenCL][compile] kernel(interpT)=%p, version=%d",basis->interpT,version);
+
+    transpose=0;
+    get_kernel_source(grad)
+    basis->grad=createKernelFromSource(ceed,source.c_str(),"kGrad");
+    dbg("[OpenCL][compile] kernel(grad)=%p, version=%d",basis->grad,version);
+
+    transpose=1;
+    get_kernel_source(grad)
+    basis->gradT=createKernelFromSource(ceed,source.c_str(),"kGrad");
+    dbg("[OpenCL][compile] kernel(gradT)=%p, version=%d",basis->gradT,version);
+
+    kernel = get_weight("constants"_a=constants,"version"_a=basis->dim);
+    source = py::cast<std::string>(kernel);
+    basis->weight=createKernelFromSource(ceed,source.c_str(),"kWeight");
+    dbg("[OpenCL][compile] kernel(weight)=%p, version=%d",basis->weight,version);
+
+#undef get_kernel_source
   } else if(strcmp(type,"CeedVector")==0){
     py::object gen_set_array = py::module::import("loopy_vec").attr("gen_set_array");
     CeedVector_OpenCL *vector = (CeedVector_OpenCL *) data;

@@ -99,23 +99,28 @@ typedef struct {
 typedef struct {
   char *qFunctionName;
   cl_kernel qFunction;
-  CeedWork_OpenCL *qFunction_work;
+  CeedWork_OpenCL qFunction_work;
   Fields_OpenCL fields;
   cl_mem d_c;
 } CeedQFunction_OpenCL;
 
 typedef struct {
   cl_kernel interp;
-  CeedWork_OpenCL *interp_work;
+  CeedWork_OpenCL interp_work;
+  cl_kernel interpT;
+  CeedWork_OpenCL interpT_work;
   cl_kernel grad;
-  CeedWork_OpenCL *grad_work;
+  CeedWork_OpenCL grad_work;
+  cl_kernel gradT;
+  CeedWork_OpenCL gradT_work;
   cl_kernel weight;
-  CeedWork_OpenCL *weight_work;
+  CeedWork_OpenCL weight_work;
   cl_mem d_interp1d;
   cl_mem d_grad1d;
   cl_mem d_qweight1d;
   CeedScalar *c_B;
   CeedScalar *c_G;
+  int dim;
 } CeedBasis_OpenCL;
 
 typedef struct {

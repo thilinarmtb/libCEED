@@ -13,13 +13,13 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
     kernel_data = [
         lp.GlobalArg("interp1d", fp_format),
         lp.GlobalArg("u", fp_format),
-        lp.GlobalArg("v", fp_format)
+        lp.GlobalArg("v", fp_format),
+        lp.ValueArg("nelem", np.int32)
     ]
     if constants=={}:
         kernel_data += [
             lp.ValueArg("elemsize", np.int32),
             lp.ValueArg("ncomp", np.int32),
-            lp.ValueArg("nelem", np.int32),
             lp.ValueArg("nqpt", np.int32),
             lp.ValueArg("dim", np.int32),
             lp.ValueArg("P1D", np.int32),
@@ -181,12 +181,12 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
         lp.GlobalArg("grad1d", fp_format),
         lp.GlobalArg("u", fp_format),
         lp.GlobalArg("v", fp_format)
+        lp.ValueArg("nelem", np.int32),
     ]
     if constants=={}:
         kernel_data += [
             lp.ValueArg("elemsize", np.int32),
             lp.ValueArg("ncomp", np.int32),
-            lp.ValueArg("nelem", np.int32),
             lp.ValueArg("nqpt", np.int32),
             lp.ValueArg("dim", np.int32),
             lp.ValueArg("P1D", np.int32),
@@ -414,12 +414,12 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     kernel_data= [
         lp.GlobalArg("qweight1d", fp_format),
         lp.GlobalArg("w", fp_format)
+        lp.ValueArg("nelem", np.int32)
     ]
 
     if constants=={}:
         kernel_data += [
             lp.ValueArg("Q1D", np.int32),
-            lp.ValueArg("nelem", np.int32)
         ]
 
     iterVars = [ "{ [e]: 0<=e<nelem}" ]
@@ -460,9 +460,4 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     kWeight = lp.prioritize_loops(kWeight,loopPriority)
     kWeight = lp.fix_parameters(kWeight, **constants)
 
-    iterVars =  ["{ [elem]: 0<=elem<nelem }",
-                "{ [comp]: 0<=comp<ncomp }",
-                "{ [d]: 0<=d<dim-1 }",
-                "{ [b]: 0<=b<PP}"]
- 
     return lp.generate_code_v2(kWeight).device_code()

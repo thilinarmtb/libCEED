@@ -61,7 +61,7 @@ static int CeedQFunctionApply_OpenCL(CeedQFunction qf, CeedInt Q,
   ierr = CeedQFunctionGetContext(qf, &ctx); CeedChk(ierr);
   // void *args[] = {&ctx, (void*)&Q, &data->d_u, &data->d_v};
   void *args[] = {&data->d_c, (void *) &Q, &data->fields};
-  ierr = run_kernel(ceed, data->qFunction, data->qFunction_work, args);
+  ierr = run_kernel(ceed,data->qFunction,&data->qFunction_work,args);
   CeedChk(ierr);
 
   for (CeedInt i = 0; i < numinputfields; i++) {
