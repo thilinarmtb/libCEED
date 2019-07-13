@@ -214,7 +214,8 @@ int compile(Ceed ceed, void *data,
 #define get_kernel_source(name_) \
     version=interleave|transpose; \
     kernel = get_##name_("constants"_a=constants,"version"_a=version); \
-    source = py::cast<std::string>(kernel);
+    source = py::cast<std::string>(kernel); \
+    dbg("%s\n",source.c_str());
 
     get_kernel_source(interp)
     basis->interp=createKernelFromSource(ceed,source.c_str(),"kInterp");

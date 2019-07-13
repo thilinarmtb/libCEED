@@ -180,8 +180,8 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
         lp.GlobalArg("interp1d", fp_format),
         lp.GlobalArg("grad1d", fp_format),
         lp.GlobalArg("u", fp_format),
-        lp.GlobalArg("v", fp_format)
-        lp.ValueArg("nelem", np.int32),
+        lp.GlobalArg("v", fp_format),
+        lp.ValueArg("nelem", np.int32)
     ]
     if constants=={}:
         kernel_data += [
@@ -413,7 +413,7 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     dim = version
     kernel_data= [
         lp.GlobalArg("qweight1d", fp_format),
-        lp.GlobalArg("w", fp_format)
+        lp.GlobalArg("w", fp_format),
         lp.ValueArg("nelem", np.int32)
     ]
 
