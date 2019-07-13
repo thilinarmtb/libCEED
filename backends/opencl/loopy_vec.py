@@ -2,6 +2,8 @@ import numpy as np
 import loopy as lp
 import sys
 
+from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+
 # setup
 #----
 lp.set_caching_enabled(False)

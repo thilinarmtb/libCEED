@@ -107,7 +107,7 @@ cl_kernel createKernelFromSource(Ceed ceed,
                             log_size,
                             log, NULL);
       // Print the log
-      //printf("%s\n", log);
+      printf("%s\n", log);
       fprintf(stderr, "OpenCL backend: Build program failure.");
       break;
     case CL_OUT_OF_HOST_MEMORY:
@@ -189,12 +189,12 @@ int compile(Ceed ceed, void *data,
     rstrct->noTrTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
     dbg("[OpenCL][compile] kernel(noTrTr)=%p, version=%d",rstrct->noTrTr,version);
 
-    tmode=2,lmode=0;
+    tmode=4,lmode=0;
     get_kernel_source
     rstrct->trNoTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
     dbg("[OpenCL][compile] kernel(trNoTr)=%p, version=%d",rstrct->trNoTr,version);
 
-    lmode=4;
+    lmode=2;
     get_kernel_source
     rstrct->trTr=createKernelFromSource(ceed,source.c_str(),"kRestrict");
     dbg("[OpenCL][compile] kernel(trTr)=%p, version=%d",rstrct->noTrNoTr,version);
