@@ -13,8 +13,8 @@ import loopy.options
 loopy.options.ALLOW_TERMINAL_COLORS = False
 
 #VERSION = TMODE | LMODE | INDICES
-LMODE = 2 
 TMODE = 4
+LMODE = 2 
 INDICES = 1
 
 #Idea: Have function take platform id and device id and have it figure out workgroup sizes itself
