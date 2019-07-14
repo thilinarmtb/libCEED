@@ -90,12 +90,13 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                      """
 
     loopyCode += """
-                 post(Q,d) := Q**d 
-                 c(d,k) := k % post(d)
-                 j(d,k) := (k / post(d)) % Q
-                 a(d,k) := k / (post(d) * Q)
+                 post(d) := Qf**d 
+                 c(d) := k % post(d)
+                 j(d) := (k / post(d)) % Q
+                 a(d) := k / (post(d) * Q)
                  <> PP = P
                  <float> PPf = P
+                 <float> Qf = Q
                  """
 
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
