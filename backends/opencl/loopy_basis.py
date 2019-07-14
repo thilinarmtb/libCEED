@@ -80,23 +80,21 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         loopyCode += """
                      u_offset := elem*u_stride + comp*u_comp_stride
                      v_offset := elem*v_stride + comp*v_comp_stride 
-                     pre(d) := u_size*(PPf**(dim-1-d))
+                     pre(d) := u_size*((1.0*P)**(1.0*(dim-1-d)))
                      """
     else:
         loopyCode += """
                      u_offset := elem*u_stride
                      v_offset := elem*v_stride
-                     pre(d) := u_stride*(PPf**(dim-1-d))
+                     pre(d) := u_stride*((1.0*P)**(1.0*(dim-1-d)))
                      """
 
     loopyCode += """
-                 post(d) := Qf**d 
-                 c(d) := k % post(d)
-                 j(d) := (k / post(d)) % Q
-                 a(d) := k / (post(d) * Q)
+                 post(d) := (1.0*Q)**(1.0*d)
+                 c(d,k) := k % post(d)
+                 j(d,k) := (k / post(d)) % Q
+                 a(d,k) := k / (post(d) * Q)
                  <> PP = P
-                 <float> PPf = P
-                 <float> Qf = Q
                  """
 
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
@@ -126,7 +124,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                 if d == 0 or d == 1:
                     lhs = "<>" + lhs
 
-            writeLenStrs += "<> writeLen{0} = pre({1}) * post({1}) * Q\n".format(str(d), str(d)+".0")
+            writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d))
             loopBodyStrs += lhs + rhs + "\n"
 
             iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d))
