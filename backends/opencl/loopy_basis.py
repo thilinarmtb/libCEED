@@ -28,7 +28,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
 
     # Remove this when finished testing
     if not "dim" in constants:
-        constants["dim"] = 3
+        constants["dim"] = 1
 
     loopyCode = ""
 
@@ -80,21 +80,22 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         loopyCode += """
                      u_offset := elem*u_stride + comp*u_comp_stride
                      v_offset := elem*v_stride + comp*v_comp_stride 
-                     pre(d) := u_size*((1.0*P)**(1.0*(dim-1-d)))
+                     pre(d) := u_size*((one*P)**(one*(dim-1-d)))
                      """
     else:
         loopyCode += """
                      u_offset := elem*u_stride
                      v_offset := elem*v_stride
-                     pre(d) := u_stride*((1.0*P)**(1.0*(dim-1-d)))
+                     pre(d) := u_stride*((one*P)**(one*(dim-1-d)))
                      """
 
     loopyCode += """
-                 post(d) := (1.0*Q)**(1.0*d)
+                 post(d) := (one*Q)**(one*d/1.0)
                  c(d,k) := k % post(d)
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
                  <> PP = P
+                 <float> one = 1.0
                  """
 
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
@@ -461,3 +462,6 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     kWeight = lp.fix_parameters(kWeight, **constants)
 
     return lp.generate_code_v2(kWeight).device_code()
+
+for version in range(1):
+    print(generate_kInterp())
