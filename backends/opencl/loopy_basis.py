@@ -1,6 +1,6 @@
 import numpy as np
 import loopy as lp
-from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+#from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 import sys
 import json
@@ -95,7 +95,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
                  <> PP = P
-                 <float> one = 1.0
+                 <float> one = 1.0f
                  """
 
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
@@ -258,19 +258,20 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
         loopyCode += """
                      u_offset := elem*u_stride + d1*u_dim_stride + comp*u_comp_stride
                      v_offset := elem*v_stride + d1*v_dim_stride + comp*v_comp_stride 
-                     pre(d) := u_size*(P**(dim-1-d))
+                     pre(d) := u_size*((one*P)**(one*(dim-1-d)))
                      """
     else:
         loopyCode += """
-                     pre(d) := pre_coef*(P**(dim-1-d))
+                     pre(d) := pre_coef*((one*P)**(one*(dim-1-d)))
                      """
 
     loopyCode += """
-                 post(d) := Q**d 
+                 post(d) := (one*Q)**(one*d/1.0)
                  c(d,k) := k % post(d)
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
                  <> PP = P
+                 <float> one = 1.0f
                  """
 
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
