@@ -1,7 +1,7 @@
 import numpy as np
 import loopy as lp
-#from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
-
+try: from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
+except Exception: print("loopy.version not imported")
 import sys
 import json
 
@@ -80,17 +80,20 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         loopyCode += """
                      u_offset := elem*u_stride + comp*u_comp_stride
                      v_offset := elem*v_stride + comp*v_comp_stride 
-                     pre(d) := u_size*((one*P)**(one*(dim-1-d)))
+                     pre(d) := u_size*(P**(dim-1-d))
+                     pre_f(d) := u_size*(P**(one*(dim-1-d)))
                      """
     else:
         loopyCode += """
                      u_offset := elem*u_stride
                      v_offset := elem*v_stride
-                     pre(d) := u_stride*((one*P)**(one*(dim-1-d)))
+                     pre(d) := u_stride*(P**(dim-1-d))
+                     pre_f(d) := u_stride*(P**(one*(dim-1-d)))
                      """
 
     loopyCode += """
-                 post(d) := (one*Q)**(one*d/1.0)
+                 post(d) := Q**d
+                 post_f(d) := Q**(one*d)
                  c(d,k) := k % post(d)
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
@@ -107,6 +110,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         writeLenStrs = ""
         loopBodyStrs = ""
         for d in range(constants["dim"]):
+            writeLenStrs += "<> writeLen{0} = pre_f({0}) * post({0}) * Q\n".format(str(d))
             kStr = "k" + str(d)
             tmpStr = "tmp" if d%2 else "tmp2"
             tmpStr2 = "tmp2" if d%2 else "tmp"
@@ -121,13 +125,12 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
             if d == constants["dim"] - 1:
                 lhs = "v[v_offset + {0}] = ".format(kStr)
             else:
-                lhs = "{1}[{0}] = ".format(kStr,tmpStr)
-                if d == 0 or d == 1:
-                    lhs = "<>" + lhs
-
-            writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d))
+                br = "<> " if d<=1 else ""
+                lhs = br + "{1}[{0}] = ".format(kStr,tmpStr)
             loopBodyStrs += lhs + rhs + "\n"
-
+        
+            #writeLenStr = "pre_f({0}) * post({0}) * Q\n".format(str(d))
+            #iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, writeLenStr)
             iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d))
             iterVars += ["{" + iterVarStr + "}"]
         
@@ -173,7 +176,9 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
 
     kInterp = lp.fix_parameters(kInterp, **constants)
     kInterp = lp.make_reduction_inames_unique(kInterp, "b")
-    return lp.generate_code_v2(kInterp).device_code()
+    code = lp.generate_code_v2(kInterp).device_code()
+    print(code)
+    return(code)
 
 def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarget(),fp_format=np.float64):
 
@@ -193,6 +198,8 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
             lp.ValueArg("P1D", np.int32),
             lp.ValueArg("Q1D", np.int32)
     ]
+
+    
 
     # Remove this when finished testing
     if not "dim" in constants:
@@ -258,15 +265,18 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
         loopyCode += """
                      u_offset := elem*u_stride + d1*u_dim_stride + comp*u_comp_stride
                      v_offset := elem*v_stride + d1*v_dim_stride + comp*v_comp_stride 
-                     pre(d) := u_size*((one*P)**(one*(dim-1-d)))
+                     pre_f(d) := u_size*((P)**(one*(dim-1-d)))
+                     pre(d) := u_size*((P)**((dim-1-d)))
                      """
     else:
         loopyCode += """
-                     pre(d) := pre_coef*((one*P)**(one*(dim-1-d)))
+                     pre_f(d) := pre_coef*((P)**(one*(dim-1-d)))
+                     pre(d) := pre_coef*((P)**((dim-1-d)))
                      """
 
     loopyCode += """
-                 post(d) := (one*Q)**(one*d/1.0)
+                 post(d) := (Q)**(d)
+                 post_f(d) := Q**(one*d)
                  c(d,k) := k % post(d)
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
@@ -282,11 +292,13 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
 
     if "dim" in constants and constants["dim"] <= 3:
 
+
+
         writeLenStrs = ""
         loopBodyStrs = ""
         dim = constants["dim"]
         for d1 in range(constants["dim"]):
-            writeLenStrs += "<> writeLen{0} = pre({0}) * post({0}) * Q\n".format(str(d1))
+            writeLenStrs += "<int> writeLen{0} = pre_f({0}) * post({0}) * Q\n".format(str(d1))
             for d2 in range(constants["dim"]):
                 kStr = "k" + str(d1) + str(d2)
                 tmpStr = "tmp" if d2%2 else "tmp2"
@@ -315,6 +327,10 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
                     tag = " {id=iter_" + str(dim*d1 + d2) + ", dep=iter_" + str(dim*d1+d2-1) + "}"
 
                 iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d2))
+                #writeLenStr = "pre_f({0}) * post({0}) * Q\n".format(str(d2))
+                #iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, writeLenStr)
+ 
+
                 iterVars += ["{" + iterVarStr + "}"]
 
                 loopBodyStrs += lhs + rhs + tag + "\n"
@@ -462,7 +478,8 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     kWeight = lp.prioritize_loops(kWeight,loopPriority)
     kWeight = lp.fix_parameters(kWeight, **constants)
 
-    return lp.generate_code_v2(kWeight).device_code()
-
-for version in range(1):
-    print(generate_kInterp())
+    code = lp.generate_code_v2(kWeight).device_code()
+    print(code)
+    return code
+#for version in range(1):
+#    print(generate_kInterp())
