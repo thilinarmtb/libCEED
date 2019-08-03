@@ -75,6 +75,14 @@ int CeedBasisApply_OpenCL(CeedBasis basis, const CeedInt nelem,
   }
   ierr=CeedVectorGetArray(v,CEED_MEM_DEVICE,(CeedScalar**)&d_v); CeedChk(ierr);
 
+  size_t tmp_size=v->length*sizeof(CeedScalar);
+  if(tmp_size<u->length*sizeof(CeedScalar)) {
+    tmp_size=u->length*sizeof(CeedScalar);
+  }
+
+  data->d_wrk1=clCreateBuffer(ceed_data->context,CL_MEM_READ_WRITE,tmp_size,0,0);
+  data->d_wrk2=clCreateBuffer(ceed_data->context,CL_MEM_READ_WRITE,tmp_size,0,0);
+
   if (tmode == CEED_TRANSPOSE) {
     cl_double zero=0;
     assert(sizeof(CeedScalar) == sizeof(cl_double));
@@ -82,33 +90,34 @@ int CeedBasisApply_OpenCL(CeedBasis basis, const CeedInt nelem,
         v->length*sizeof(CeedScalar),0,NULL,NULL);
   }
   int nparam;
-  size_t size1=sizeof(int);
   size_t size2=sizeof(cl_mem);
   size_t size3=sizeof(CeedInt);
   if(emode == CEED_EVAL_INTERP) {
-    nparam=4;
-    void *interpargs[]={&nparam,&size1,&data->d_interp1d,&size2,&d_u,&size2,
-      &d_v,&size2,(void*)&nelem,&size3};
-    if(transpose) {
+    nparam=6;
+    void *interpargs[]={&nparam,&size2,&data->d_interp1d,&size2,&d_u,&size2,
+      &d_v,&size2,&data->d_wrk1,&size2,&data->d_wrk2,&size3,(void*)&nelem};
+    if(!transpose) {
+      dbg("[OpenCL][Basis][Interp]\n");
       ierr = run_kernel(ceed,data->interp,&data->interp_work,interpargs);
     } else {
-      ierr = run_kernel(ceed,data->interpT,&data->interp_work,interpargs);
+        dbg("[OpenCL][Basis][Interp] Transpose\n");
+      ierr = run_kernel(ceed,data->interpT,&data->interpT_work,interpargs);
     }
     CeedChk(ierr);
   } else if (emode == CEED_EVAL_GRAD) {
-    nparam=5;
-    void *gradargs[]={&nparam,&size1,&data->d_interp1d,&size2,&data->d_grad1d,&size2,
-      &d_u,&size2,&d_v,&size2,(void*)&nelem,&size3};
-    if(transpose) {
+    nparam=7;
+    void *gradargs[]={&nparam,&size2,&data->d_interp1d,&size2,&data->d_grad1d,&size2,
+      &d_u,&size2,&d_v,&size2,&data->d_wrk1,&size2,&data->d_wrk2,&size3,(void*)&nelem};
+    if(!transpose) {
       ierr = run_kernel(ceed,data->grad,&data->grad_work,gradargs);
     } else {
-      ierr = run_kernel(ceed,data->gradT,&data->grad_work,gradargs);
+      ierr = run_kernel(ceed,data->gradT,&data->gradT_work,gradargs);
     }
     CeedChk(ierr);
   } else if (emode == CEED_EVAL_WEIGHT) {
     nparam=3;
-    void *weightargs[]={&nparam,&size1,(void*)&data->d_qweight1d,&size2,&d_v,&size2,
-      (void*)&nelem,&size3};
+    void *weightargs[]={&nparam,&size2,(void*)&data->d_qweight1d,&size2,&d_v,&size3,
+      (void*)&nelem};
     ierr = run_kernel(ceed,data->weight,&data->weight_work,weightargs);
     CeedChk(ierr);
   }
@@ -117,6 +126,9 @@ int CeedBasisApply_OpenCL(CeedBasis basis, const CeedInt nelem,
     ierr = CeedVectorRestoreArrayRead(u, (const CeedScalar **)&d_u); CeedChk(ierr);
   }
   ierr = CeedVectorRestoreArray(v, (CeedScalar**)&d_v); CeedChk(ierr);
+
+  clReleaseMemObject(data->d_wrk1);
+  clReleaseMemObject(data->d_wrk2);
 
   return 0;
 }

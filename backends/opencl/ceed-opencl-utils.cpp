@@ -172,8 +172,7 @@ int compile(Ceed ceed, void *data,
 #define get_kernel_source \
     version=tmode|lmode|indices; \
     kernel = get_restrict("constants"_a=constants,"version"_a=version); \
-    source = py::cast<std::string>(kernel); \
-    dbg("%s\n",source.c_str());
+    source = py::cast<std::string>(kernel);
 
     py::object kernel;
     std::string source;
@@ -214,8 +213,7 @@ int compile(Ceed ceed, void *data,
 #define get_kernel_source(name_) \
     version=interleave|transpose; \
     kernel = get_##name_("constants"_a=constants,"version"_a=version); \
-    source = py::cast<std::string>(kernel); \
-    dbg("%s\n",source.c_str());
+    source = py::cast<std::string>(kernel);
 
     get_kernel_source(interp)
     basis->interp=createKernelFromSource(ceed,source.c_str(),"kInterp");
@@ -265,9 +263,11 @@ int run_kernel(Ceed ceed,
   for(int i=0;i<nparam;i++){
     size_t size=*((size_t*)args[2*i+1]);
     void *ptr=args[2*i+2];
+    dbg("   kernel arg%02d: size=%d, ptr=%p",i,size,ptr);
     err|=clSetKernelArg(kernel,i,size,ptr);
   }
 
+  dbg("   local_size=%d, global_size=%d",work->global_work_size,work->local_work_size);
   err = clEnqueueNDRangeKernel(ceed_data->queue,kernel,work->work_dim,NULL,
       &work->global_work_size,&work->local_work_size,0,NULL,NULL);
 

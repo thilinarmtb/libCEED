@@ -118,6 +118,8 @@ typedef struct {
   cl_mem d_interp1d;
   cl_mem d_grad1d;
   cl_mem d_qweight1d;
+  cl_mem d_wrk2;
+  cl_mem d_wrk1;
   CeedScalar *c_B;
   CeedScalar *c_G;
   int dim;
