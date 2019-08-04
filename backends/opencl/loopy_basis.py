@@ -11,28 +11,34 @@ INTERLEAVE = 2
 def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLTarget(), fp_format=np.float64):
 
     kernel_data = [
-        lp.GlobalArg("interp1d", fp_format),
-        lp.GlobalArg("u", fp_format),
-        lp.GlobalArg("v", fp_format),
-        lp.GlobalArg("tmp", fp_format),
-        lp.GlobalArg("tmp2", fp_format),
-        lp.ValueArg("nelem", np.int32)
+        lp.GlobalArg("interp1d", fp_format,shape=lp.auto),
+        lp.GlobalArg("u", fp_format, shape=lp.auto),
+        lp.GlobalArg("v", fp_format, shape=lp.auto),
+        #lp.GlobalArg("tmp", fp_format, shape=None),
+        #lp.GlobalArg("tmp2", fp_format, shape=None),
     ]
-    if constants=={}:
-        kernel_data += [
-            lp.ValueArg("elemsize", np.int32),
-            lp.ValueArg("ncomp", np.int32),
-            lp.ValueArg("nqpt", np.int32),
-            lp.ValueArg("dim", np.int32),
-            lp.ValueArg("P1D", np.int32),
-            lp.ValueArg("Q1D", np.int32)
-    ]
+    if not "nelem" in constants:
+        kernel_data += [lp.ValueArg("nelem", np.int32)]
+
+    mandatory_constants = ["elemsize", "ncomp", "nqpt", "dim", "P1D", "Q1D"]
+    for c in mandatory_constants:
+        if not c in constants:
+            print("Please specify " + c)
+            #kernel_data += [lp.ValueArg(c, np.int32)]
 
     # Remove this when finished testing
     if not "dim" in constants:
         constants["dim"] = 3
 
     loopyCode = ""
+
+    elemsize  = constants["elemsize"]
+    ncomp = constants["ncomp"]
+    nqpt = constants["nqpt"]
+    dim = constants["dim"]
+    P1D = constants["P1D"]
+    Q1D = constants["P1D"]   
+    
 
     if not version & TRANSPOSE: #Not transpose
         loopyCode += """
@@ -41,6 +47,10 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                      stride0 := P1D
                      stride1 := 1
                      """
+        P = P1D
+        Q = Q1D
+        stride0 = P1D
+        stride1 = 1
     else: #Transpose
         loopyCode += """
                      P := Q1D
@@ -48,7 +58,10 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                      stride0 := 1
                      stride1 := P1D
                      """ 
-
+        P = Q1D
+        Q = P1D
+        stride0 = 1
+        stride1 = P1D
     if version == int(not INTERLEAVE) | int(not TRANSPOSE):
         loopyCode += """
                      u_stride := ncomp*elemsize
@@ -57,6 +70,9 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                      v_comp_stride := nelem * nqpt
                      u_size := elemsize
                      """
+        u_stride = ncomp*elemsize
+        v_stride = nqpt
+        u_size = elemsize
     elif version == int(not INTERLEAVE) | TRANSPOSE:
         loopyCode += """
                      u_stride := nqpt
@@ -65,16 +81,23 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                      v_comp_stride := elemsize
                      u_size := nqpt
                      """
+        u_stride = nqpt
+        v_stride = ncomp*elemsize
+        u_size = nqpt
     elif version == INTERLEAVE | int(not TRANSPOSE):
         loopyCode += """
                      u_stride := ncomp*elemsize
                      v_stride := ncomp*nqpt                     
                      """
+        u_stride = ncomp*elemsize
+        v_stride = ncomp*nqpt
     elif version == INTERLEAVE | TRANSPOSE:
         loopyCode += """
                      u_stride := ncomp*nqpt
                      v_stride := ncomp*elemsize                     
                      """
+        u_stride = ncomp*nqpt
+        v_stride = ncomp*elemsize
     else:
         print("ERROR")
 
@@ -82,62 +105,55 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         loopyCode += """
                      u_offset := elem*u_stride + comp*u_comp_stride
                      v_offset := elem*v_stride + comp*v_comp_stride 
-                     pre(d) := u_size*(P**(dim-1-d))
-                     pre_f(d) := u_size*(P**(one*(dim-1-d)))
+                     pre(d) := u_size*(P**(one*(dim-1-d)))
                      """
+        pre = lambda d: u_size*P**(dim-1-d)
     else:
         loopyCode += """
                      u_offset := elem*u_stride
                      v_offset := elem*v_stride
-                     pre(d) := u_stride*(P**(dim-1-d))
-                     pre_f(d) := u_stride*(P**(one*(dim-1-d)))
+                     pre(d) := u_stride*P**(dim-1-d)
                      """
-
+        pre = lambda d: u_stride*P**(dim-1-d)
     loopyCode += """
                  post(d) := Q**d
-                 post_f(d) := Q**(one*d)
                  c(d,k) := k % post(d)
                  j(d,k) := (k / post(d)) % Q
                  a(d,k) := k / (post(d) * Q)
                  <> PP = P
-                 <float> one = 1.0f
+                 <float32> one = 1.0
                  """
-
+    post = lambda d: Q**d
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
                 "{ [comp]: 0<=comp<ncomp }",
                 "{ [b]: 0<=b<PP}"]
- 
-    if "dim" in constants and constants["dim"] <= 3:
 
+    for d in range(constants["dim"]):
+        writeLenStr = "writeLen{0}".format(str(d))
+        constants[writeLenStr] = Q * post(d) * pre(d)
+
+    if "dim" in constants and constants["dim"] <= 3:
+        
         writeLenStrs = ""
         loopBodyStrs = ""
         for d in range(constants["dim"]):
-            writeLenStrs += "<> writeLen{0} = pre_f({0}) * post({0}) * Q\n".format(str(d))
-            kStr = "k" + str(d)
-            tmpStr = "tmp" if d%2 else "tmp2"
+            # Iteration variables
+            #writeLenStrs += "<> writeLen{0} = Q * post({0}) * pre({0}))\n".format(str(d))
+            iterVars += ["{" + "[k{0}]: 0<=k{0}<writeLen{0}".format(str(d)) + "}"]
+            
+            # Form rhs
             tmpStr2 = "u" if d == 0 else ("tmp2" if d%2 else "tmp")
+            rhs = "sum(b, interp1d[j({0},k{0})*stride0 + b*stride1] * {1}[(a({0},k{0})*P + b)*post({0}) + c({0},k{0})])".format(str(d), tmpStr2)    
 
-            rhs = "sum(b, interp1d[j({1},{0})*stride0 + b*stride1] * {2}[(a({1},{0})*P + b)*post({1}) + c({1},{0})])".format(kStr, str(d), tmpStr2)    
+            # Form lhs
+            tmpStr = "v" if d == constants["dim"] - 1 else ("<> tmp" if d%2 else "<> tmp2")
+            vo = "v_offset + " if d == constants["dim"] - 1 else ""
+            lhs = ("{1}[" + vo + "k{0}] = ").format(str(d),tmpStr)
 
-            # LHS
-            if d == constants["dim"] - 1:
-                lhs = "v[v_offset + {0}] = ".format(kStr)
-            else:
-                #br = "<> " if d<=1 else ""
-                lhs = "{1}[{0}] = ".format(kStr,tmpStr)
-            loopBodyStrs += lhs + rhs + "\n"
+            # Merge lhs and rhs
+            loopBodyStrs += lhs + rhs + "\n" 
         
-            iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d))
-            iterVars += ["{" + iterVarStr + "}"]
-        
-        loopyCode += writeLenStrs
-        loopyCode += """
-                     for elem, comp
-                     """
-        loopyCode += loopBodyStrs
-        loopyCode += """
-                     end
-                     """
+        loopyCode += writeLenStrs + "for comp, elem\n" + loopBodyStrs + "end\n"
      
     else:
         iterVars += ["{ [k]: 0<=k<writeLen }", "{ [kk]: 0<=kk<writeLen2}","{ [d]: 0<=d<dim-1 }"]
@@ -321,7 +337,6 @@ def generate_kGrad(constants={},version=0,arch="INTEL_CPU",target=lp.OpenCLTarge
                     tag = " {id=iter_" + str(dim*d1 + d2) + ", dep=iter_" + str(dim*d1+d2-1) + "}"
 
                 iterVarStr = "[{0}]: 0<={0}<{1}".format(kStr, "writeLen" + str(d2))
-
                 iterVars += ["{" + iterVarStr + "}"]
 
                 loopBodyStrs += lhs + rhs + tag + "\n"
@@ -474,5 +489,7 @@ def generate_kWeight(constants={},version=3,arch="INTEL_CPU", fp_format=np.float
     code = lp.generate_code_v2(kWeight).device_code()
     print(code)
     return code
+
+constants = {"elemsize": 3, "ncomp": 3, "nqpt": 3, "dim": 3, "P1D": 3, "Q1D": 3}
 for version in range(0,1):
-    generate_kGrad(version=version)
+    generate_kInterp(constants=constants,version=version)
