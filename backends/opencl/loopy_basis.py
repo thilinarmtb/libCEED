@@ -125,14 +125,41 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
                  """
     post = lambda d: Q**d
     iterVars =  ["{ [elem]: 0<=elem<nelem }",
-                "{ [comp]: 0<=comp<ncomp }",
-                "{ [b]: 0<=b<PP}"]
+                "{ [comp]: 0<=comp<ncomp }"]
 
     for d in range(constants["dim"]):
         writeLenStr = "writeLen{0}".format(str(d))
         constants[writeLenStr] = Q * post(d) * pre(d)
 
-    if "dim" in constants and constants["dim"] <= 3:
+    if "dim" in constants and version==0:
+
+        writeLenStrs = ""
+        loopBodyStrs = ""
+        for d in range(constants["dim"]):
+            iterVars += ["{" + "[a{0}]: 0<=a{0}<{1}".format(str(d), str(pre(d))) + "}",
+                         "{" + "[b{0}]: 0<=b{0}<{1}".format(str(d),str(P))+ "}",
+                         "{" + "[c{0}]: 0<=c{0}<{1}".format(str(d),str(Q)) + "}",
+                         "{" + "[d{0}]: 0<=d{0}<{1}".format(str(d), str(post(d))) + "}"]
+
+            #loopBodyStrs += "for a{0},c{0},d{0}\n".format(str(d))
+
+            tmpStr2 = "u" if d == 0 else "tmp{0}".format(str(d-1))
+            rhs = "sum(b{0}, interp1d[c{0},b{0}]*{1}[a{0},b{0},c{0}])".format(str(d),tmpStr2)
+
+            # Form lhs
+            #br = "<> " if d <= 1 else ""
+            tmpStr = "v[comp,elem," if d == constants["dim"] - 1 else "<> tmp{0}[".format(str(d))
+            # Not needed if index into v? 
+            #vo = ""#" + v_offset" if d == constants["dim"] - 1 else ""
+            lhs = ("{1}a{0},d{0},c{0}]").format(str(d),tmpStr) 
+
+            # Merge lhs and rhs
+            loopBodyStrs += lhs + " = " + rhs + "\n"
+            #loopBodyStrs += "end\n"  
+
+        loopyCode += writeLenStrs + "for comp, elem\n" + loopBodyStrs + "end\n" 
+
+    elif "dim" in constants and constants["dim"] <= 3:
         
         writeLenStrs = ""
         loopBodyStrs = ""
@@ -188,7 +215,7 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
     )
 
     kInterp = lp.fix_parameters(kInterp, **constants)
-    kInterp = lp.make_reduction_inames_unique(kInterp, "b")
+    #kInterp = lp.make_reduction_inames_unique(kInterp, "b")
     code = lp.generate_code_v2(kInterp).device_code()
     print(code)
     return(code)
