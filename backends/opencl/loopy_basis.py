@@ -136,26 +136,16 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         writeLenStrs = ""
         loopBodyStrs = ""
         for d in range(constants["dim"]):
-            iterVars += ["{" + "[a{0}]: 0<=a{0}<{1}".format(str(d), str(pre(d))) + "}",
-                         "{" + "[b{0}]: 0<=b{0}<{1}".format(str(d),str(P))+ "}",
-                         "{" + "[c{0}]: 0<=c{0}<{1}".format(str(d),str(Q)) + "}",
-                         "{" + "[d{0}]: 0<=d{0}<{1}".format(str(d), str(post(d))) + "}"]
-
-            #loopBodyStrs += "for a{0},c{0},d{0}\n".format(str(d))
+            iterVars += ["{" + "[a{0}]: 0<=a{0}<{1}".format(str(d), str(pre(d)))  + "}",
+                         "{" + "[b{0}]: 0<=b{0}<{1}".format(str(d), str(P))       + "}",
+                         "{" + "[j{0}]: 0<=j{0}<{1}".format(str(d), str(Q))       + "}",
+                         "{" + "[c{0}]: 0<=c{0}<{1}".format(str(d), str(post(d))) + "}"]
 
             tmpStr2 = "u" if d == 0 else "tmp{0}".format(str(d-1))
-            rhs = "sum(b{0}, interp1d[c{0},b{0}]*{1}[a{0},b{0},c{0}])".format(str(d),tmpStr2)
-
-            # Form lhs
-            #br = "<> " if d <= 1 else ""
+            rhs = "sum(b{0}, interp1d[j{0}*stride0 + b{0}*stride1]*{1}[a{0},b{0},c{0}])".format(str(d),tmpStr2)
             tmpStr = "v[comp,elem," if d == constants["dim"] - 1 else "<> tmp{0}[".format(str(d))
-            # Not needed if index into v? 
-            #vo = ""#" + v_offset" if d == constants["dim"] - 1 else ""
-            lhs = ("{1}a{0},d{0},c{0}]").format(str(d),tmpStr) 
-
-            # Merge lhs and rhs
+            lhs = ("{1}a{0},j{0},c{0}]").format(str(d),tmpStr) 
             loopBodyStrs += lhs + " = " + rhs + "\n"
-            #loopBodyStrs += "end\n"  
 
         loopyCode += writeLenStrs + "for comp, elem\n" + loopBodyStrs + "end\n" 
 
@@ -166,11 +156,12 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
         for d in range(constants["dim"]):
             # Iteration variables
             #writeLenStrs += "<> writeLen{0} = Q * post({0}) * pre({0}))\n".format(str(d))
-            iterVars += ["{" + "[k{0}]: 0<=k{0}<writeLen{0}".format(str(d)) + "}"]
+            iterVars += ["{" + "[k{0}]: 0<=k{0}<writeLen{0}".format(str(d)) + "}",
+                         "{" + "[b{0}]: 0<=b{0}<{1}".format(str(d), str(P))       + "}"]
             
             # Form rhs
             tmpStr2 = "u" if d == 0 else ("tmp2" if d%2 else "tmp")
-            rhs = "sum(b, interp1d[j({0},k{0})*stride0 + b*stride1] * {1}[(a({0},k{0})*P + b)*post({0}) + c({0},k{0})])".format(str(d), tmpStr2)    
+            rhs = "sum(b{0}, interp1d[j({0},k{0})*stride0 + b{0}*stride1] * {1}[(a({0},k{0})*P + b{0})*post({0}) + c({0},k{0})])".format(str(d), tmpStr2)    
 
             # Form lhs
             tmpStr = "v" if d == constants["dim"] - 1 else ("<> tmp" if d%2 else "<> tmp2")
@@ -216,6 +207,9 @@ def generate_kInterp(constants={},version=0, arch="INTEL_CPU", target=lp.OpenCLT
 
     kInterp = lp.fix_parameters(kInterp, **constants)
     #kInterp = lp.make_reduction_inames_unique(kInterp, "b")
+
+    #kInterp = lp.join_inames(kInterp, ("a0","j0","c0"), new_iname="k0")
+    
     code = lp.generate_code_v2(kInterp).device_code()
     print(code)
     return(code)
